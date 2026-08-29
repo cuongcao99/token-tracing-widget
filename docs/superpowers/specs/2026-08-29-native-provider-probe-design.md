@@ -186,11 +186,13 @@ cargo run --manifest-path src-tauri/Cargo.toml --example provider_probe -- all
 
 Execution uses staged Luna Max delegation:
 
-1. One Luna Max agent implements the shared probe and synthetic tests.
-2. The root agent reviews the privacy boundary and runs the shared gate.
-3. Two Luna Max agents run the validated probe and produce sanitized Claude Code and Codex compatibility artifacts in parallel.
-4. One Luna Max integration pass validates both fixture sets and the compatibility report.
-5. The root agent independently reviews repository changes, reruns all gates, and reports any provider that could not be characterized.
+1. Design and execution-plan commits remain on `dev`.
+2. Before implementation, create and check out `feat/native-provider-probe` from the latest `dev` commit.
+3. One Luna Max agent implements the shared probe and synthetic tests on the feature branch.
+4. The root agent reviews the privacy boundary and runs the shared gate.
+5. Two Luna Max agents run the validated probe and produce sanitized Claude Code and Codex compatibility artifacts in parallel.
+6. One Luna Max integration pass validates both fixture sets and the compatibility report.
+7. The root agent independently reviews repository changes, reruns all gates, and reports any provider that could not be characterized.
 
 No agent receives raw session records in its prompt or tool output. Agents consume only the probe's validated sanitized artifacts.
 
