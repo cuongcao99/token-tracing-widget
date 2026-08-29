@@ -1,10 +1,11 @@
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::fs;
 
     use tempfile::tempdir;
 
-    use super::inspect_candidates;
+    use super::{inspect_candidates, inspect_jsonl_file, RecordControl, StopReason};
     use crate::discovery::{CandidateFile, DiscoveryResult, ProbeLimits, RootState};
     use crate::report::{ObservedBehavior, Provider};
 
@@ -34,6 +35,7 @@ mod tests {
                     size: fs::metadata(&path).unwrap().len(),
                 }],
                 selected_bytes: fs::metadata(&path).unwrap().len(),
+                discovery_errors: 0,
             },
             directory.path(),
             ProbeLimits::default(),
@@ -108,6 +110,7 @@ mod tests {
                     size: fs::metadata(&path).unwrap().len(),
                 }],
                 selected_bytes: fs::metadata(&path).unwrap().len(),
+                discovery_errors: 0,
             },
             directory.path(),
             ProbeLimits::default(),
@@ -151,6 +154,7 @@ mod tests {
                     size: fs::metadata(&path).unwrap().len(),
                 }],
                 selected_bytes: fs::metadata(&path).unwrap().len(),
+                discovery_errors: 0,
             },
             directory.path(),
             ProbeLimits::default(),
@@ -188,6 +192,7 @@ mod tests {
                     size: fs::metadata(&path).unwrap().len(),
                 }],
                 selected_bytes: fs::metadata(&path).unwrap().len(),
+                discovery_errors: 0,
             },
             directory.path(),
             ProbeLimits {
@@ -203,6 +208,242 @@ mod tests {
             crate::report::ProbeOutcome::LimitReached
         );
         assert_eq!(inspected.fixtures.len(), 1);
+    }
+
+    #[test]
+    fn reports_a_small_unterminated_jsonl_record_as_partial() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("partial.jsonl");
+        fs::write(
+            &path,
+            r#"{"type":"token_event","usage":{"input_tokens":10}}"#,
+        )
+        .unwrap();
+
+        let inspected = inspect_candidates(
+            DiscoveryResult {
+                provider: Provider::Claude,
+                root_state: RootState::Readable,
+                candidates: vec![CandidateFile {
+                    path: path.clone(),
+                    layout_pattern: "<file>.jsonl".to_string(),
+                    size: fs::metadata(&path).unwrap().len(),
+                }],
+                selected_bytes: fs::metadata(&path).unwrap().len(),
+                discovery_errors: 0,
+            },
+            directory.path(),
+            ProbeLimits::default(),
+        );
+
+        assert_eq!(inspected.report.coverage.complete_records_considered, 0);
+        assert_eq!(diagnostic_count(&inspected, "partial_final_line"), 1);
+        assert_eq!(inspected.fixtures.len(), 0);
+    }
+
+    #[test]
+    fn honors_the_total_jsonl_byte_cap_when_a_candidate_is_larger() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("byte-cap.jsonl");
+        let first = br#"{"type":"token_event","usage":{"input_tokens":10}}"#;
+        let second = br#"{"type":"token_event","usage":{"input_tokens":20}}"#;
+        let mut contents = Vec::new();
+        contents.extend_from_slice(first);
+        contents.push(b'\n');
+        contents.extend_from_slice(second);
+        contents.push(b'\n');
+        fs::write(&path, contents).unwrap();
+
+        let inspected = inspect_candidates(
+            DiscoveryResult {
+                provider: Provider::Claude,
+                root_state: RootState::Readable,
+                candidates: vec![CandidateFile {
+                    path,
+                    layout_pattern: "<file>.jsonl".to_string(),
+                    size: u64::MAX,
+                }],
+                selected_bytes: u64::MAX,
+                discovery_errors: 0,
+            },
+            directory.path(),
+            ProbeLimits {
+                max_bytes: (first.len() + 1 + second.len() / 2) as u64,
+                ..ProbeLimits::default()
+            },
+        );
+
+        assert_eq!(inspected.report.coverage.complete_records_considered, 1);
+        assert!(inspected.report.coverage.byte_limit_reached);
+        assert_eq!(diagnostic_count(&inspected, "partial_final_line"), 0);
+    }
+
+    #[test]
+    fn stops_jsonl_reading_after_the_record_callback_requests_it() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("callback.jsonl");
+        let first = br#"{"type":"token_event","usage":{"input_tokens":10}}"#;
+        let oversized = vec![b'x'; 128 * 1024];
+        let mut contents = Vec::new();
+        contents.extend_from_slice(first);
+        contents.push(b'\n');
+        contents.extend_from_slice(&oversized);
+        fs::write(&path, contents).unwrap();
+
+        let mut bytes_consumed = 0;
+        let mut diagnostics = BTreeMap::new();
+        let result = inspect_jsonl_file(
+            &path,
+            &mut bytes_consumed,
+            &mut diagnostics,
+            ProbeLimits {
+                max_bytes: u64::MAX,
+                max_record_bytes: 64,
+                ..ProbeLimits::default()
+            },
+            |_, _| RecordControl::StopSufficientEvidence,
+        );
+
+        assert!(matches!(
+            result.stop_reason,
+            Some(StopReason::SufficientEvidence)
+        ));
+        assert_eq!(bytes_consumed, (first.len() + 1) as u64);
+        assert_eq!(diagnostic_count_map(&diagnostics, "record_too_large"), 0);
+    }
+
+    #[test]
+    fn preserves_a_bounded_discovery_error_diagnostic() {
+        let directory = tempdir().unwrap();
+        let inspected = inspect_candidates(
+            DiscoveryResult {
+                provider: Provider::Codex,
+                root_state: RootState::Error,
+                candidates: Vec::new(),
+                selected_bytes: 0,
+                discovery_errors: 7,
+            },
+            directory.path(),
+            ProbeLimits::default(),
+        );
+
+        assert_eq!(diagnostic_count(&inspected, "discovery_error"), 7);
+        assert_eq!(
+            inspected.report.outcome,
+            crate::report::ProbeOutcome::UnsupportedFormat
+        );
+    }
+
+    #[test]
+    fn caps_an_oversized_unterminated_line_before_parsing() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("oversized.jsonl");
+        let oversized = vec![b'x'; 128 * 1024];
+        fs::write(&path, oversized).unwrap();
+
+        let inspected = inspect_candidates(
+            DiscoveryResult {
+                provider: Provider::Claude,
+                root_state: RootState::Readable,
+                candidates: vec![CandidateFile {
+                    path: path.clone(),
+                    layout_pattern: "<file>.jsonl".to_string(),
+                    size: fs::metadata(&path).unwrap().len(),
+                }],
+                selected_bytes: fs::metadata(&path).unwrap().len(),
+                discovery_errors: 0,
+            },
+            directory.path(),
+            ProbeLimits {
+                max_record_bytes: 32,
+                max_bytes: 128 * 1024 + 1,
+                ..ProbeLimits::default()
+            },
+        );
+
+        assert_eq!(inspected.report.coverage.complete_records_considered, 0);
+        assert_eq!(diagnostic_count(&inspected, "record_too_large"), 1);
+        assert_eq!(diagnostic_count(&inspected, "partial_final_line"), 0);
+    }
+
+    #[test]
+    fn stops_before_older_candidates_after_sufficient_counter_evidence() {
+        let directory = tempdir().unwrap();
+        let newest = directory.path().join("newest.jsonl");
+        let older = directory.path().join("older.jsonl");
+        fs::write(
+            &newest,
+            concat!(
+                r#"{"type":"token_event","usage":{"input_tokens":10}}"#,
+                "\n",
+                r#"{"type":"token_event","usage":{"input_tokens":20}}"#,
+                "\n",
+            ),
+        )
+        .unwrap();
+        fs::write(&older, b"not-json\n").unwrap();
+
+        let inspected = inspect_candidates(
+            DiscoveryResult {
+                provider: Provider::Codex,
+                root_state: RootState::Readable,
+                candidates: vec![
+                    CandidateFile {
+                        path: newest.clone(),
+                        layout_pattern: "<file>.jsonl".to_string(),
+                        size: fs::metadata(&newest).unwrap().len(),
+                    },
+                    CandidateFile {
+                        path: older.clone(),
+                        layout_pattern: "<file>.jsonl".to_string(),
+                        size: fs::metadata(&older).unwrap().len(),
+                    },
+                ],
+                selected_bytes: fs::metadata(&newest).unwrap().len()
+                    + fs::metadata(&older).unwrap().len(),
+                discovery_errors: 0,
+            },
+            directory.path(),
+            ProbeLimits::default(),
+        );
+
+        assert_eq!(inspected.report.coverage.files_considered, 1);
+        assert_eq!(diagnostic_count(&inspected, "malformed_record"), 0);
+    }
+
+    #[test]
+    fn keeps_emitted_fixtures_bounded_for_many_source_shapes() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join("many-shapes.jsonl");
+        let mut records = String::new();
+        for index in 0..100 {
+            records.push_str(&format!(
+                "{{\"type\":\"shape-{index}\",\"usage\":{{\"input_tokens\":{index}}}}}\n"
+            ));
+        }
+        fs::write(&path, records).unwrap();
+
+        let inspected = inspect_candidates(
+            DiscoveryResult {
+                provider: Provider::Claude,
+                root_state: RootState::Readable,
+                candidates: vec![CandidateFile {
+                    path: path.clone(),
+                    layout_pattern: "<file>.jsonl".to_string(),
+                    size: fs::metadata(&path).unwrap().len(),
+                }],
+                selected_bytes: fs::metadata(&path).unwrap().len(),
+                discovery_errors: 0,
+            },
+            directory.path(),
+            ProbeLimits {
+                max_records: 100,
+                ..ProbeLimits::default()
+            },
+        );
+
+        assert!(inspected.fixtures.len() <= super::MAX_TOTAL_FIXTURES);
+        assert!(inspected.fixtures.len() < 100);
     }
 
     fn behavior_for(inspected: &super::InspectedProvider, discriminator: &str) -> ObservedBehavior {
@@ -230,6 +471,10 @@ mod tests {
             .find(|diagnostic| diagnostic.category == category)
             .map_or(0, |diagnostic| diagnostic.count)
     }
+
+    fn diagnostic_count_map(diagnostics: &BTreeMap<String, u64>, category: &str) -> u64 {
+        diagnostics.get(category).copied().unwrap_or(0)
+    }
 }
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
@@ -244,6 +489,8 @@ use crate::report::{
     ProbeOutcome, ProviderReport, RecordShape,
 };
 use crate::sanitize::{sanitize_fixture_record, FixtureShape, PrivacyError, SourceStringLedger};
+
+const MAX_TOTAL_FIXTURES: usize = 32;
 
 pub struct InspectedProvider {
     pub report: ProviderReport,
@@ -263,6 +510,9 @@ pub fn inspect_candidates(
     let mut ledger = SourceStringLedger::default();
     let mut allowed_structural_values = BTreeSet::new();
     let mut diagnostics = BTreeMap::new();
+    if discovery.discovery_errors > 0 {
+        diagnostics.insert("discovery_error".to_string(), discovery.discovery_errors);
+    }
     let mut coverage = Coverage {
         files_considered: 0,
         complete_records_considered: 0,
@@ -292,79 +542,66 @@ pub fn inspect_candidates(
                 coverage.byte_limit_reached = true;
                 break;
             }
-            if candidate.size > limits.max_bytes.saturating_sub(bytes_consumed) {
-                coverage.byte_limit_reached = true;
-                break;
-            }
-
             let is_json = candidate
                 .path
                 .extension()
                 .and_then(|extension| extension.to_str())
                 .is_some_and(|extension| extension.eq_ignore_ascii_case("json"));
             let file_result = if is_json {
-                inspect_json_file(
+                let result = inspect_json_file(
                     &candidate.path,
                     &mut bytes_consumed,
                     &mut diagnostics,
                     limits,
-                )
+                );
+                for raw in result.values {
+                    if coverage.complete_records_considered >= limits.max_records {
+                        coverage.record_limit_reached = true;
+                        stop = true;
+                        break;
+                    }
+                    process_record(
+                        raw,
+                        &mut coverage,
+                        &mut ledger,
+                        &mut allowed_structural_values,
+                        &mut groups,
+                        &mut fixtures,
+                        &mut diagnostics,
+                    );
+                }
+                FileInspectionResult {
+                    values: Vec::new(),
+                    stop_reason: result.stop_reason,
+                }
             } else {
+                let remaining_records = limits
+                    .max_records
+                    .saturating_sub(coverage.complete_records_considered);
                 inspect_jsonl_file(
                     &candidate.path,
                     &mut bytes_consumed,
                     &mut diagnostics,
-                    limits,
+                    ProbeLimits {
+                        max_records: remaining_records,
+                        ..limits
+                    },
+                    |raw, diagnostics| {
+                        process_record(
+                            raw,
+                            &mut coverage,
+                            &mut ledger,
+                            &mut allowed_structural_values,
+                            &mut groups,
+                            &mut fixtures,
+                            diagnostics,
+                        );
+                        RecordControl::Continue
+                    },
                 )
             };
 
-            let FileInspectionResult {
-                values,
-                stop_reason,
-            } = file_result;
-            for raw in values {
-                if coverage.complete_records_considered >= limits.max_records {
-                    coverage.record_limit_reached = true;
-                    stop = true;
-                    break;
-                }
-                coverage.complete_records_considered += 1;
-                ledger.observe_value(&raw);
-                let Some(evidence) = inspect_record(&raw, &mut diagnostics) else {
-                    continue;
-                };
-                if evidence.token_values.is_empty() {
-                    continue;
-                }
-
-                if let Some(discriminator) = &evidence.discriminator_value {
-                    allowed_structural_values.insert(discriminator.clone());
-                }
-                let key = GroupKey {
-                    discriminator_path: evidence.discriminator_path.clone(),
-                    discriminator_value: evidence.discriminator_value.clone(),
-                };
-                let group = groups.entry(key).or_default();
-                group.merge(&evidence);
-                let shape = FixtureShape {
-                    discriminator_path: evidence.discriminator_path,
-                    discriminator_value: evidence.discriminator_value,
-                    token_paths: evidence.token_values.keys().cloned().collect(),
-                    timestamp_path: evidence.timestamp_path,
-                    session_key_path: evidence.session_key_path,
-                    event_key_path: evidence.event_key_path,
-                };
-                match sanitize_fixture_record(&raw, &shape, fixtures.len()) {
-                    Ok(fixture) => fixtures.push(fixture),
-                    Err(PrivacyError::InvalidTokenCounter) => {
-                        increment(&mut diagnostics, "invalid_token_counter");
-                    }
-                    Err(_) => {
-                        increment(&mut diagnostics, "sanitization_error");
-                    }
-                }
-            }
-            if let Some(reason) = stop_reason {
+            if let Some(reason) = file_result.stop_reason {
                 match reason {
                     StopReason::ByteLimit => {
                         coverage.byte_limit_reached = true;
@@ -377,7 +614,11 @@ pub fn inspect_candidates(
                     StopReason::Io => {
                         increment(&mut diagnostics, "read_error");
                     }
+                    StopReason::SufficientEvidence => stop = true,
                 }
+            }
+            if !stop && has_sufficient_evidence(&groups) {
+                stop = true;
             }
         }
     }
@@ -433,10 +674,68 @@ pub fn inspect_candidates(
     }
 }
 
+fn process_record(
+    raw: Value,
+    coverage: &mut Coverage,
+    ledger: &mut SourceStringLedger,
+    allowed_structural_values: &mut BTreeSet<String>,
+    groups: &mut BTreeMap<GroupKey, GroupEvidence>,
+    fixtures: &mut Vec<Value>,
+    diagnostics: &mut BTreeMap<String, u64>,
+) {
+    coverage.complete_records_considered = coverage.complete_records_considered.saturating_add(1);
+    ledger.observe_value(&raw);
+    let Some(evidence) = inspect_record(&raw, diagnostics) else {
+        return;
+    };
+
+    if let Some(discriminator) = &evidence.discriminator_value {
+        allowed_structural_values.insert(discriminator.clone());
+    }
+    let key = GroupKey {
+        discriminator_path: evidence.discriminator_path.clone(),
+        discriminator_value: evidence.discriminator_value.clone(),
+    };
+    groups.entry(key).or_default().merge(&evidence);
+
+    if fixtures.len() >= MAX_TOTAL_FIXTURES {
+        return;
+    }
+    let shape = FixtureShape {
+        discriminator_path: evidence.discriminator_path,
+        discriminator_value: evidence.discriminator_value,
+        token_paths: evidence.token_values.keys().cloned().collect(),
+        timestamp_path: evidence.timestamp_path,
+        session_key_path: evidence.session_key_path,
+        event_key_path: evidence.event_key_path,
+    };
+    match sanitize_fixture_record(&raw, &shape, fixtures.len()) {
+        Ok(fixture) => fixtures.push(fixture),
+        Err(PrivacyError::InvalidTokenCounter) => increment(diagnostics, "invalid_token_counter"),
+        Err(_) => increment(diagnostics, "sanitization_error"),
+    }
+}
+
+fn has_sufficient_evidence(groups: &BTreeMap<GroupKey, GroupEvidence>) -> bool {
+    !groups.is_empty()
+        && groups.values().all(|group| {
+            !group.token_values.is_empty()
+                && group.token_values.values().all(|values| values.len() >= 2)
+        })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StopReason {
     ByteLimit,
     RecordLimit,
     Io,
+    SufficientEvidence,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecordControl {
+    Continue,
+    StopSufficientEvidence,
 }
 
 struct FileInspectionResult {
@@ -514,12 +813,16 @@ fn inspect_json_file(
     }
 }
 
-fn inspect_jsonl_file(
+fn inspect_jsonl_file<F>(
     path: &Path,
     bytes_consumed: &mut u64,
     diagnostics: &mut BTreeMap<String, u64>,
     limits: ProbeLimits,
-) -> FileInspectionResult {
+    mut consume_record: F,
+) -> FileInspectionResult
+where
+    F: FnMut(Value, &mut BTreeMap<String, u64>) -> RecordControl,
+{
     let Ok(file) = File::open(path) else {
         return FileInspectionResult {
             values: Vec::new(),
@@ -527,49 +830,118 @@ fn inspect_jsonl_file(
         };
     };
     let mut reader = BufReader::new(file);
-    let mut values = Vec::new();
+    let mut records_delivered = 0_u64;
     loop {
-        if values.len() as u64 >= limits.max_records {
+        if records_delivered >= limits.max_records {
             return FileInspectionResult {
-                values,
+                values: Vec::new(),
                 stop_reason: Some(StopReason::RecordLimit),
             };
         }
-        let mut line = Vec::new();
-        let Ok(read) = reader.read_until(b'\n', &mut line) else {
-            return FileInspectionResult {
-                values,
-                stop_reason: Some(StopReason::Io),
-            };
-        };
-        if read == 0 {
-            break;
-        }
-        let read = u64::try_from(read).unwrap_or(u64::MAX);
-        if bytes_consumed.saturating_add(read) > limits.max_bytes {
-            return FileInspectionResult {
-                values,
-                stop_reason: Some(StopReason::ByteLimit),
-            };
-        }
-        *bytes_consumed = bytes_consumed.saturating_add(read);
-        if line.len() > limits.max_record_bytes {
-            increment(diagnostics, "record_too_large");
-            continue;
-        }
-        if !line.ends_with(b"\n") {
-            increment(diagnostics, "partial_final_line");
-            break;
-        }
-        let line = line.strip_suffix(b"\n").unwrap_or(&line);
-        match serde_json::from_slice::<Value>(line) {
-            Ok(value) => values.push(value),
-            Err(_) => increment(diagnostics, "malformed_record"),
+        match read_bounded_jsonl_line(
+            &mut reader,
+            bytes_consumed,
+            limits.max_bytes,
+            limits.max_record_bytes,
+        ) {
+            BoundedLine::Eof => break,
+            BoundedLine::ByteLimit => {
+                return FileInspectionResult {
+                    values: Vec::new(),
+                    stop_reason: Some(StopReason::ByteLimit),
+                };
+            }
+            BoundedLine::Io => {
+                return FileInspectionResult {
+                    values: Vec::new(),
+                    stop_reason: Some(StopReason::Io),
+                };
+            }
+            BoundedLine::Partial => {
+                increment(diagnostics, "partial_final_line");
+                break;
+            }
+            BoundedLine::Oversized => increment(diagnostics, "record_too_large"),
+            BoundedLine::Complete(line) => match serde_json::from_slice::<Value>(&line) {
+                Ok(value) => {
+                    records_delivered = records_delivered.saturating_add(1);
+                    if consume_record(value, diagnostics) == RecordControl::StopSufficientEvidence {
+                        return FileInspectionResult {
+                            values: Vec::new(),
+                            stop_reason: Some(StopReason::SufficientEvidence),
+                        };
+                    }
+                }
+                Err(_) => increment(diagnostics, "malformed_record"),
+            },
         }
     }
     FileInspectionResult {
-        values,
+        values: Vec::new(),
         stop_reason: None,
+    }
+}
+
+enum BoundedLine {
+    Eof,
+    Complete(Vec<u8>),
+    Partial,
+    Oversized,
+    ByteLimit,
+    Io,
+}
+
+fn read_bounded_jsonl_line<R: BufRead>(
+    reader: &mut R,
+    bytes_consumed: &mut u64,
+    max_bytes: u64,
+    max_record_bytes: usize,
+) -> BoundedLine {
+    let mut line = Vec::new();
+    let mut payload_bytes = 0_u64;
+    loop {
+        let remaining = max_bytes.saturating_sub(*bytes_consumed);
+        if remaining == 0 {
+            return BoundedLine::ByteLimit;
+        }
+        let buffer = match reader.fill_buf() {
+            Ok(buffer) => buffer,
+            Err(_) => return BoundedLine::Io,
+        };
+        if buffer.is_empty() {
+            return if payload_bytes == 0 {
+                BoundedLine::Eof
+            } else if payload_bytes > max_record_bytes as u64 {
+                BoundedLine::Oversized
+            } else {
+                BoundedLine::Partial
+            };
+        }
+
+        let buffered = buffer.len();
+        let available = buffered.min(usize::try_from(remaining).unwrap_or(usize::MAX));
+        let slice = &buffer[..available];
+        let newline = slice.iter().position(|byte| *byte == b'\n');
+        let consumed = newline.map_or(available, |index| index + 1);
+        let payload = newline.map_or(consumed, |index| index);
+        payload_bytes = payload_bytes.saturating_add(payload as u64);
+
+        let retained_limit = max_record_bytes.saturating_add(1);
+        let retained = retained_limit.saturating_sub(line.len()).min(payload);
+        line.extend_from_slice(&slice[..retained]);
+        reader.consume(consumed);
+        *bytes_consumed = bytes_consumed.saturating_add(consumed as u64);
+
+        if newline.is_some() {
+            return if payload_bytes > max_record_bytes as u64 {
+                BoundedLine::Oversized
+            } else {
+                BoundedLine::Complete(line)
+            };
+        }
+        if consumed < buffered {
+            return BoundedLine::ByteLimit;
+        }
     }
 }
 

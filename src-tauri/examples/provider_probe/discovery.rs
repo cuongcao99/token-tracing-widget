@@ -165,6 +165,7 @@ impl Default for ProbeLimits {
 pub struct CandidateFile {
     pub(crate) path: PathBuf,
     pub layout_pattern: String,
+    #[allow(dead_code)]
     pub size: u64,
 }
 
@@ -255,11 +256,7 @@ pub fn discover_candidates(
 
     DiscoveryResult {
         provider,
-        root_state: if discovery_error_count == 0 {
-            RootState::Readable
-        } else {
-            RootState::Error
-        },
+        root_state: RootState::Readable,
         candidates,
         selected_bytes,
         discovery_errors: discovery_error_count,
