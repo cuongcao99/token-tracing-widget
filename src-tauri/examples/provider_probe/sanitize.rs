@@ -158,7 +158,18 @@ mod tests {
             Path::new(r"C:\Users\person"),
         );
 
-        assert_eq!(result, Err(PrivacyError::SourceStringLeak));
+        assert_eq!(result, Err(PrivacyError::ForbiddenConversationContent));
+    }
+
+    #[test]
+    fn allows_message_as_a_structural_container_for_token_fields() {
+        validate_serialized(
+            r#"{"message":{"usage":{"input_tokens":10}}}"#,
+            &SourceStringLedger::default(),
+            &BTreeSet::new(),
+            Path::new(r"C:\Users\person"),
+        )
+        .unwrap();
     }
 }
 use std::collections::BTreeSet;
@@ -186,6 +197,10 @@ pub struct SourceStringLedger {
 pub enum PrivacyError {
     InvalidJson,
     SourceStringLeak,
+    ForbiddenConversationContent,
+    ForbiddenToolField,
+    ForbiddenLocationField,
+    ForbiddenRawField,
     AbsolutePath,
     Uri,
     OversizedStructuralString,
@@ -197,6 +212,10 @@ impl fmt::Display for PrivacyError {
         let category = match self {
             Self::InvalidJson => "invalid_json",
             Self::SourceStringLeak => "source_string_leak",
+            Self::ForbiddenConversationContent => "forbidden_conversation_content",
+            Self::ForbiddenToolField => "forbidden_tool_field",
+            Self::ForbiddenLocationField => "forbidden_location_field",
+            Self::ForbiddenRawField => "forbidden_raw_field",
             Self::AbsolutePath => "absolute_path",
             Self::Uri => "uri",
             Self::OversizedStructuralString => "oversized_structural_string",
@@ -457,8 +476,8 @@ fn validate_value(
         }
         Value::Object(fields) => {
             for (key, value) in fields {
-                if is_forbidden_field(key) {
-                    return Err(PrivacyError::SourceStringLeak);
+                if let Some(error) = forbidden_field_error(key, value) {
+                    return Err(error);
                 }
                 if is_token_key(key) && value.is_number() && value.as_u64().is_none() {
                     return Err(PrivacyError::InvalidTokenCounter);
@@ -475,27 +494,36 @@ fn is_token_key(key: &str) -> bool {
     key.ends_with("_tokens") || key.ends_with("Tokens")
 }
 
-fn is_forbidden_field(key: &str) -> bool {
-    [
-        "message",
-        "content",
-        "prompt",
-        "response",
-        "reasoning",
-        "tool",
-        "tools",
+fn forbidden_field_error(key: &str, value: &Value) -> Option<PrivacyError> {
+    let matches_any = |candidates: &[&str]| {
+        candidates
+            .iter()
+            .any(|candidate| key.eq_ignore_ascii_case(candidate))
+    };
+    if matches_any(&["message", "response", "body"]) {
+        if value.is_object() {
+            None
+        } else {
+            Some(PrivacyError::ForbiddenConversationContent)
+        }
+    } else if matches_any(&["content", "prompt", "reasoning"]) {
+        Some(PrivacyError::ForbiddenConversationContent)
+    } else if matches_any(&["tool", "tools"]) {
+        Some(PrivacyError::ForbiddenToolField)
+    } else if matches_any(&[
         "credential",
         "credentials",
         "cwd",
         "working_directory",
         "repository",
         "repo",
-        "body",
-        "raw",
-        "source_record",
-    ]
-    .iter()
-    .any(|candidate| key.eq_ignore_ascii_case(candidate))
+    ]) {
+        Some(PrivacyError::ForbiddenLocationField)
+    } else if matches_any(&["raw", "source_record"]) {
+        Some(PrivacyError::ForbiddenRawField)
+    } else {
+        None
+    }
 }
 
 fn is_synthetic_value(value: &str) -> bool {

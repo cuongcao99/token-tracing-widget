@@ -39,7 +39,11 @@ enum CliError {
 enum ProbeError {
     Cli(CliError),
     Io(&'static str),
-    Privacy(sanitize::PrivacyError),
+    Privacy {
+        provider: &'static str,
+        artifact: &'static str,
+        error: sanitize::PrivacyError,
+    },
     Serialization,
 }
 
@@ -60,7 +64,11 @@ impl std::fmt::Display for ProbeError {
         match self {
             Self::Cli(error) => error.fmt(formatter),
             Self::Io(category) => formatter.write_str(category),
-            Self::Privacy(error) => error.fmt(formatter),
+            Self::Privacy {
+                provider,
+                artifact,
+                error,
+            } => write!(formatter, "privacy:{provider}:{artifact}:{error}:1"),
             Self::Serialization => formatter.write_str("serialization"),
         }
     }
@@ -222,9 +230,17 @@ fn write_validated_artifacts(
         &report_allowed,
         profile_root,
     )
-    .map_err(ProbeError::Privacy)?;
+    .map_err(|error| ProbeError::Privacy {
+        provider: "all",
+        artifact: "report",
+        error,
+    })?;
     let compatibility = render_compatibility_markdown(&report);
-    validate_markdown(&compatibility).map_err(ProbeError::Privacy)?;
+    validate_markdown(&compatibility).map_err(|error| ProbeError::Privacy {
+        provider: "all",
+        artifact: "compatibility",
+        error,
+    })?;
 
     fs::write(temporary_path.join("probe-report.json"), report_json)
         .map_err(|_| ProbeError::Io("report_write"))?;
@@ -245,7 +261,11 @@ fn write_validated_artifacts(
             &manifest_allowed,
             profile_root,
         )
-        .map_err(ProbeError::Privacy)?;
+        .map_err(|error| ProbeError::Privacy {
+            provider: provider_name,
+            artifact: "manifest",
+            error,
+        })?;
         fs::write(provider_dir.join("manifest.json"), manifest_json)
             .map_err(|_| ProbeError::Io("manifest_write"))?;
 
@@ -260,7 +280,11 @@ fn write_validated_artifacts(
                     &provider.allowed_structural_values,
                     profile_root,
                 )
-                .map_err(ProbeError::Privacy)?;
+                .map_err(|error| ProbeError::Privacy {
+                    provider: provider_name,
+                    artifact: "records",
+                    error,
+                })?;
                 records.push_str(&serialized);
                 records.push('\n');
             }
