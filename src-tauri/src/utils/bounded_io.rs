@@ -2,7 +2,13 @@
 
 use std::io::{self, BufRead};
 
-pub fn read_line<R: BufRead>(reader: &mut R, max_bytes: usize) -> io::Result<Option<Vec<u8>>> {
+#[derive(Debug, PartialEq, Eq)]
+pub struct BoundedLine {
+    pub bytes: Vec<u8>,
+    pub terminated: bool,
+}
+
+pub fn read_line<R: BufRead>(reader: &mut R, max_bytes: usize) -> io::Result<Option<BoundedLine>> {
     let mut line = Vec::new();
 
     loop {
@@ -11,7 +17,10 @@ pub fn read_line<R: BufRead>(reader: &mut R, max_bytes: usize) -> io::Result<Opt
             return if line.is_empty() {
                 Ok(None)
             } else {
-                Ok(Some(line))
+                Ok(Some(BoundedLine {
+                    bytes: line,
+                    terminated: false,
+                }))
             };
         }
 
@@ -32,7 +41,10 @@ pub fn read_line<R: BufRead>(reader: &mut R, max_bytes: usize) -> io::Result<Opt
         reader.consume(chunk_length);
 
         if has_newline {
-            return Ok(Some(line));
+            return Ok(Some(BoundedLine {
+                bytes: line,
+                terminated: true,
+            }));
         }
     }
 }

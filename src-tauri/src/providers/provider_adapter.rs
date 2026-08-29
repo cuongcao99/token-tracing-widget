@@ -12,9 +12,25 @@ use crate::utils::bounded_io;
 pub const MAX_RECORD_BYTES: usize = 1_048_576;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProviderReadObservation {
+    pub observation: TokenObservation,
+    pub source_position: u64,
+}
+
+impl ProviderReadObservation {
+    pub fn new(observation: TokenObservation, source_position: u64) -> Self {
+        Self {
+            observation,
+            source_position,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProviderReadResult {
-    pub observations: Vec<TokenObservation>,
+    pub observations: Vec<ProviderReadObservation>,
     pub next_offset: u64,
+    pub pending_offset: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,6 +83,7 @@ where
 
     let mut observations = Vec::new();
     let mut next_offset = start_offset;
+    let mut pending_offset = None;
 
     while let Some(line) =
         bounded_io::read_line(&mut reader, MAX_RECORD_BYTES).map_err(|error| {
@@ -76,19 +93,30 @@ where
             }
         })?
     {
-        next_offset = next_offset.saturating_add(line.len() as u64);
-        if line.iter().all(u8::is_ascii_whitespace) {
+        let record_start = next_offset;
+        let record_end = record_start.saturating_add(line.bytes.len() as u64);
+        if line.bytes.iter().all(u8::is_ascii_whitespace) {
+            next_offset = record_end;
             continue;
         }
 
-        let record = serde_json::from_slice(&line).map_err(|_| ProviderReadError::InvalidJson)?;
+        let record = match serde_json::from_slice(&line.bytes) {
+            Ok(record) => record,
+            Err(_) if !line.terminated => {
+                pending_offset = Some(record_start);
+                break;
+            }
+            Err(_) => return Err(ProviderReadError::InvalidJson),
+        };
         if let Some(observation) = parse_record(&record)? {
-            observations.push(observation);
+            observations.push(ProviderReadObservation::new(observation, record_start));
         }
+        next_offset = record_end;
     }
 
     Ok(ProviderReadResult {
         observations,
         next_offset,
+        pending_offset,
     })
 }

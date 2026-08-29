@@ -19,9 +19,12 @@ fn fixture_path(provider: &str) -> PathBuf {
         .join("records.jsonl")
 }
 
-fn first_observation(observations: &[TokenObservation]) -> &TokenObservation {
+fn first_observation(
+    observations: &[token_tracing_widget_lib::providers::provider_adapter::ProviderReadObservation],
+) -> &TokenObservation {
     observations
         .first()
+        .map(|entry| &entry.observation)
         .expect("fixture should contain one observation")
 }
 
@@ -136,8 +139,41 @@ fn reader_resumes_from_a_saved_byte_offset() {
 
     assert_eq!(result.observations.len(), 29);
     assert_eq!(
-        result.observations[0].source_event_key.as_deref(),
+        result.observations[0]
+            .observation
+            .source_event_key
+            .as_deref(),
         Some("event-synthetic-002")
     );
     assert_eq!(result.next_offset, contents.len() as u64);
+    assert!(result.pending_offset.is_none());
+}
+
+#[test]
+fn incomplete_final_line_stays_pending_until_completed() {
+    let mut file = NamedTempFile::new().unwrap();
+    write!(
+        file,
+        "{{\"message\":{{\"type\":\"message\",\"usage\":{{\"input_tokens\":10,\"output_tokens\":10}}}},\"timestamp\":\"2026-01-01T00:00:00Z\"}}\n{{\"message\":"
+    )
+    .unwrap();
+
+    let first = ClaudeReader::default()
+        .read_observations(file.path(), 0)
+        .expect("complete records must be readable");
+
+    assert_eq!(first.observations.len(), 1);
+    assert_eq!(first.next_offset, first.pending_offset.unwrap());
+
+    write!(
+        file,
+        "{{\"type\":\"message\",\"usage\":{{\"input_tokens\":20,\"output_tokens\":20}}}},\"timestamp\":\"2026-01-01T00:00:01Z\"}}\n"
+    )
+    .unwrap();
+    let second = ClaudeReader::default()
+        .read_observations(file.path(), first.next_offset)
+        .expect("completed record must be readable");
+
+    assert_eq!(second.observations.len(), 1);
+    assert!(second.pending_offset.is_none());
 }

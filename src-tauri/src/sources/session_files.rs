@@ -4,6 +4,8 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use sha2::{Digest, Sha256};
+
 use crate::sources::provider_roots::{resolve_native_root, ProviderRoot, RootError};
 use crate::types::provider::Provider;
 use crate::utils::safe_paths;
@@ -44,6 +46,7 @@ pub struct DiscoveredSessionFile {
     relative_pattern: String,
     kind: SessionFileKind,
     size_bytes: u64,
+    modified_at_unix_ms: u64,
 }
 
 impl DiscoveredSessionFile {
@@ -57,6 +60,18 @@ impl DiscoveredSessionFile {
 
     pub fn size_bytes(&self) -> u64 {
         self.size_bytes
+    }
+
+    pub(crate) fn modified_at_unix_ms(&self) -> u64 {
+        self.modified_at_unix_ms
+    }
+
+    pub(crate) fn opaque_identity(&self, provider: Provider) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(provider.as_str().as_bytes());
+        hasher.update([0]);
+        hasher.update(self.filesystem_path.to_string_lossy().as_bytes());
+        format!("{:x}", hasher.finalize())
     }
 
     #[allow(dead_code)]
@@ -232,6 +247,9 @@ fn walk_root(root: &ProviderRoot, limits: DiscoveryLimits) -> DiscoveryResult {
                     relative_pattern,
                     kind,
                     size_bytes,
+                    modified_at_unix_ms: system_time_to_unix_ms(
+                        metadata.modified().unwrap_or(UNIX_EPOCH),
+                    ),
                 },
                 modified_at: metadata.modified().unwrap_or(UNIX_EPOCH),
             });
@@ -264,6 +282,13 @@ fn walk_root(root: &ProviderRoot, limits: DiscoveryLimits) -> DiscoveryResult {
         total_bytes,
         rejected_entries,
     }
+}
+
+fn system_time_to_unix_ms(time: SystemTime) -> u64 {
+    time.duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|duration| u64::try_from(duration.as_millis()).ok())
+        .unwrap_or(0)
 }
 
 fn record_io_error(error: &std::io::Error, permission_seen: &mut bool, io_seen: &mut bool) {
