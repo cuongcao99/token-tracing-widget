@@ -1,0 +1,1 @@
+//! Bounded sanitized diagnostic persistence.

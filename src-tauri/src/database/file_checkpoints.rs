@@ -1,0 +1,1 @@
+//! File checkpoint table access.
