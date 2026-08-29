@@ -5,6 +5,9 @@ use tempfile::tempdir;
 use token_tracing_widget_lib::sources::provider_roots::{
     native_root_relative, resolve_native_root,
 };
+use token_tracing_widget_lib::sources::session_files::{
+    discover_provider, DiscoveryLimits, DiscoveryStatus, SessionFileKind,
+};
 use token_tracing_widget_lib::types::provider::Provider;
 use token_tracing_widget_lib::utils::safe_paths::{join_under_root, SafePathError};
 
@@ -62,4 +65,95 @@ fn safe_join_rejects_drive_and_unc_paths() {
         join_under_root(root, Path::new(r"\server\share\outside")),
         Err(SafePathError::AbsolutePath)
     );
+}
+
+fn create_file(path: &Path, contents: &[u8]) {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).expect("fixture parent should be created");
+    }
+    fs::write(path, contents).expect("fixture file should be written");
+}
+
+fn limits(max_files: usize, max_total_bytes: u64) -> DiscoveryLimits {
+    DiscoveryLimits::new(max_files, max_total_bytes)
+}
+
+#[test]
+fn discovery_returns_only_regular_json_and_jsonl_files() {
+    let profile = tempdir().expect("synthetic profile should be created");
+    let root = synthetic_provider_root(profile.path(), Provider::Claude);
+    create_file(&root.join("workspace-alpha").join("one.jsonl"), b"one");
+    create_file(&root.join("workspace-alpha").join("two.json"), b"two");
+    create_file(
+        &root.join("workspace-alpha").join("ignored.txt"),
+        b"ignored",
+    );
+    fs::create_dir_all(root.join("folder.json")).expect("directory fixture should be created");
+
+    let result = discover_provider(profile.path(), Provider::Claude, limits(10, 1_000));
+
+    assert_eq!(result.status(), DiscoveryStatus::Detected);
+    assert_eq!(result.files().len(), 2);
+    let mut kinds: Vec<_> = result.files().iter().map(|file| file.kind()).collect();
+    kinds.sort_by_key(|kind| match kind {
+        SessionFileKind::Json => 0,
+        SessionFileKind::Jsonl => 1,
+    });
+    assert_eq!(kinds, vec![SessionFileKind::Json, SessionFileKind::Jsonl]);
+}
+
+#[test]
+fn discovery_sanitizes_relative_layout_metadata() {
+    let profile = tempdir().expect("synthetic profile should be created");
+    let root = synthetic_provider_root(profile.path(), Provider::Claude);
+    let source_file = root
+        .join("private-workspace-name")
+        .join("session-real-identifier.jsonl");
+    let private_contents = br#"{"prompt":"private prompt","cwd":"C:\\private-repository"}"#;
+    create_file(&source_file, private_contents);
+
+    let result = discover_provider(profile.path(), Provider::Claude, limits(10, 1_000));
+    let file = result
+        .files()
+        .first()
+        .expect("one candidate should be returned");
+
+    assert_eq!(file.kind(), SessionFileKind::Jsonl);
+    assert_eq!(file.size_bytes(), private_contents.len() as u64);
+    assert_eq!(file.relative_pattern(), "<segment>/<file>.jsonl");
+    assert!(!file.relative_pattern().contains("private-workspace-name"));
+    assert!(!file.relative_pattern().contains("real-identifier"));
+    assert!(!file.relative_pattern().contains("private-repository"));
+}
+
+#[test]
+fn discovery_enforces_file_and_byte_limits_before_selection() {
+    let profile = tempdir().expect("synthetic profile should be created");
+    let root = synthetic_provider_root(profile.path(), Provider::Codex);
+    for index in 0..4 {
+        create_file(
+            &root.join(format!("day-{index}")).join("session.jsonl"),
+            b"abc",
+        );
+    }
+
+    let result = discover_provider(profile.path(), Provider::Codex, limits(2, 6));
+
+    assert_eq!(result.files().len(), 2);
+    assert_eq!(result.total_bytes(), 6);
+    assert_eq!(result.status(), DiscoveryStatus::LimitReached);
+}
+
+#[test]
+fn discovery_skips_a_file_that_would_exceed_the_byte_limit() {
+    let profile = tempdir().expect("synthetic profile should be created");
+    let root = synthetic_provider_root(profile.path(), Provider::Codex);
+    create_file(&root.join("too-large.jsonl"), b"1234567");
+    create_file(&root.join("small.jsonl"), b"12");
+
+    let result = discover_provider(profile.path(), Provider::Codex, limits(10, 4));
+
+    assert_eq!(result.files().len(), 1);
+    assert_eq!(result.total_bytes(), 2);
+    assert_eq!(result.status(), DiscoveryStatus::LimitReached);
 }
