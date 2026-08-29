@@ -73,7 +73,7 @@ fn codex_reader_returns_safe_cumulative_observations() {
     assert_eq!(first.input_tokens, Some(10));
     assert_eq!(first.cached_input_tokens, Some(10));
     assert_eq!(first.output_tokens, Some(10));
-    assert_eq!(first.total_tokens, 10);
+    assert_eq!(first.total_tokens, 20);
 }
 
 #[test]

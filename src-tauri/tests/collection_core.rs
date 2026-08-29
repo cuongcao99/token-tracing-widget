@@ -1,7 +1,23 @@
-use token_tracing_widget_lib::providers::provider_adapter::ProviderReadObservation;
+use std::collections::{HashMap, HashSet};
+use std::fs;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+
+use tempfile::TempDir;
+use token_tracing_widget_lib::collection::{
+    compute_summary, CollectionCoordinator, CollectionError, CollectionStore, FixedClock,
+    ProviderSource, SummaryRows, WindowsClock,
+};
+use token_tracing_widget_lib::database::connection::{IndexStore, StorageError};
+use token_tracing_widget_lib::providers::claude::ClaudeReader;
+use token_tracing_widget_lib::providers::provider_adapter::{
+    ProviderAdapter, ProviderReadError, ProviderReadObservation, ProviderReadResult,
+};
 use token_tracing_widget_lib::types::file_checkpoint::FileCheckpoint;
 use token_tracing_widget_lib::types::provider::Provider;
+use token_tracing_widget_lib::types::source_health::SourceHealth;
 use token_tracing_widget_lib::types::token_observation::{CounterKind, TokenObservation};
+use token_tracing_widget_lib::types::usage_event::UsageEvent;
 use token_tracing_widget_lib::usage::cumulative_delta::convert_observations;
 use token_tracing_widget_lib::usage::observation_validation::{
     validate_observation, ObservationValidationError,
@@ -224,4 +240,490 @@ fn cached_input_changes_do_not_inflate_total_delta() {
             .sum::<u64>(),
         10
     );
+}
+
+#[derive(Default)]
+struct InMemoryStore {
+    events: Vec<UsageEvent>,
+    checkpoints: HashMap<String, FileCheckpoint>,
+    failure: Option<StorageError>,
+}
+
+impl CollectionStore for InMemoryStore {
+    fn load_checkpoint(&self, identity: &str) -> Result<Option<FileCheckpoint>, StorageError> {
+        Ok(self.checkpoints.get(identity).cloned())
+    }
+
+    fn apply_batch(
+        &mut self,
+        batch: &token_tracing_widget_lib::collection::CollectionBatch,
+    ) -> Result<(), StorageError> {
+        if let Some(error) = self.failure {
+            return Err(error);
+        }
+        let mut known_event_ids: HashSet<_> = self
+            .events
+            .iter()
+            .map(|event| event.event_id.clone())
+            .collect();
+        self.events.extend(
+            batch
+                .events
+                .iter()
+                .filter(|event| known_event_ids.insert(event.event_id.clone()))
+                .cloned(),
+        );
+        for checkpoint in &batch.checkpoints {
+            self.checkpoints
+                .insert(checkpoint.file_identity.clone(), checkpoint.clone());
+        }
+        Ok(())
+    }
+
+    fn query_events_for_summary(
+        &self,
+        _day_start: &str,
+        _now: &str,
+    ) -> Result<SummaryRows, StorageError> {
+        Ok(SummaryRows {
+            events: self.events.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+struct AlwaysFailReader;
+
+impl ProviderAdapter for AlwaysFailReader {
+    fn provider(&self) -> Provider {
+        Provider::Codex
+    }
+
+    fn read_observations(
+        &self,
+        _file: &Path,
+        _start_offset: u64,
+    ) -> Result<ProviderReadResult, ProviderReadError> {
+        Err(ProviderReadError::Io)
+    }
+}
+
+fn test_profile() -> (TempDir, PathBuf) {
+    let profile = tempfile::tempdir().unwrap();
+    let root = profile.path().join(r".claude\projects");
+    let codex_root = profile.path().join(r".codex\sessions");
+    fs::create_dir_all(&root).unwrap();
+    fs::create_dir_all(&codex_root).unwrap();
+    fs::write(
+        root.join("session.jsonl"),
+        br#"{"message":{"id":"event-1","type":"message","usage":{"input_tokens":10,"output_tokens":10}},"sessionId":"session-a","timestamp":"2026-01-01T00:00:00Z"}
+"#,
+    )
+    .unwrap();
+    fs::write(codex_root.join("session.jsonl"), b"codex metadata only\n").unwrap();
+    (profile, root)
+}
+
+fn test_sources_with_one_broken_codex() -> (
+    CollectionCoordinator<InMemoryStore>,
+    Vec<ProviderSource<'static>>,
+) {
+    let (profile, _root) = test_profile();
+    let profile = Box::leak(Box::new(profile));
+    let claude_reader: &'static ClaudeReader = Box::leak(Box::new(ClaudeReader::default()));
+    let codex_reader: &'static AlwaysFailReader = Box::leak(Box::new(AlwaysFailReader));
+    let [claude_discovery, codex_discovery] =
+        token_tracing_widget_lib::sources::session_files::discover_native_sources(
+            profile.path(),
+            token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
+        );
+
+    let sources = vec![
+        ProviderSource::new(true, claude_discovery, claude_reader),
+        ProviderSource::new(true, codex_discovery, codex_reader),
+    ];
+    (
+        CollectionCoordinator::new(InMemoryStore::default()),
+        sources,
+    )
+}
+
+fn test_sources_with_failing_store() -> (
+    CollectionCoordinator<InMemoryStore>,
+    Vec<ProviderSource<'static>>,
+) {
+    let (profile, _root) = test_profile();
+    let profile = Box::leak(Box::new(profile));
+    let claude_reader: &'static ClaudeReader = Box::leak(Box::new(ClaudeReader::default()));
+    let codex_reader: &'static AlwaysFailReader = Box::leak(Box::new(AlwaysFailReader));
+    let [claude_discovery, codex_discovery] =
+        token_tracing_widget_lib::sources::session_files::discover_native_sources(
+            profile.path(),
+            token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
+        );
+    let sources = vec![
+        ProviderSource::new(true, claude_discovery, claude_reader),
+        ProviderSource::new(true, codex_discovery, codex_reader),
+    ];
+    let store = InMemoryStore {
+        failure: Some(StorageError::Write),
+        ..InMemoryStore::default()
+    };
+    (CollectionCoordinator::new(store), sources)
+}
+
+#[test]
+fn one_provider_failure_does_not_block_the_other_provider() {
+    let (mut coordinator, sources) = test_sources_with_one_broken_codex();
+    let report = coordinator
+        .collect(
+            &sources,
+            &FixedClock::new("2026-01-01T00:00:30Z", "2026-01-01"),
+        )
+        .unwrap();
+
+    assert_eq!(report.summary.today_tokens, 20);
+    assert_eq!(report.summary.source_health[0].state, "detected");
+    assert_eq!(report.summary.source_health[1].state, "unavailable");
+}
+
+#[test]
+fn summary_is_not_recomputed_when_sqlite_commit_fails() {
+    let (mut coordinator, sources) = test_sources_with_failing_store();
+    let result = coordinator.collect(
+        &sources,
+        &FixedClock::new("2026-01-01T00:00:30Z", "2026-01-01"),
+    );
+
+    assert!(matches!(
+        result,
+        Err(CollectionError::Storage(StorageError::Write))
+    ));
+    assert_eq!(
+        coordinator.last_summary().state,
+        token_tracing_widget_lib::UsageState::Stale
+    );
+}
+
+#[test]
+fn active_provider_expires_after_two_minutes_but_last_update_remains() {
+    let events = vec![UsageEvent::for_test(
+        Provider::Claude,
+        "session-a",
+        "2026-01-01T10:00:00Z",
+        20,
+    )];
+    let source_health = vec![SourceHealth::detected(Provider::Claude)];
+    let summary = compute_summary(
+        &SummaryRows { events },
+        &source_health,
+        &FixedClock::new("2026-01-01T10:02:01Z", "2026-01-01"),
+    );
+
+    assert_eq!(summary.state, token_tracing_widget_lib::UsageState::Idle);
+    assert_eq!(
+        summary.last_updated_at.as_deref(),
+        Some("2026-01-01T10:00:00Z")
+    );
+    assert_eq!(summary.today_tokens, 20);
+}
+
+#[test]
+fn today_total_combines_enabled_providers_without_double_counting_cumulative_snapshots() {
+    let events = vec![
+        UsageEvent::for_test(Provider::Claude, "session-a", "2026-01-01T10:00:00Z", 20),
+        UsageEvent::for_test(Provider::Codex, "file-b", "2026-01-01T10:00:01Z", 20),
+    ];
+    let source_health = vec![
+        SourceHealth::detected(Provider::Claude),
+        SourceHealth::detected(Provider::Codex),
+    ];
+    let summary = compute_summary(
+        &SummaryRows { events },
+        &source_health,
+        &FixedClock::new("2026-01-01T10:00:30Z", "2026-01-01"),
+    );
+
+    assert_eq!(summary.today_tokens, 40);
+}
+
+#[test]
+fn windows_clock_provides_parseable_now_and_local_day() {
+    let clock = WindowsClock::current();
+
+    assert!(
+        token_tracing_widget_lib::utils::windows_time::parse_timestamp_seconds(clock.now())
+            .is_some()
+    );
+    assert_eq!(clock.local_day().len(), 10);
+    assert_eq!(&clock.local_day()[4..5], "-");
+    assert_eq!(&clock.local_day()[7..8], "-");
+}
+
+#[test]
+fn future_events_do_not_inflate_the_current_session_total() {
+    let summary = compute_summary(
+        &SummaryRows {
+            events: vec![
+                UsageEvent::for_test(Provider::Claude, "session-a", "2026-01-01T10:00:00Z", 20),
+                UsageEvent::for_test(Provider::Claude, "session-a", "2026-01-01T10:01:00Z", 100),
+            ],
+        },
+        &[SourceHealth::detected(Provider::Claude)],
+        &FixedClock::new("2026-01-01T10:00:30Z", "2026-01-01"),
+    );
+
+    assert_eq!(summary.current_session_tokens, Some(20));
+}
+
+fn claude_record(event_key: &str, timestamp: &str, total: u64) -> String {
+    let input_tokens = total / 2;
+    format!(
+        "{{\"message\":{{\"id\":\"{event_key}\",\"type\":\"message\",\"usage\":{{\"input_tokens\":{input_tokens},\"output_tokens\":{output_tokens}}}}},\"sessionId\":\"session-a\",\"timestamp\":\"{timestamp}\"}}\n",
+        output_tokens = total - input_tokens
+    )
+}
+
+fn codex_record(timestamp: &str, total: u64) -> String {
+    let input_tokens = total / 2;
+    format!(
+        "{{\"payload\":{{\"info\":{{\"total_token_usage\":{{\"input_tokens\":{input_tokens},\"output_tokens\":{output_tokens},\"total_tokens\":{total}}}}},\"type\":\"token_count\"}},\"timestamp\":\"{timestamp}\"}}\n",
+        output_tokens = total - input_tokens
+    )
+}
+
+#[test]
+fn restart_append_and_rotation_preserve_totals_and_dedupe_events() {
+    let profile = tempfile::tempdir().unwrap();
+    let profile = Box::leak(Box::new(profile));
+    let claude_root = profile.path().join(r".claude\projects");
+    fs::create_dir_all(&claude_root).unwrap();
+    let session_file = claude_root.join("session.jsonl");
+    fs::write(
+        &session_file,
+        claude_record("event-1", "2026-01-01T00:00:00Z", 20),
+    )
+    .unwrap();
+    let reader: &'static ClaudeReader = Box::leak(Box::new(ClaudeReader::default()));
+    let mut coordinator = CollectionCoordinator::new(InMemoryStore::default());
+    let clock = FixedClock::new("2026-01-01T00:00:30Z", "2026-01-01");
+
+    let sources = {
+        let [discovery, _] =
+            token_tracing_widget_lib::sources::session_files::discover_native_sources(
+                profile.path(),
+                token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
+            );
+        vec![ProviderSource::new(true, discovery, reader)]
+    };
+    assert_eq!(
+        coordinator
+            .collect(&sources, &clock)
+            .unwrap()
+            .summary
+            .today_tokens,
+        20
+    );
+
+    assert_eq!(
+        coordinator
+            .collect(&sources, &clock)
+            .unwrap()
+            .summary
+            .today_tokens,
+        20
+    );
+
+    fs::OpenOptions::new()
+        .append(true)
+        .open(&session_file)
+        .unwrap()
+        .write_all(claude_record("event-2", "2026-01-01T00:00:01Z", 10).as_bytes())
+        .unwrap();
+    let sources = {
+        let [discovery, _] =
+            token_tracing_widget_lib::sources::session_files::discover_native_sources(
+                profile.path(),
+                token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
+            );
+        vec![ProviderSource::new(true, discovery, reader)]
+    };
+    assert_eq!(
+        coordinator
+            .collect(&sources, &clock)
+            .unwrap()
+            .summary
+            .today_tokens,
+        30
+    );
+
+    std::thread::sleep(std::time::Duration::from_millis(10));
+    fs::write(
+        &session_file,
+        format!(
+            "{}{}",
+            claude_record("event-1", "2026-01-01T00:00:00Z", 20),
+            claude_record("event-3", "2026-01-01T00:00:02Z", 5)
+        ),
+    )
+    .unwrap();
+    let sources = {
+        let [discovery, _] =
+            token_tracing_widget_lib::sources::session_files::discover_native_sources(
+                profile.path(),
+                token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
+            );
+        vec![ProviderSource::new(true, discovery, reader)]
+    };
+    let report = coordinator.collect(&sources, &clock).unwrap();
+    assert_eq!(report.summary.today_tokens, 35);
+}
+
+#[test]
+fn partial_write_completion_is_collected_on_the_next_scan() {
+    let profile = tempfile::tempdir().unwrap();
+    let profile = Box::leak(Box::new(profile));
+    let root = profile.path().join(r".claude\projects");
+    fs::create_dir_all(&root).unwrap();
+    let session_file = root.join("session.jsonl");
+    let first = claude_record("event-1", "2026-01-01T00:00:00Z", 20);
+    let second = claude_record("event-2", "2026-01-01T00:00:01Z", 10);
+    let split_at = second.len() / 2;
+    fs::write(&session_file, format!("{first}{}", &second[..split_at])).unwrap();
+    let reader: &'static ClaudeReader = Box::leak(Box::new(ClaudeReader::default()));
+    let mut coordinator = CollectionCoordinator::new(InMemoryStore::default());
+    let clock = FixedClock::new("2026-01-01T00:00:30Z", "2026-01-01");
+
+    let sources = {
+        let [discovery, _] =
+            token_tracing_widget_lib::sources::session_files::discover_native_sources(
+                profile.path(),
+                token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
+            );
+        vec![ProviderSource::new(true, discovery, reader)]
+    };
+    assert_eq!(
+        coordinator
+            .collect(&sources, &clock)
+            .unwrap()
+            .summary
+            .today_tokens,
+        20
+    );
+
+    fs::OpenOptions::new()
+        .append(true)
+        .open(&session_file)
+        .unwrap()
+        .write_all(second[split_at..].as_bytes())
+        .unwrap();
+    let sources = {
+        let [discovery, _] =
+            token_tracing_widget_lib::sources::session_files::discover_native_sources(
+                profile.path(),
+                token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
+            );
+        vec![ProviderSource::new(true, discovery, reader)]
+    };
+    assert_eq!(
+        coordinator
+            .collect(&sources, &clock)
+            .unwrap()
+            .summary
+            .today_tokens,
+        30
+    );
+}
+
+#[test]
+fn concurrent_claude_and_codex_sources_are_collected_independently() {
+    let profile = tempfile::tempdir().unwrap();
+    let profile = Box::leak(Box::new(profile));
+    let claude_root = profile.path().join(r".claude\projects");
+    let codex_root = profile.path().join(r".codex\sessions");
+    fs::create_dir_all(&claude_root).unwrap();
+    fs::create_dir_all(&codex_root).unwrap();
+    fs::write(
+        claude_root.join("claude.jsonl"),
+        claude_record("event-1", "2026-01-01T00:00:00Z", 20),
+    )
+    .unwrap();
+    fs::write(
+        codex_root.join("codex.jsonl"),
+        codex_record("2026-01-01T00:00:01Z", 10),
+    )
+    .unwrap();
+    let claude_reader: &'static ClaudeReader = Box::leak(Box::new(ClaudeReader::default()));
+    let codex_reader: &'static token_tracing_widget_lib::providers::codex::CodexReader = Box::leak(
+        Box::new(token_tracing_widget_lib::providers::codex::CodexReader::default()),
+    );
+    let [claude_discovery, codex_discovery] =
+        token_tracing_widget_lib::sources::session_files::discover_native_sources(
+            profile.path(),
+            token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
+        );
+    let sources = vec![
+        ProviderSource::new(true, claude_discovery, claude_reader),
+        ProviderSource::new(true, codex_discovery, codex_reader),
+    ];
+    let mut coordinator = CollectionCoordinator::new(InMemoryStore::default());
+
+    let report = coordinator
+        .collect(
+            &sources,
+            &FixedClock::new("2026-01-01T00:00:30Z", "2026-01-01"),
+        )
+        .unwrap();
+    assert_eq!(report.summary.today_tokens, 30);
+    assert_eq!(report.source_health.len(), 2);
+    assert!(report
+        .source_health
+        .iter()
+        .all(|health| health.state == "detected"));
+}
+
+#[test]
+fn sqlite_restart_preserves_collected_total_without_rescanning_committed_records() {
+    let profile = tempfile::tempdir().unwrap();
+    let profile = Box::leak(Box::new(profile));
+    let root = profile.path().join(r".claude\projects");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("session.jsonl"),
+        claude_record("event-1", "2026-01-01T00:00:00Z", 20),
+    )
+    .unwrap();
+    let database_directory = tempfile::tempdir().unwrap();
+    let database_path = database_directory.path().join("index.sqlite");
+    let reader: &'static ClaudeReader = Box::leak(Box::new(ClaudeReader::default()));
+    let clock = FixedClock::new("2026-01-01T00:00:30Z", "2026-01-01");
+
+    let [discovery, _] = token_tracing_widget_lib::sources::session_files::discover_native_sources(
+        profile.path(),
+        token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
+    );
+    let sources = vec![ProviderSource::new(true, discovery, reader)];
+    let mut first_coordinator =
+        CollectionCoordinator::new(IndexStore::open(&database_path).unwrap());
+    assert_eq!(
+        first_coordinator
+            .collect(&sources, &clock)
+            .unwrap()
+            .summary
+            .today_tokens,
+        20
+    );
+    drop(first_coordinator);
+
+    let [discovery, _] = token_tracing_widget_lib::sources::session_files::discover_native_sources(
+        profile.path(),
+        token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
+    );
+    let sources = vec![ProviderSource::new(true, discovery, reader)];
+    let mut restarted_coordinator =
+        CollectionCoordinator::new(IndexStore::open(&database_path).unwrap());
+    let report = restarted_coordinator.collect(&sources, &clock).unwrap();
+
+    assert_eq!(report.summary.today_tokens, 20);
+    assert_eq!(report.accepted_event_count, 0);
 }

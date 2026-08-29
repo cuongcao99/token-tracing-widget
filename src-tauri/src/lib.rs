@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 mod app;
+pub mod collection;
 pub mod commands;
 pub mod database;
 pub mod providers;
@@ -9,7 +10,10 @@ pub mod types;
 pub mod usage;
 pub mod utils;
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub use types::source_health::SourceHealth;
+pub use types::usage_summary::UsageSummary;
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum UsageState {
     Loading,
@@ -19,37 +23,9 @@ pub enum UsageState {
     Stale,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct SourceHealth {
-    pub provider: String,
-    pub state: String,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct UsageSummary {
-    pub state: UsageState,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub provider: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub current_session_tokens: Option<u64>,
-    pub today_tokens: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_updated_at: Option<String>,
-    pub source_health: Vec<SourceHealth>,
-}
-
 #[tauri::command]
 fn get_usage_summary() -> UsageSummary {
-    UsageSummary {
-        state: UsageState::Loading,
-        provider: None,
-        current_session_tokens: None,
-        today_tokens: 0,
-        last_updated_at: None,
-        source_health: Vec::new(),
-    }
+    UsageSummary::loading()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

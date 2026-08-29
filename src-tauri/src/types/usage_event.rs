@@ -47,4 +47,27 @@ impl UsageEvent {
             total_tokens,
         }
     }
+
+    pub fn for_test(
+        provider: Provider,
+        session_key: &str,
+        observed_at: &str,
+        total_tokens: u64,
+    ) -> Self {
+        let input_tokens = total_tokens / 2;
+        Self {
+            event_id: format!("test-{}-{session_key}-{observed_at}", provider.as_str()),
+            provider,
+            file_identity: session_key.to_owned(),
+            session_key: session_key.to_owned(),
+            source_position: 0,
+            observed_at: observed_at.to_owned(),
+            counter_kind: CounterKind::Incremental,
+            monotonic_segment: 0,
+            input_tokens: Some(input_tokens),
+            cached_input_tokens: None,
+            output_tokens: Some(total_tokens - input_tokens),
+            total_tokens,
+        }
+    }
 }

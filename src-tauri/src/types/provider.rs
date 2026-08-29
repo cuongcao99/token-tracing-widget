@@ -16,4 +16,12 @@ impl Provider {
             Self::Codex => "codex",
         }
     }
+
+    pub fn from_str(value: &str) -> Option<Self> {
+        match value {
+            "claude" => Some(Self::Claude),
+            "codex" => Some(Self::Codex),
+            _ => None,
+        }
+    }
 }
