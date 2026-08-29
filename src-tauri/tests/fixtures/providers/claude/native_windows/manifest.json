@@ -1,0 +1,339 @@
+{
+  "schema_version": 1,
+  "provider": "claude",
+  "outcome": "detected",
+  "layout_patterns": [
+    "<segment>/<file>.jsonl"
+  ],
+  "record_shapes": [
+    {
+      "discriminator_path": "$.message.type",
+      "discriminator_value": "message",
+      "field_types": [
+        {
+          "path": "$.message.id",
+          "json_type": "string"
+        },
+        {
+          "path": "$.message.type",
+          "json_type": "string"
+        },
+        {
+          "path": "$.message.usage.cache_creation.ephemeral_1h_input_tokens",
+          "json_type": "number"
+        },
+        {
+          "path": "$.message.usage.cache_creation.ephemeral_5m_input_tokens",
+          "json_type": "number"
+        },
+        {
+          "path": "$.message.usage.cache_creation_input_tokens",
+          "json_type": "number"
+        },
+        {
+          "path": "$.message.usage.cache_read_input_tokens",
+          "json_type": "number"
+        },
+        {
+          "path": "$.message.usage.input_tokens",
+          "json_type": "number"
+        },
+        {
+          "path": "$.message.usage.output_tokens",
+          "json_type": "number"
+        },
+        {
+          "path": "$.message.usage.output_tokens_details.thinking_tokens",
+          "json_type": "number"
+        },
+        {
+          "path": "$.sessionId",
+          "json_type": "string"
+        },
+        {
+          "path": "$.session_id",
+          "json_type": "string"
+        },
+        {
+          "path": "$.timestamp",
+          "json_type": "string"
+        },
+        {
+          "path": "$.type",
+          "json_type": "string"
+        },
+        {
+          "path": "$.uuid",
+          "json_type": "string"
+        }
+      ],
+      "counter_paths": [
+        "$.message.usage.cache_creation.ephemeral_1h_input_tokens",
+        "$.message.usage.cache_creation.ephemeral_5m_input_tokens",
+        "$.message.usage.cache_creation_input_tokens",
+        "$.message.usage.cache_read_input_tokens",
+        "$.message.usage.input_tokens",
+        "$.message.usage.output_tokens",
+        "$.message.usage.output_tokens_details.thinking_tokens"
+      ],
+      "timestamp_path": "$.timestamp",
+      "session_key_path": "$.sessionId",
+      "event_key_path": "$.message.id",
+      "sampled_record_count": 30
+    }
+  ],
+  "counter_sequences": [
+    {
+      "field_path": "$.message.usage.cache_creation.ephemeral_1h_input_tokens",
+      "observed_behavior": "monotonic",
+      "synthetic_values": [
+        100,
+        150,
+        200,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250
+      ]
+    },
+    {
+      "field_path": "$.message.usage.cache_creation.ephemeral_5m_input_tokens",
+      "observed_behavior": "monotonic",
+      "synthetic_values": [
+        100,
+        150,
+        200,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250
+      ]
+    },
+    {
+      "field_path": "$.message.usage.cache_creation_input_tokens",
+      "observed_behavior": "monotonic",
+      "synthetic_values": [
+        100,
+        150,
+        200,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250
+      ]
+    },
+    {
+      "field_path": "$.message.usage.cache_read_input_tokens",
+      "observed_behavior": "monotonic",
+      "synthetic_values": [
+        100,
+        150,
+        200,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250
+      ]
+    },
+    {
+      "field_path": "$.message.usage.input_tokens",
+      "observed_behavior": "reset_observed",
+      "synthetic_values": [
+        100,
+        150,
+        20,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45,
+        45
+      ]
+    },
+    {
+      "field_path": "$.message.usage.output_tokens",
+      "observed_behavior": "per_event",
+      "synthetic_values": [
+        10,
+        20,
+        30,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40
+      ]
+    },
+    {
+      "field_path": "$.message.usage.output_tokens_details.thinking_tokens",
+      "observed_behavior": "monotonic",
+      "synthetic_values": [
+        100,
+        150,
+        200,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250
+      ]
+    }
+  ],
+  "fixture_record_count": 30
+}
