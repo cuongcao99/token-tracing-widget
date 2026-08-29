@@ -445,10 +445,11 @@ mod tests {
         let result = discover_candidates(
             profile.path(),
             Provider::Codex,
-            ProbeLimits { max_files: 5, max_bytes: 10, max_records: 50_000, max_record_bytes: 1_048_576 },
+            ProbeLimits { max_files: 5, max_bytes: 20, max_records: 50_000, max_record_bytes: 1_048_576 },
         );
         assert_eq!(result.candidates.len(), 5);
-        assert!(result.selected_bytes <= 10);
+        assert_eq!(result.selected_bytes, 15);
+        assert!(result.selected_bytes <= 20);
         assert!(result.candidates.iter().all(|candidate| !candidate.layout_pattern.contains("session-")));
     }
 }
@@ -502,6 +503,7 @@ pub struct DiscoveryResult {
     pub root_state: RootState,
     pub candidates: Vec<CandidateFile>,
     pub selected_bytes: u64,
+    pub discovery_errors: u64,
 }
 
 pub fn provider_root(profile_root: &std::path::Path, provider: crate::report::Provider) -> std::path::PathBuf;
@@ -657,7 +659,7 @@ Write atomically after validation:
 
 For a single-provider run, omit the other provider directory. For `not_detected`, `permission_denied`, `unsupported_format`, or `limit_reached`, write the provider outcome to the report and manifest but omit `records.jsonl` unless validated fixture records exist.
 
-`render_compatibility_markdown` must emit `# Native Windows Provider Formats`, followed by one `## Claude Code` or `## Codex` section per requested provider. Each section contains fixed `Outcome`, `Coverage`, `Layout patterns`, `Record shapes`, `Counter behavior`, `Identity and timestamp paths`, `Diagnostics`, and `Privacy validation` headings. Render report values as Markdown tables or `None observed`; never interpolate a raw path or source value.
+`render_compatibility_markdown` must emit `# Native Windows Provider Formats`, followed by one `## Claude Code` or `## Codex` section per requested provider. Each section contains fixed `Outcome`, `Coverage`, `Layout patterns`, `Record shapes`, `Counter behavior`, `Identity and timestamp paths`, `Diagnostics`, and `Privacy validation` headings. It may list only fixed provider-relative artifact paths (`<provider>/manifest.json` and, when records exist, `<provider>/records.jsonl`); never interpolate a source path or source value. Render report values as Markdown tables or `None observed`.
 
 Before renaming the temporary output directory into place, validate the report JSON, Markdown, every manifest, and every JSONL line. On privacy failure, remove only the newly created temporary directory and return a fixed-category error.
 

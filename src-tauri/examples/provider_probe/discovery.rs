@@ -33,21 +33,104 @@ mod tests {
             Provider::Codex,
             ProbeLimits {
                 max_files: 5,
-                max_bytes: 10,
+                max_bytes: 20,
                 max_records: 50_000,
                 max_record_bytes: 1_048_576,
             },
         );
         assert_eq!(result.candidates.len(), 5);
-        assert!(result.selected_bytes <= 10);
+        assert_eq!(result.selected_bytes, 15);
+        assert!(result.selected_bytes <= 20);
         assert!(result
             .candidates
             .iter()
             .all(|candidate| !candidate.layout_pattern.contains("session-")));
     }
+
+    #[test]
+    fn discovery_rejects_a_candidate_that_would_cross_the_byte_cap() {
+        let profile = tempdir().unwrap();
+        let root = provider_root(profile.path(), Provider::Codex);
+        fs::create_dir_all(&root).unwrap();
+        for index in 0..3 {
+            fs::write(root.join(format!("candidate-{index}.jsonl")), b"{}\n").unwrap();
+        }
+
+        let result = discover_candidates(
+            profile.path(),
+            Provider::Codex,
+            ProbeLimits {
+                max_files: 5,
+                max_bytes: 7,
+                max_records: 50_000,
+                max_record_bytes: 1_048_576,
+            },
+        );
+
+        assert_eq!(result.candidates.len(), 2);
+        assert_eq!(result.selected_bytes, 6);
+    }
+
+    #[test]
+    fn containment_rejects_parent_escape_and_accepts_nested_paths() {
+        let root = std::path::Path::new(r"C:\synthetic-profile\.codex\sessions");
+        assert!(super::is_within_root(
+            root,
+            &root.join("nested").join("record.jsonl")
+        ));
+        assert!(!super::is_within_root(
+            root,
+            &root.join("..").join("outside.jsonl")
+        ));
+        assert!(!super::is_within_root(
+            root,
+            std::path::Path::new(r"C:\synthetic-profile\.codex\sessions-elsewhere\record.jsonl")
+        ));
+    }
+
+    #[test]
+    fn enumeration_failures_are_counted_without_exposing_paths() {
+        let profile = tempdir().unwrap();
+        let missing = profile.path().join("missing");
+        let mut files = Vec::new();
+        let mut errors = 0;
+
+        super::collect_files(profile.path(), &missing, &mut files, &mut errors);
+
+        assert!(files.is_empty());
+        assert_eq!(errors, 1);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn discovery_skips_symlinked_files_and_directories() {
+        use std::os::windows::fs::{symlink_dir, symlink_file};
+
+        let profile = tempdir().unwrap();
+        let root = provider_root(profile.path(), Provider::Codex);
+        fs::create_dir_all(&root).unwrap();
+        let outside = tempdir().unwrap();
+        let outside_file = outside.path().join("outside.jsonl");
+        fs::write(&outside_file, b"{}\n").unwrap();
+        fs::write(root.join("inside.jsonl"), b"{}\n").unwrap();
+
+        let linked_file = root.join("linked.jsonl");
+        if symlink_file(&outside_file, &linked_file).is_err() {
+            return;
+        }
+        let linked_dir = root.join("linked-dir");
+        if symlink_dir(outside.path(), &linked_dir).is_err() {
+            return;
+        }
+
+        let result = discover_candidates(profile.path(), Provider::Codex, ProbeLimits::default());
+
+        assert_eq!(result.candidates.len(), 1);
+        assert_eq!(result.discovery_errors, 0);
+    }
 }
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::report::Provider;
@@ -90,6 +173,7 @@ pub struct DiscoveryResult {
     pub root_state: RootState,
     pub candidates: Vec<CandidateFile>,
     pub selected_bytes: u64,
+    pub discovery_errors: u64,
 }
 
 pub fn provider_root(profile_root: &Path, provider: Provider) -> PathBuf {
@@ -105,7 +189,10 @@ pub fn discover_candidates(
     limits: ProbeLimits,
 ) -> DiscoveryResult {
     let root = provider_root(profile_root, provider);
-    let metadata = match fs::metadata(&root) {
+    let metadata = match fs::symlink_metadata(&root) {
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            return empty_result(provider, RootState::Error);
+        }
         Ok(metadata) if metadata.is_dir() => metadata,
         Ok(_) => return empty_result(provider, RootState::Error),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -114,20 +201,30 @@ pub fn discover_candidates(
         Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
             return empty_result(provider, RootState::PermissionDenied);
         }
-        Err(_) => return empty_result(provider, RootState::Error),
+        Err(_) => return result_with_error(provider, RootState::Error),
     };
     let _ = metadata;
+    match is_reparse_point(&root) {
+        Ok(true) => return empty_result(provider, RootState::Error),
+        Ok(false) => {}
+        Err(_) => return result_with_error(provider, RootState::Error),
+    }
     if let Err(error) = fs::read_dir(&root) {
         let state = match error.kind() {
             std::io::ErrorKind::NotFound => RootState::NotDetected,
             std::io::ErrorKind::PermissionDenied => RootState::PermissionDenied,
             _ => RootState::Error,
         };
-        return empty_result(provider, state);
+        return if state == RootState::Error {
+            result_with_error(provider, state)
+        } else {
+            empty_result(provider, state)
+        };
     }
 
     let mut discovered = Vec::new();
-    collect_files(&root, &root, &mut discovered);
+    let mut discovery_error_count = 0;
+    collect_files(&root, &root, &mut discovered, &mut discovery_error_count);
     discovered.sort_by(|left, right| {
         right
             .modified
@@ -138,15 +235,17 @@ pub fn discover_candidates(
 
     let mut candidates = Vec::new();
     let mut selected_bytes = 0_u64;
-    for discovered in discovered.into_iter().take(limits.max_files) {
+    for discovered in discovered {
         if candidates.len() >= limits.max_files {
             break;
         }
-        // The candidate list is bounded by file count. Inspection applies the
-        // byte budget to actual reads; this field is a bounded accounting value.
-        selected_bytes = selected_bytes
-            .saturating_add(discovered.size)
-            .min(limits.max_bytes);
+        let Some(next_selected_bytes) = selected_bytes.checked_add(discovered.size) else {
+            break;
+        };
+        if next_selected_bytes > limits.max_bytes {
+            break;
+        }
+        selected_bytes = next_selected_bytes;
         candidates.push(CandidateFile {
             path: discovered.path,
             layout_pattern: discovered.layout_pattern,
@@ -156,9 +255,14 @@ pub fn discover_candidates(
 
     DiscoveryResult {
         provider,
-        root_state: RootState::Readable,
+        root_state: if discovery_error_count == 0 {
+            RootState::Readable
+        } else {
+            RootState::Error
+        },
         candidates,
         selected_bytes,
+        discovery_errors: discovery_error_count,
     }
 }
 
@@ -168,6 +272,17 @@ fn empty_result(provider: Provider, root_state: RootState) -> DiscoveryResult {
         root_state,
         candidates: Vec::new(),
         selected_bytes: 0,
+        discovery_errors: 0,
+    }
+}
+
+fn result_with_error(provider: Provider, root_state: RootState) -> DiscoveryResult {
+    DiscoveryResult {
+        provider,
+        root_state,
+        candidates: Vec::new(),
+        selected_bytes: 0,
+        discovery_errors: 1,
     }
 }
 
@@ -178,26 +293,65 @@ struct DiscoveredFile {
     modified: SystemTime,
 }
 
-fn collect_files(root: &Path, current: &Path, files: &mut Vec<DiscoveredFile>) {
-    let Ok(entries) = fs::read_dir(current) else {
-        return;
+fn collect_files(
+    root: &Path,
+    current: &Path,
+    files: &mut Vec<DiscoveredFile>,
+    discovery_error_count: &mut u64,
+) {
+    let entries = match fs::read_dir(current) {
+        Ok(entries) => entries,
+        Err(_) => {
+            increment_discovery_errors(discovery_error_count);
+            return;
+        }
     };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let Ok(file_type) = entry.file_type() else {
-            continue;
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => {
+                increment_discovery_errors(discovery_error_count);
+                continue;
+            }
         };
+        let path = entry.path();
+        if !is_within_root(root, &path) {
+            increment_discovery_errors(discovery_error_count);
+            continue;
+        }
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(_) => {
+                increment_discovery_errors(discovery_error_count);
+                continue;
+            }
+        };
+        let is_reparse = match is_reparse_point(&path) {
+            Ok(is_reparse) => is_reparse,
+            Err(_) => {
+                increment_discovery_errors(discovery_error_count);
+                continue;
+            }
+        };
+        if file_type.is_symlink() || is_reparse {
+            continue;
+        }
         if file_type.is_dir() {
-            collect_files(root, &path, files);
+            collect_files(root, &path, files, discovery_error_count);
             continue;
         }
         if !file_type.is_file() || !is_supported_extension(&path) {
             continue;
         }
-        let Ok(metadata) = entry.metadata() else {
-            continue;
+        let metadata = match entry.metadata() {
+            Ok(metadata) => metadata,
+            Err(_) => {
+                increment_discovery_errors(discovery_error_count);
+                continue;
+            }
         };
         let Ok(relative) = path.strip_prefix(root) else {
+            increment_discovery_errors(discovery_error_count);
             continue;
         };
         let layout_pattern = layout_pattern(relative);
@@ -208,6 +362,36 @@ fn collect_files(root: &Path, current: &Path, files: &mut Vec<DiscoveredFile>) {
             modified: metadata.modified().unwrap_or(UNIX_EPOCH),
         });
     }
+}
+
+fn increment_discovery_errors(count: &mut u64) {
+    *count = count.saturating_add(1).min(1024);
+}
+
+fn is_within_root(root: &Path, candidate: &Path) -> bool {
+    let Ok(relative) = candidate.strip_prefix(root) else {
+        return false;
+    };
+    !relative.components().any(|component| {
+        matches!(
+            component,
+            Component::Prefix(_) | Component::RootDir | Component::ParentDir
+        )
+    })
+}
+
+#[cfg(windows)]
+fn is_reparse_point(path: &Path) -> std::io::Result<bool> {
+    use std::os::windows::fs::MetadataExt;
+
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+    fs::symlink_metadata(path)
+        .map(|metadata| metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0)
+}
+
+#[cfg(not(windows))]
+fn is_reparse_point(_path: &Path) -> std::io::Result<bool> {
+    Ok(false)
 }
 
 fn is_supported_extension(path: &Path) -> bool {

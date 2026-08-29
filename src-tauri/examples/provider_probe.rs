@@ -428,6 +428,18 @@ fn render_compatibility_markdown(report: &report::ProbeReport) -> String {
             }
             markdown.push('\n');
         }
+        markdown.push_str("### Artifacts\n\n");
+        markdown.push_str(&format!(
+            "- Manifest: {}/manifest.json\n",
+            provider.provider.as_str()
+        ));
+        if provider.coverage.supported_shape_found {
+            markdown.push_str(&format!(
+                "- Records: {}/records.jsonl\n",
+                provider.provider.as_str()
+            ));
+        }
+        markdown.push('\n');
         markdown.push_str("### Privacy validation\n\nValidated before write.\n\n");
     }
     markdown
@@ -516,6 +528,10 @@ mod cli_tests {
         assert!(output.join("claude/manifest.json").is_file());
         assert!(output.join("claude/records.jsonl").is_file());
         assert!(output.join("compatibility.md").is_file());
+        let compatibility = fs::read_to_string(output.join("compatibility.md")).unwrap();
+        assert!(compatibility.contains("Manifest: claude/manifest.json"));
+        assert!(compatibility.contains("Records: claude/records.jsonl"));
+        assert!(!compatibility.contains(profile.path().to_string_lossy().as_ref()));
     }
 
     #[test]
@@ -544,6 +560,43 @@ mod cli_tests {
         assert_eq!(reports.len(), 2);
         assert_eq!(reports[0].outcome, ProbeOutcome::NotDetected);
         assert_eq!(reports[1].outcome, ProbeOutcome::Detected);
+    }
+
+    #[test]
+    fn compatibility_uses_fixed_provider_relative_artifact_paths() {
+        let report = ProbeReport {
+            schema_version: 1,
+            providers: vec![
+                ProviderReport {
+                    provider: Provider::Claude,
+                    outcome: ProbeOutcome::Detected,
+                    layout_patterns: Vec::new(),
+                    record_shapes: Vec::new(),
+                    counter_sequences: Vec::new(),
+                    diagnostic_counts: Vec::new(),
+                    coverage: Coverage {
+                        supported_shape_found: true,
+                        ..Coverage::default()
+                    },
+                },
+                ProviderReport {
+                    provider: Provider::Codex,
+                    outcome: ProbeOutcome::NotDetected,
+                    layout_patterns: Vec::new(),
+                    record_shapes: Vec::new(),
+                    counter_sequences: Vec::new(),
+                    diagnostic_counts: Vec::new(),
+                    coverage: Coverage::default(),
+                },
+            ],
+        };
+
+        let compatibility = super::render_compatibility_markdown(&report);
+
+        assert!(compatibility.contains("Manifest: claude/manifest.json"));
+        assert!(compatibility.contains("Records: claude/records.jsonl"));
+        assert!(compatibility.contains("Manifest: codex/manifest.json"));
+        assert!(!compatibility.contains("Records: codex/records.jsonl"));
     }
 
     #[test]
