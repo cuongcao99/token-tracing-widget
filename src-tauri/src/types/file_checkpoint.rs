@@ -49,11 +49,7 @@ impl FileCheckpoint {
         }
     }
 
-    pub fn with_file_metadata(
-        mut self,
-        size_bytes: u64,
-        modified_at_unix_ms: u64,
-    ) -> Self {
+    pub fn with_file_metadata(mut self, size_bytes: u64, modified_at_unix_ms: u64) -> Self {
         self.size_bytes = size_bytes;
         self.modified_at_unix_ms = modified_at_unix_ms;
         self
