@@ -1,5 +1,14 @@
 use serde::Serialize;
 
+mod app;
+pub mod commands;
+pub mod database;
+pub mod providers;
+pub mod sources;
+pub mod types;
+pub mod usage;
+pub mod utils;
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum UsageState {

@@ -1,0 +1,1 @@
+//! User settings table access.
