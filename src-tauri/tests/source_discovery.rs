@@ -6,7 +6,7 @@ use token_tracing_widget_lib::sources::provider_roots::{
     native_root_relative, resolve_native_root,
 };
 use token_tracing_widget_lib::sources::session_files::{
-    discover_provider, DiscoveryLimits, DiscoveryStatus, SessionFileKind,
+    discover_native_sources, discover_provider, DiscoveryLimits, DiscoveryStatus, SessionFileKind,
 };
 use token_tracing_widget_lib::types::provider::Provider;
 use token_tracing_widget_lib::utils::safe_paths::{join_under_root, SafePathError};
@@ -156,4 +156,75 @@ fn discovery_skips_a_file_that_would_exceed_the_byte_limit() {
     assert_eq!(result.files().len(), 1);
     assert_eq!(result.total_bytes(), 2);
     assert_eq!(result.status(), DiscoveryStatus::LimitReached);
+}
+
+#[test]
+fn provider_results_are_independent() {
+    let profile = tempdir().expect("synthetic profile should be created");
+    let codex_root = synthetic_provider_root(profile.path(), Provider::Codex);
+    create_file(&codex_root.join("session.jsonl"), b"codex metadata only");
+
+    let results = discover_native_sources(profile.path(), limits(10, 1_000));
+    let claude = results
+        .iter()
+        .find(|result| result.provider() == Provider::Claude)
+        .expect("Claude result should exist");
+    let codex = results
+        .iter()
+        .find(|result| result.provider() == Provider::Codex)
+        .expect("Codex result should exist");
+
+    assert_eq!(claude.status(), DiscoveryStatus::NotDetected);
+    assert!(claude.files().is_empty());
+    assert_eq!(codex.status(), DiscoveryStatus::Detected);
+    assert_eq!(codex.files().len(), 1);
+}
+
+#[test]
+fn discovery_does_not_scan_arbitrary_siblings_or_wsl_shaped_paths() {
+    let profile = tempdir().expect("synthetic profile should be created");
+    create_file(
+        &profile.path().join("unrelated").join("secret.jsonl"),
+        b"unrelated",
+    );
+    create_file(
+        &profile
+            .path()
+            .join("wsl.localhost")
+            .join("distribution")
+            .join("home")
+            .join("user")
+            .join("session.jsonl"),
+        b"wsl-shaped",
+    );
+    let codex_root = synthetic_provider_root(profile.path(), Provider::Codex);
+    create_file(&codex_root.join("native.jsonl"), b"native");
+
+    let result = discover_provider(profile.path(), Provider::Codex, limits(10, 1_000));
+
+    assert_eq!(result.files().len(), 1);
+    assert_eq!(result.files()[0].relative_pattern(), "<file>.jsonl");
+}
+
+#[cfg(windows)]
+#[test]
+fn discovery_rejects_reparse_point_escape() {
+    use std::os::windows::fs::symlink_dir;
+
+    let profile = tempdir().expect("synthetic profile should be created");
+    let outside = tempdir().expect("outside fixture should be created");
+    create_file(&outside.path().join("escaped.jsonl"), b"outside");
+
+    let root = synthetic_provider_root(profile.path(), Provider::Claude);
+    fs::create_dir_all(&root).expect("Claude root should be created");
+    let link = root.join("linked-outside");
+    if symlink_dir(outside.path(), &link).is_err() {
+        return;
+    }
+
+    let result = discover_provider(profile.path(), Provider::Claude, limits(10, 1_000));
+
+    assert!(result.files().is_empty());
+    assert!(result.rejected_entries() >= 1);
+    assert_eq!(result.status(), DiscoveryStatus::Detected);
 }
