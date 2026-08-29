@@ -95,10 +95,25 @@ mod tests {
         let mut files = Vec::new();
         let mut errors = 0;
 
-        super::collect_files(profile.path(), &missing, &mut files, &mut errors);
+        super::collect_files(profile.path(), &missing, &mut files, 5, &mut errors);
 
         assert!(files.is_empty());
         assert_eq!(errors, 1);
+    }
+
+    #[test]
+    fn discovery_inventory_is_bounded_before_candidate_selection() {
+        let root = tempdir().unwrap();
+        for index in 0..100 {
+            fs::write(root.path().join(format!("session-{index}.jsonl")), b"{}\n").unwrap();
+        }
+        let mut files = Vec::new();
+        let mut errors = 0;
+
+        super::collect_files(root.path(), root.path(), &mut files, 5, &mut errors);
+
+        assert_eq!(files.len(), 5);
+        assert_eq!(errors, 0);
     }
 
     #[cfg(windows)]
@@ -225,14 +240,14 @@ pub fn discover_candidates(
 
     let mut discovered = Vec::new();
     let mut discovery_error_count = 0;
-    collect_files(&root, &root, &mut discovered, &mut discovery_error_count);
-    discovered.sort_by(|left, right| {
-        right
-            .modified
-            .cmp(&left.modified)
-            .then_with(|| left.layout_pattern.cmp(&right.layout_pattern))
-            .then_with(|| left.path.cmp(&right.path))
-    });
+    collect_files(
+        &root,
+        &root,
+        &mut discovered,
+        limits.max_files,
+        &mut discovery_error_count,
+    );
+    discovered.sort_by(compare_discovered);
 
     let mut candidates = Vec::new();
     let mut selected_bytes = 0_u64;
@@ -294,6 +309,7 @@ fn collect_files(
     root: &Path,
     current: &Path,
     files: &mut Vec<DiscoveredFile>,
+    max_files: usize,
     discovery_error_count: &mut u64,
 ) {
     let entries = match fs::read_dir(current) {
@@ -334,7 +350,7 @@ fn collect_files(
             continue;
         }
         if file_type.is_dir() {
-            collect_files(root, &path, files, discovery_error_count);
+            collect_files(root, &path, files, max_files, discovery_error_count);
             continue;
         }
         if !file_type.is_file() || !is_supported_extension(&path) {
@@ -352,13 +368,34 @@ fn collect_files(
             continue;
         };
         let layout_pattern = layout_pattern(relative);
-        files.push(DiscoveredFile {
-            path,
-            layout_pattern,
-            size: metadata.len(),
-            modified: metadata.modified().unwrap_or(UNIX_EPOCH),
-        });
+        retain_recent(
+            files,
+            DiscoveredFile {
+                path,
+                layout_pattern,
+                size: metadata.len(),
+                modified: metadata.modified().unwrap_or(UNIX_EPOCH),
+            },
+            max_files,
+        );
     }
+}
+
+fn retain_recent(files: &mut Vec<DiscoveredFile>, file: DiscoveredFile, max_files: usize) {
+    if max_files == 0 {
+        return;
+    }
+    files.push(file);
+    files.sort_by(compare_discovered);
+    files.truncate(max_files);
+}
+
+fn compare_discovered(left: &DiscoveredFile, right: &DiscoveredFile) -> std::cmp::Ordering {
+    right
+        .modified
+        .cmp(&left.modified)
+        .then_with(|| left.layout_pattern.cmp(&right.layout_pattern))
+        .then_with(|| left.path.cmp(&right.path))
 }
 
 fn increment_discovery_errors(count: &mut u64) {
