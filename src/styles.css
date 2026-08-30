@@ -118,3 +118,39 @@ input {
   font-size: 0.7rem;
   overflow-wrap: anywhere;
 }
+
+@media (min-resolution: 1.5dppx) {
+  .widget {
+    padding: 4px;
+  }
+
+  .widget__header h1 {
+    font-size: 0.8rem;
+    line-height: 1.1;
+  }
+
+  .status,
+  .metric__label,
+  .widget__note {
+    font-size: 0.6rem;
+    line-height: 1.1;
+  }
+
+  .widget__metrics {
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .widget__metrics > div {
+    gap: 2px;
+  }
+
+  .widget__metrics strong {
+    font-size: 0.8rem;
+    line-height: 1.1;
+  }
+
+  .widget__note {
+    margin-top: 3px;
+  }
+}
