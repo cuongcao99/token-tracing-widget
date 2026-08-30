@@ -185,7 +185,12 @@ it("requests and validates the typed settings snapshot", async () => {
 });
 
 it("sends only the source settings payload", async () => {
-  vi.mocked(invoke).mockResolvedValue({ sources: [] });
+  vi.mocked(invoke).mockResolvedValue({
+    sources: [
+      { provider: "claude", enabled: false, rootOverride: null },
+      { provider: "codex", enabled: true, rootOverride: null },
+    ],
+  });
 
   await updateSourceSettings({
     provider: "claude",
@@ -269,7 +274,12 @@ it("saves the changed provider settings and reports success", async () => {
       { provider: "codex", enabled: true, rootOverride: null },
     ],
   });
-  vi.mocked(updateSourceSettings).mockResolvedValue({ sources: [] });
+  vi.mocked(updateSourceSettings).mockResolvedValue({
+    sources: [
+      { provider: "claude", enabled: false, rootOverride: null },
+      { provider: "codex", enabled: true, rootOverride: null },
+    ],
+  });
 
   render(<Settings />);
   await screen.findByRole("heading", { name: "Source settings" });
@@ -449,4 +459,3 @@ Confirm the diff contains no raw fixtures, prompts, responses, repository paths,
 git add docs/superpowers/plans/2026-08-30-settings-flow.md src-tauri/tests src/lib
 git commit -m "test: verify source settings boundary"
 ```
-
