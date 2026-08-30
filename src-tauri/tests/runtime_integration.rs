@@ -2,7 +2,9 @@ use std::fs;
 
 use tempfile::TempDir;
 use token_tracing_widget_lib::collection::FixedClock;
+use token_tracing_widget_lib::database::connection::IndexStore;
 use token_tracing_widget_lib::sources::session_files::DiscoveryLimits;
+use token_tracing_widget_lib::sources::source_config::SourceConfig;
 use token_tracing_widget_lib::types::provider::Provider;
 use token_tracing_widget_lib::AppState;
 use token_tracing_widget_lib::UsageState;
@@ -116,4 +118,48 @@ fn unavailable_fallback_contains_no_private_fields() {
     assert!(!object.contains_key("profileRoot"));
     assert!(!object.contains_key("databasePath"));
     assert!(!object.contains_key("rawRecord"));
+}
+
+#[test]
+fn runtime_loads_persisted_disabled_provider_without_reading_it() {
+    let profile = write_profile(true);
+    let database = tempfile::tempdir().unwrap();
+    let database_path = database.path().join("index.sqlite");
+    let mut index = IndexStore::open(&database_path).unwrap();
+    index
+        .save_source_config(&SourceConfig::try_new(Provider::Codex, false, None).unwrap())
+        .unwrap();
+    drop(index);
+
+    let state = AppState::from_paths(profile.path().to_path_buf(), &database_path, limits())
+        .unwrap();
+    let report = state
+        .collect_once(&FixedClock::new("2026-01-01T00:00:30Z", "2026-01-01"))
+        .unwrap();
+
+    assert_eq!(report.summary.today_tokens, 20);
+    assert_eq!(report.source_health[1].state, "disabled");
+}
+
+#[test]
+fn source_config_update_is_persisted_before_shared_state_changes() {
+    let profile = write_profile(false);
+    let database = tempfile::tempdir().unwrap();
+    let database_path = database.path().join("index.sqlite");
+    let state = AppState::from_paths(profile.path().to_path_buf(), &database_path, limits())
+        .unwrap();
+    let config = SourceConfig::try_new(Provider::Claude, false, None).unwrap();
+
+    state.update_source_config(config.clone()).unwrap();
+
+    assert_eq!(state.source_config(Provider::Claude).unwrap(), config);
+    let reopened = IndexStore::open(&database_path).unwrap();
+    assert_eq!(
+        reopened
+            .load_source_configs()
+            .unwrap()
+            .configs
+            .get(Provider::Claude),
+        &config
+    );
 }

@@ -5,6 +5,7 @@ use std::fmt;
 use crate::database::connection::IndexStore;
 use crate::providers::provider_adapter::{ProviderAdapter, ProviderReadError};
 use crate::sources::session_files::{DiscoveryResult, DiscoveryStatus};
+use crate::sources::source_config::SourceConfig;
 use crate::types::file_checkpoint::FileCheckpoint;
 use crate::types::provider::Provider;
 use crate::types::source_health::SourceHealth;
@@ -394,6 +395,12 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
             SourceHealth::new(provider, health_state),
             diagnostics,
         ))
+    }
+}
+
+impl CollectionCoordinator<IndexStore> {
+    pub fn save_source_config(&mut self, config: &SourceConfig) -> Result<(), StorageError> {
+        self.store.save_source_config(config)
     }
 }
 
