@@ -30,7 +30,7 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let state = app::runtime::initialize_from_app(app.handle());
-            app.manage(state);
+            app.manage(state.clone());
 
             let managed = app.state::<app::runtime::AppState>();
             if let Ok(report) = managed.collect_once(&collection::WindowsClock::current()) {
@@ -40,13 +40,24 @@ pub fn run() {
                     eprintln!("summary_event:emit");
                 }
             }
+
+            let live_handle =
+                app::live_collection::start_live_collection(state, app.handle().clone());
+            app.manage(live_handle);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::usage_summary::get_usage_summary
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running token tracing widget");
+        .build(tauri::generate_context!())
+        .expect("error while building token tracing widget")
+        .run(|app_handle, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                app_handle
+                    .state::<app::live_collection::LiveCollectionHandle>()
+                    .shutdown();
+            }
+        });
 }
 
 #[cfg(test)]
