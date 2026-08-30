@@ -4,6 +4,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::sources::source_config::SourceConfig;
 use crate::types::provider::Provider;
 use crate::utils::safe_paths;
 
@@ -33,8 +34,7 @@ impl std::error::Error for RootError {}
 
 pub struct ProviderRoot {
     provider: Provider,
-    relative_path: &'static str,
-    #[allow(dead_code)]
+    configured_root: String,
     filesystem_path: PathBuf,
 }
 
@@ -43,11 +43,14 @@ impl ProviderRoot {
         self.provider
     }
 
-    pub fn relative_path(&self) -> &'static str {
-        self.relative_path
+    pub fn configured_root(&self) -> &str {
+        &self.configured_root
     }
 
-    #[allow(dead_code)]
+    pub fn relative_path(&self) -> &str {
+        self.configured_root()
+    }
+
     pub(crate) fn filesystem_path(&self) -> &Path {
         &self.filesystem_path
     }
@@ -61,6 +64,24 @@ pub fn native_root_relative(provider: Provider) -> &'static str {
 }
 
 pub fn resolve_native_root(
+    profile_root: &Path,
+    provider: Provider,
+) -> Result<ProviderRoot, RootError> {
+    resolve_automatic_root(profile_root, provider)
+}
+
+pub fn resolve_configured_root(
+    profile_root: &Path,
+    config: &SourceConfig,
+) -> Result<ProviderRoot, RootError> {
+    if let Some(path) = config.root_override() {
+        return resolve_explicit_root(config.provider(), path, config.configured_root_label());
+    }
+
+    resolve_automatic_root(profile_root, config.provider())
+}
+
+fn resolve_automatic_root(
     profile_root: &Path,
     provider: Provider,
 ) -> Result<ProviderRoot, RootError> {
@@ -80,8 +101,26 @@ pub fn resolve_native_root(
 
     Ok(ProviderRoot {
         provider,
-        relative_path,
+        configured_root: relative_path.to_owned(),
         filesystem_path,
+    })
+}
+
+fn resolve_explicit_root(
+    provider: Provider,
+    path: &Path,
+    configured_root: String,
+) -> Result<ProviderRoot, RootError> {
+    let metadata = fs::symlink_metadata(path).map_err(map_io_error)?;
+    if !metadata.is_dir() {
+        return Err(RootError::InvalidRoot);
+    }
+    safe_paths::validate_existing_path(path, path).map_err(map_path_error)?;
+
+    Ok(ProviderRoot {
+        provider,
+        configured_root,
+        filesystem_path: path.to_path_buf(),
     })
 }
 

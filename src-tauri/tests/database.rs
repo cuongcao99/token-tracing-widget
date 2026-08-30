@@ -1,5 +1,8 @@
+use std::path::PathBuf;
+
 use token_tracing_widget_lib::collection::{CollectionBatch, DiagnosticUpdate, SourceUpdate};
 use token_tracing_widget_lib::database::connection::{IndexStore, StorageError};
+use token_tracing_widget_lib::sources::source_config::SourceConfig;
 use token_tracing_widget_lib::types::file_checkpoint::FileCheckpoint;
 use token_tracing_widget_lib::types::provider::Provider;
 use token_tracing_widget_lib::types::token_observation::CounterKind;
@@ -153,4 +156,62 @@ fn source_health_and_diagnostics_commit_with_the_same_batch() {
         .unwrap();
     assert_eq!(source_state, "detected");
     assert_eq!(diagnostic_category, "unavailable");
+}
+
+#[test]
+fn source_preferences_round_trip_and_remove_override() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("index.sqlite");
+    let mut database = IndexStore::open(&path).unwrap();
+    let config = SourceConfig::try_new(
+        Provider::Claude,
+        false,
+        Some(PathBuf::from(r"C:\Users\tester\.claude\projects")),
+    )
+    .unwrap();
+
+    database.save_source_config(&config).unwrap();
+    assert_eq!(
+        database
+            .load_source_configs()
+            .unwrap()
+            .configs
+            .get(Provider::Claude),
+        &config
+    );
+
+    let automatic = SourceConfig::try_new(Provider::Claude, true, None).unwrap();
+    database.save_source_config(&automatic).unwrap();
+    assert_eq!(
+        database
+            .load_source_configs()
+            .unwrap()
+            .configs
+            .get(Provider::Claude),
+        &automatic
+    );
+}
+
+#[test]
+fn malformed_source_setting_defaults_only_its_provider() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("index.sqlite");
+    let database = IndexStore::open(&path).unwrap();
+    drop(database);
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    connection
+        .execute(
+            "INSERT INTO settings(setting_key, setting_value) VALUES (?1, ?2)",
+            ["source.claude.enabled", "not-a-bool"],
+        )
+        .unwrap();
+    drop(connection);
+
+    let loaded = IndexStore::open(&path)
+        .unwrap()
+        .load_source_configs()
+        .unwrap();
+    assert!(loaded.configs.is_enabled(Provider::Claude));
+    assert!(loaded.configs.is_enabled(Provider::Codex));
+    assert_eq!(loaded.invalid_providers, vec![Provider::Claude]);
 }

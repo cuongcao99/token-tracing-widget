@@ -5,6 +5,7 @@ use std::fmt;
 use crate::database::connection::IndexStore;
 use crate::providers::provider_adapter::{ProviderAdapter, ProviderReadError};
 use crate::sources::session_files::{DiscoveryResult, DiscoveryStatus};
+use crate::sources::source_config::SourceConfig;
 use crate::types::file_checkpoint::FileCheckpoint;
 use crate::types::provider::Provider;
 use crate::types::source_health::SourceHealth;
@@ -87,6 +88,8 @@ impl CollectionStore for IndexStore {
 
 pub struct ProviderSource<'a> {
     enabled: bool,
+    configured_root: String,
+    settings_issue: bool,
     discovery: DiscoveryResult,
     adapter: &'a dyn ProviderAdapter,
 }
@@ -97,8 +100,21 @@ impl<'a> ProviderSource<'a> {
         discovery: DiscoveryResult,
         adapter: &'a dyn ProviderAdapter,
     ) -> Self {
+        let configured_root = discovery.configured_root().to_owned();
+        Self::with_configured_root(enabled, configured_root, false, discovery, adapter)
+    }
+
+    pub fn with_configured_root(
+        enabled: bool,
+        configured_root: String,
+        settings_issue: bool,
+        discovery: DiscoveryResult,
+        adapter: &'a dyn ProviderAdapter,
+    ) -> Self {
         Self {
             enabled,
+            configured_root,
+            settings_issue,
             discovery,
             adapter,
         }
@@ -221,6 +237,11 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
     ) -> Result<CollectionReport, CollectionError> {
         let mut ordered: Vec<_> = sources.iter().collect();
         ordered.sort_by_key(|source| source.provider().as_str());
+        let enabled_providers: Vec<_> = ordered
+            .iter()
+            .filter(|source| source.enabled)
+            .map(|source| source.provider())
+            .collect();
 
         let mut batch = CollectionBatch::new(Vec::new(), Vec::new());
         let mut source_health = Vec::with_capacity(ordered.len());
@@ -238,7 +259,7 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
             batch.diagnostics.extend(diagnostics);
             batch.source_updates.push(SourceUpdate {
                 provider: source.provider(),
-                configured_root: source.discovery.root_relative().to_owned(),
+                configured_root: source.configured_root.clone(),
                 enabled: source.enabled,
                 health_state: health.state.clone(),
                 last_error_category: error_category(&health.state),
@@ -259,7 +280,7 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
                 return Err(CollectionError::Storage(error));
             }
         };
-        let summary = compute_summary(&rows, &source_health, clock);
+        let summary = compute_summary(&rows, &source_health, &enabled_providers, clock);
         self.last_summary = summary.clone();
 
         Ok(CollectionReport {
@@ -287,19 +308,27 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
         CollectionError,
     > {
         let provider = source.provider();
+        let mut diagnostics = Vec::new();
+        if source.settings_issue {
+            diagnostics.push(DiagnosticUpdate {
+                provider,
+                category: "invalid_settings".to_owned(),
+                occurrence_count: 1,
+                last_occurred_at: now.to_owned(),
+            });
+        }
         if !source.enabled {
             return Ok((
                 Vec::new(),
                 Vec::new(),
-                SourceHealth::new(provider, "not_detected"),
-                Vec::new(),
+                SourceHealth::new(provider, "disabled"),
+                diagnostics,
             ));
         }
 
         let mut health_state = discovery_state(source.discovery.status()).to_owned();
         let mut events = Vec::new();
         let mut checkpoints = Vec::new();
-        let mut diagnostics = Vec::new();
         for file in source.discovery.files() {
             let identity = file.opaque_identity(provider);
             let checkpoint = self
@@ -369,12 +398,25 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
     }
 }
 
+impl CollectionCoordinator<IndexStore> {
+    pub fn save_source_config(&mut self, config: &SourceConfig) -> Result<(), StorageError> {
+        self.store.save_source_config(config)
+    }
+}
+
 pub fn compute_summary(
     rows: &SummaryRows,
     source_health: &[SourceHealth],
+    enabled_providers: &[Provider],
     clock: &dyn CollectionClock,
 ) -> UsageSummary {
-    let active = compute_active_provider(&rows.events, clock.now());
+    let enabled_events: Vec<_> = rows
+        .events
+        .iter()
+        .filter(|event| enabled_providers.contains(&event.provider))
+        .cloned()
+        .collect();
+    let active = compute_active_provider(&enabled_events, clock.now());
     let usable_source = source_health
         .iter()
         .any(|health| matches!(health.state.as_str(), "detected" | "limited" | "malformed"));
@@ -390,7 +432,7 @@ pub fn compute_summary(
         state,
         provider: active.provider,
         current_session_tokens: active.current_session_tokens,
-        today_tokens: compute_today_total(&rows.events, clock.local_day()),
+        today_tokens: compute_today_total(&enabled_events, clock.local_day()),
         last_updated_at: active.last_updated_at,
         source_health: source_health.to_vec(),
     }
@@ -398,6 +440,7 @@ pub fn compute_summary(
 
 fn discovery_state(status: DiscoveryStatus) -> &'static str {
     match status {
+        DiscoveryStatus::Disabled => "disabled",
         DiscoveryStatus::Detected => "detected",
         DiscoveryStatus::NotDetected => "not_detected",
         DiscoveryStatus::PermissionDenied => "permission_denied",

@@ -7,8 +7,10 @@ use token_tracing_widget_lib::sources::provider_roots::{
     native_root_relative, resolve_native_root,
 };
 use token_tracing_widget_lib::sources::session_files::{
-    discover_native_sources, discover_provider, DiscoveryLimits, DiscoveryStatus, SessionFileKind,
+    discover_configured_source, discover_native_sources, discover_provider, DiscoveryLimits,
+    DiscoveryStatus, SessionFileKind,
 };
+use token_tracing_widget_lib::sources::source_config::SourceConfig;
 use token_tracing_widget_lib::types::provider::Provider;
 use token_tracing_widget_lib::utils::safe_paths::{join_under_root, SafePathError};
 
@@ -265,4 +267,51 @@ fn discovery_rejects_reparse_point_escape() {
     assert!(result.files().is_empty());
     assert!(result.rejected_entries() >= 1);
     assert_eq!(result.status(), DiscoveryStatus::Detected);
+}
+
+#[test]
+fn explicit_existing_root_is_discovered_with_its_configured_label() {
+    let profile = tempfile::tempdir().unwrap();
+    let root = profile.path().join("custom-source");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("session.jsonl"), b"metadata only").unwrap();
+    let config = SourceConfig::try_new(Provider::Claude, true, Some(root.clone())).unwrap();
+    let label = root.to_string_lossy().into_owned();
+
+    let result =
+        discover_configured_source(profile.path(), &config, DiscoveryLimits::new(10, 1_000));
+
+    assert_eq!(result.status(), DiscoveryStatus::Detected);
+    assert_eq!(result.configured_root(), label);
+    assert_eq!(result.files().len(), 1);
+}
+
+#[test]
+fn missing_explicit_root_reports_not_detected_without_scanning_profile() {
+    let profile = tempfile::tempdir().unwrap();
+    let root = profile.path().join("not-mounted-yet");
+    let config = SourceConfig::try_new(Provider::Claude, true, Some(root.clone())).unwrap();
+    let label = root.to_string_lossy().into_owned();
+
+    let result =
+        discover_configured_source(profile.path(), &config, DiscoveryLimits::new(10, 1_000));
+
+    assert_eq!(result.status(), DiscoveryStatus::NotDetected);
+    assert!(result.files().is_empty());
+    assert_eq!(result.configured_root(), label);
+}
+
+#[test]
+fn disabled_source_never_walks_its_root() {
+    let profile = tempfile::tempdir().unwrap();
+    let root = profile.path().join("disabled-source");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(root.join("session.jsonl"), b"metadata only").unwrap();
+    let config = SourceConfig::try_new(Provider::Claude, false, Some(root)).unwrap();
+
+    let result =
+        discover_configured_source(profile.path(), &config, DiscoveryLimits::new(10, 1_000));
+
+    assert_eq!(result.status(), DiscoveryStatus::Disabled);
+    assert!(result.files().is_empty());
 }

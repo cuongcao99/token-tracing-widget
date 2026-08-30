@@ -29,6 +29,7 @@ impl WatchRoot {
 pub(crate) enum WatchSignal {
     Changed(Provider),
     WatchUnavailable(Provider),
+    ConfigurationChanged,
     Shutdown,
 }
 
@@ -79,6 +80,9 @@ impl FileWatcher {
             return;
         }
 
+        let worker_count = roots.len();
+        let (ready_sender, ready_receiver) = std::sync::mpsc::channel();
+
         let Some(stop_signal) = win32::StopSignal::new() else {
             for root in roots {
                 self.send(WatchSignal::WatchUnavailable(root.provider()));
@@ -90,9 +94,15 @@ impl FileWatcher {
         for root in roots {
             let sender = self.sender.clone();
             let stop_signal = stop_signal.clone();
+            let ready_sender = ready_sender.clone();
             self.workers.push(std::thread::spawn(move || {
-                win32::watch_root(root, sender, stop_signal);
+                win32::watch_root(root, sender, stop_signal, ready_sender);
             }));
+        }
+
+        drop(ready_sender);
+        for _ in 0..worker_count {
+            let _ = ready_receiver.recv_timeout(std::time::Duration::from_secs(1));
         }
     }
 
@@ -268,6 +278,7 @@ mod win32 {
         root: WatchRoot,
         sender: std::sync::mpsc::Sender<WatchSignal>,
         stop_signal: Arc<StopSignal>,
+        ready_sender: std::sync::mpsc::Sender<()>,
     ) {
         let path = path_to_utf16(root.path());
         let directory = unsafe {
@@ -282,12 +293,14 @@ mod win32 {
             )
         };
         let Some(directory) = OwnedHandle::new(directory) else {
+            let _ = ready_sender.send(());
             send(&sender, WatchSignal::WatchUnavailable(root.provider()));
             return;
         };
 
         let read_event = unsafe { CreateEventW(ptr::null(), FALSE, FALSE, ptr::null()) };
         let Some(read_event) = OwnedHandle::new(read_event) else {
+            let _ = ready_sender.send(());
             send(&sender, WatchSignal::WatchUnavailable(root.provider()));
             return;
         };
@@ -295,6 +308,7 @@ mod win32 {
         let mut buffer = [0_u8; 64 * 1024];
         loop {
             if stop_signal.is_requested() {
+                let _ = ready_sender.send(());
                 return;
             }
 
@@ -320,12 +334,16 @@ mod win32 {
                 if error == ERROR_IO_PENDING {
                     // The read is outstanding and will complete through the read event.
                 } else if error == ERROR_OPERATION_ABORTED || stop_signal.is_requested() {
+                    let _ = ready_sender.send(());
                     return;
                 } else {
+                    let _ = ready_sender.send(());
                     send(&sender, WatchSignal::WatchUnavailable(root.provider()));
                     return;
                 }
             }
+
+            let _ = ready_sender.send(());
 
             let handles = [read_event.raw(), stop_signal.raw()];
             let wait_result = unsafe {

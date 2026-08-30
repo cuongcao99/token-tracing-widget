@@ -2,11 +2,12 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use tempfile::TempDir;
 use token_tracing_widget_lib::collection::{
     compute_summary, CollectionCoordinator, CollectionError, CollectionStore, FixedClock,
-    ProviderSource, SummaryRows, WindowsClock,
+    ProviderSource, SourceUpdate, SummaryRows, WindowsClock,
 };
 use token_tracing_widget_lib::database::connection::{IndexStore, StorageError};
 use token_tracing_widget_lib::providers::claude::ClaudeReader;
@@ -246,6 +247,7 @@ fn cached_input_changes_do_not_inflate_total_delta() {
 struct InMemoryStore {
     events: Vec<UsageEvent>,
     checkpoints: HashMap<String, FileCheckpoint>,
+    source_updates: Arc<Mutex<Vec<SourceUpdate>>>,
     failure: Option<StorageError>,
 }
 
@@ -261,6 +263,10 @@ impl CollectionStore for InMemoryStore {
         if let Some(error) = self.failure {
             return Err(error);
         }
+        self.source_updates
+            .lock()
+            .unwrap()
+            .extend(batch.source_updates.iter().cloned());
         let mut known_event_ids: HashSet<_> = self
             .events
             .iter()
@@ -417,6 +423,7 @@ fn active_provider_expires_after_two_minutes_but_last_update_remains() {
     let summary = compute_summary(
         &SummaryRows { events },
         &source_health,
+        &[Provider::Claude],
         &FixedClock::new("2026-01-01T10:02:01Z", "2026-01-01"),
     );
 
@@ -441,6 +448,7 @@ fn today_total_combines_enabled_providers_without_double_counting_cumulative_sna
     let summary = compute_summary(
         &SummaryRows { events },
         &source_health,
+        &[Provider::Claude, Provider::Codex],
         &FixedClock::new("2026-01-01T10:00:30Z", "2026-01-01"),
     );
 
@@ -470,10 +478,79 @@ fn future_events_do_not_inflate_the_current_session_total() {
             ],
         },
         &[SourceHealth::detected(Provider::Claude)],
+        &[Provider::Claude],
         &FixedClock::new("2026-01-01T10:00:30Z", "2026-01-01"),
     );
 
     assert_eq!(summary.current_session_tokens, Some(20));
+}
+
+#[test]
+fn disabled_provider_events_do_not_enter_summary_totals() {
+    let rows = SummaryRows {
+        events: vec![
+            UsageEvent::for_test(
+                Provider::Claude,
+                "claude-session",
+                "2026-01-01T10:00:00Z",
+                20,
+            ),
+            UsageEvent::for_test(Provider::Codex, "codex-session", "2026-01-01T10:00:01Z", 30),
+        ],
+    };
+    let health = vec![
+        SourceHealth::detected(Provider::Claude),
+        SourceHealth::new(Provider::Codex, "disabled"),
+    ];
+
+    let summary = compute_summary(
+        &rows,
+        &health,
+        &[Provider::Claude],
+        &FixedClock::new("2026-01-01T10:00:30Z", "2026-01-01"),
+    );
+
+    assert_eq!(summary.today_tokens, 20);
+    assert_eq!(summary.provider.as_deref(), Some("Claude Code"));
+}
+
+#[test]
+fn source_update_preserves_explicit_configured_root_label() {
+    let profile = tempfile::tempdir().unwrap();
+    let root = profile.path().join("custom-source");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("session.jsonl"),
+        claude_record("event-1", "2026-01-01T10:00:00Z", 20),
+    )
+    .unwrap();
+    let config = token_tracing_widget_lib::sources::source_config::SourceConfig::try_new(
+        Provider::Claude,
+        true,
+        Some(root.clone()),
+    )
+    .unwrap();
+    let label = root.to_string_lossy().into_owned();
+    let discovery = token_tracing_widget_lib::sources::session_files::discover_configured_source(
+        profile.path(),
+        &config,
+        token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
+    );
+    let reader: &'static ClaudeReader = Box::leak(Box::new(ClaudeReader::default()));
+    let store = InMemoryStore::default();
+    let updates = Arc::clone(&store.source_updates);
+    let mut coordinator = CollectionCoordinator::new(store);
+    let source =
+        ProviderSource::with_configured_root(true, label.clone(), false, discovery, reader);
+
+    coordinator
+        .collect(
+            &[source],
+            &FixedClock::new("2026-01-01T10:00:30Z", "2026-01-01"),
+        )
+        .unwrap();
+
+    assert_eq!(updates.lock().unwrap()[0].configured_root, label);
 }
 
 fn claude_record(event_key: &str, timestamp: &str, total: u64) -> String {

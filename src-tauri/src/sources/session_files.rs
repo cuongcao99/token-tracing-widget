@@ -6,7 +6,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use sha2::{Digest, Sha256};
 
-use crate::sources::provider_roots::{resolve_native_root, ProviderRoot, RootError};
+use crate::sources::provider_roots::{resolve_configured_root, ProviderRoot, RootError};
+use crate::sources::source_config::{SourceConfig, SourceConfigSet};
 use crate::types::provider::Provider;
 use crate::utils::safe_paths;
 
@@ -31,6 +32,7 @@ impl DiscoveryLimits {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiscoveryStatus {
+    Disabled,
     Detected,
     NotDetected,
     PermissionDenied,
@@ -86,7 +88,7 @@ impl DiscoveredSessionFile {
 
 pub struct DiscoveryResult {
     provider: Provider,
-    root_relative: &'static str,
+    configured_root: String,
     status: DiscoveryStatus,
     files: Vec<DiscoveredSessionFile>,
     total_bytes: u64,
@@ -98,8 +100,12 @@ impl DiscoveryResult {
         self.provider
     }
 
-    pub fn root_relative(&self) -> &'static str {
-        self.root_relative
+    pub fn configured_root(&self) -> &str {
+        &self.configured_root
+    }
+
+    pub fn root_relative(&self) -> &str {
+        self.configured_root()
     }
 
     pub fn status(&self) -> DiscoveryStatus {
@@ -123,9 +129,10 @@ pub fn discover_native_sources(
     profile_root: &Path,
     limits: DiscoveryLimits,
 ) -> [DiscoveryResult; 2] {
+    let configs = SourceConfigSet::defaults();
     [
-        discover_provider(profile_root, Provider::Claude, limits),
-        discover_provider(profile_root, Provider::Codex, limits),
+        discover_configured_source(profile_root, configs.get(Provider::Claude), limits),
+        discover_configured_source(profile_root, configs.get(Provider::Codex), limits),
     ]
 }
 
@@ -134,10 +141,24 @@ pub fn discover_provider(
     provider: Provider,
     limits: DiscoveryLimits,
 ) -> DiscoveryResult {
-    let root_relative = crate::sources::provider_roots::native_root_relative(provider);
-    let root = match resolve_native_root(profile_root, provider) {
+    let config = SourceConfig::defaults(provider);
+    discover_configured_source(profile_root, &config, limits)
+}
+
+pub fn discover_configured_source(
+    profile_root: &Path,
+    config: &SourceConfig,
+    limits: DiscoveryLimits,
+) -> DiscoveryResult {
+    let provider = config.provider();
+    let configured_root = config.configured_root_label();
+    if !config.enabled() {
+        return empty_result(provider, configured_root, DiscoveryStatus::Disabled);
+    }
+
+    let root = match resolve_configured_root(profile_root, config) {
         Ok(root) => root,
-        Err(error) => return empty_result(provider, root_relative, status_for_root_error(error)),
+        Err(error) => return empty_result(provider, configured_root, status_for_root_error(error)),
     };
 
     walk_root(&root, limits)
@@ -145,12 +166,12 @@ pub fn discover_provider(
 
 fn empty_result(
     provider: Provider,
-    root_relative: &'static str,
+    configured_root: String,
     status: DiscoveryStatus,
 ) -> DiscoveryResult {
     DiscoveryResult {
         provider,
-        root_relative,
+        configured_root,
         status,
         files: Vec::new(),
         total_bytes: 0,
@@ -282,7 +303,7 @@ fn walk_root(root: &ProviderRoot, limits: DiscoveryLimits) -> DiscoveryResult {
 
     DiscoveryResult {
         provider: root.provider(),
-        root_relative: root.relative_path(),
+        configured_root: root.configured_root().to_owned(),
         status,
         files,
         total_bytes,
