@@ -398,6 +398,7 @@ pub fn compute_summary(
 
 fn discovery_state(status: DiscoveryStatus) -> &'static str {
     match status {
+        DiscoveryStatus::Disabled => "disabled",
         DiscoveryStatus::Detected => "detected",
         DiscoveryStatus::NotDetected => "not_detected",
         DiscoveryStatus::PermissionDenied => "permission_denied",
