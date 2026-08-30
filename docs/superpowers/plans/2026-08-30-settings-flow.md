@@ -241,6 +241,7 @@ git commit -m "feat: add typed source settings bridge"
 - Create: `src/settings-main.tsx`
 - Create: `settings.html`
 - Modify: `src/styles.css`
+- Modify: `vite.config.ts`
 
 **Interfaces:**
 - Consumes: `getSourceSettings()` and `updateSourceSettings()` from `src/lib/source-settings.ts`.
@@ -327,7 +328,7 @@ Map only known error categories (`invalid_root:*`, `settings_write`, `settings_r
 
 - [ ] **Step 4: Add the settings entry point and scoped plain CSS**
 
-Create `settings.html` pointing to `/src/settings-main.tsx`; mount `<Settings />` from that entry and import the existing stylesheet. Add only `.settings-page`, `.source-card`, form-control, status, and button styles. Keep the existing overlay styles and dimensions unchanged.
+Create `settings.html` pointing to `/src/settings-main.tsx`; mount `<Settings />` from that entry and import the existing stylesheet. Configure Vite's Rollup inputs for both `index.html` and `settings.html` so the dynamic Tauri webview can load the settings entry from `dist`. Add only `.settings-page`, `.source-card`, form-control, status, and button styles. Keep the existing overlay styles and dimensions unchanged.
 
 - [ ] **Step 5: Run component tests and build**
 
