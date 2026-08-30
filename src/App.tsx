@@ -1,8 +1,20 @@
 import { useEffect, useState } from "react";
-import { getUsageSummary, type UsageSummary } from "./lib/usage-summary";
+import { type UnlistenFn } from "@tauri-apps/api/event";
+import {
+  formatRelativeUpdate,
+  getUsageSummary,
+  listenForUsageSummary,
+  type UsageSummary,
+} from "./lib/usage-summary";
 
 const loadingSummary: UsageSummary = {
   state: "loading",
+  todayTokens: 0,
+  sourceHealth: [],
+};
+
+const unavailableSummary: UsageSummary = {
+  state: "unavailable",
   todayTokens: 0,
   sourceHealth: [],
 };
@@ -20,25 +32,44 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true;
+    let unlisten: UnlistenFn | undefined;
 
-    void getUsageSummary()
-      .then((nextSummary) => {
-        if (mounted) {
-          setSummary(nextSummary);
+    const connect = async () => {
+      try {
+        const stop = await listenForUsageSummary((nextSummary) => {
+          if (mounted) {
+            setSummary(nextSummary);
+          }
+        });
+        if (!mounted) {
+          void stop();
+          return;
         }
-      })
-      .catch(() => {
+        unlisten = stop;
+      } catch {
         if (mounted) {
-          setSummary({
-            state: "unavailable",
-            todayTokens: 0,
-            sourceHealth: [],
-          });
+          setSummary(unavailableSummary);
         }
-      });
+      }
 
+      try {
+        const initialSummary = await getUsageSummary();
+        if (mounted) {
+          setSummary(initialSummary);
+        }
+      } catch {
+        if (mounted) {
+          setSummary(unavailableSummary);
+        }
+      }
+    };
+
+    void connect();
     return () => {
       mounted = false;
+      if (unlisten) {
+        void unlisten();
+      }
     };
   }, []);
 
@@ -67,7 +98,9 @@ export default function App() {
         </div>
       </section>
 
-      <p className="widget__note">Bootstrap shell; collection is not enabled yet.</p>
+      <p className="widget__note">
+        {formatRelativeUpdate(summary.lastUpdatedAt)}
+      </p>
     </main>
   );
 }
