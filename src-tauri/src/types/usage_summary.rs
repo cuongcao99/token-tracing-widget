@@ -30,6 +30,17 @@ impl UsageSummary {
         }
     }
 
+    pub fn unavailable() -> Self {
+        Self {
+            state: UsageState::Unavailable,
+            provider: None,
+            current_session_tokens: None,
+            today_tokens: 0,
+            last_updated_at: None,
+            source_health: Vec::new(),
+        }
+    }
+
     pub fn stale_from(previous: &Self) -> Self {
         Self {
             state: UsageState::Stale,

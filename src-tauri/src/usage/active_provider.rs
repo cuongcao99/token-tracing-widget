@@ -55,7 +55,7 @@ pub fn compute_active_provider(events: &[UsageEvent], now: &str) -> ActiveProvid
 
     ActiveProviderResult {
         state: UsageState::Active,
-        provider: Some(latest.provider.as_str().to_owned()),
+        provider: Some(latest.provider.display_name().to_owned()),
         current_session_tokens: Some(current_session_tokens),
         last_updated_at,
     }

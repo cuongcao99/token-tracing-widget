@@ -10,6 +10,13 @@ pub enum Provider {
 }
 
 impl Provider {
+    pub const fn display_name(self) -> &'static str {
+        match self {
+            Self::Claude => "Claude Code",
+            Self::Codex => "Codex",
+        }
+    }
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Claude => "claude",
