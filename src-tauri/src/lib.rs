@@ -1,4 +1,5 @@
 use serde::Serialize;
+use tauri::Manager;
 
 mod app;
 pub mod collection;
@@ -10,6 +11,7 @@ pub mod types;
 pub mod usage;
 pub mod utils;
 
+pub use app::runtime::AppState;
 pub use types::source_health::SourceHealth;
 pub use types::usage_summary::UsageSummary;
 
@@ -23,15 +25,26 @@ pub enum UsageState {
     Stale,
 }
 
-#[tauri::command]
-fn get_usage_summary() -> UsageSummary {
-    UsageSummary::loading()
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_usage_summary])
+        .setup(|app| {
+            let state = app::runtime::initialize_from_app(app.handle());
+            app.manage(state);
+
+            let managed = app.state::<app::runtime::AppState>();
+            if let Ok(report) = managed.collect_once(&collection::WindowsClock::current()) {
+                if commands::usage_summary::emit_usage_summary(app.handle(), &report.summary)
+                    .is_err()
+                {
+                    eprintln!("summary_event:emit");
+                }
+            }
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::usage_summary::get_usage_summary
+        ])
         .run(tauri::generate_context!())
         .expect("error while running token tracing widget");
 }
@@ -41,10 +54,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn bootstrap_summary_contains_no_provider_data() {
-        let summary = get_usage_summary();
+    fn unavailable_summary_contains_no_provider_data() {
+        let summary = UsageSummary::unavailable();
 
-        assert_eq!(summary.state, UsageState::Loading);
+        assert_eq!(summary.state, UsageState::Unavailable);
         assert_eq!(summary.today_tokens, 0);
         assert!(summary.provider.is_none());
         assert!(summary.current_session_tokens.is_none());
