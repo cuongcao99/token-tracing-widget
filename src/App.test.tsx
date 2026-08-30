@@ -41,6 +41,15 @@ it("renders the summary returned by Rust", async () => {
   expect(screen.getByText("Today: 5,678 tokens")).toBeInTheDocument();
 });
 
+it("marks the non-interactive header as a Tauri drag region", () => {
+  render(<App />);
+
+  expect(screen.getByRole("banner")).toHaveAttribute(
+    "data-tauri-drag-region",
+    "",
+  );
+});
+
 it("updates the overlay from a valid summary event and cleans up the listener", async () => {
   let onSummary: ((summary: UsageSummary) => void) | undefined;
   const unlisten = vi.fn();

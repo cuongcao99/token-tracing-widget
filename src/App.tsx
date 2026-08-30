@@ -80,7 +80,10 @@ export default function App() {
 
   return (
     <main className="widget" aria-label="Token usage summary">
-      <header className="widget__header">
+      <header
+        className="widget__header"
+        data-tauri-drag-region=""
+      >
         <h1>{summary.provider ?? "Token Tracing"}</h1>
         <span className={`status status--${summary.state}`}>
           {stateLabel(summary.state)}
