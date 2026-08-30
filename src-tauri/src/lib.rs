@@ -28,7 +28,9 @@ pub enum UsageState {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .on_window_event(app::window::handle_window_event)
         .setup(|app| {
+            app::tray::setup_tray(app.handle())?;
             let state = app::runtime::initialize_from_app(app.handle());
             app.manage(state.clone());
 
