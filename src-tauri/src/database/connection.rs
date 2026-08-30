@@ -8,7 +8,8 @@ use crate::collection::CollectionBatch;
 use crate::types::file_checkpoint::FileCheckpoint;
 use crate::types::usage_event::UsageEvent;
 
-use super::{diagnostics, file_checkpoints, schema, sessions, sources, usage_events};
+use super::{diagnostics, file_checkpoints, schema, sessions, settings, sources, usage_events};
+use crate::sources::source_config::{LoadedSourceConfigs, SourceConfig};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StorageError {
@@ -48,6 +49,26 @@ impl IndexStore {
         let connection = Connection::open(path).map_err(|_| StorageError::Open)?;
         schema::initialize(&connection).map_err(|_| StorageError::Schema)?;
         Ok(Self { connection })
+    }
+
+    pub fn load_source_configs(&self) -> Result<LoadedSourceConfigs, StorageError> {
+        settings::load_source_configs(&self.connection).map_err(|_| StorageError::Read)
+    }
+
+    pub fn save_source_config(&mut self, config: &SourceConfig) -> Result<(), StorageError> {
+        if config
+            .root_override()
+            .is_some_and(|path| path.to_str().is_none())
+        {
+            return Err(StorageError::InvalidValue);
+        }
+
+        let transaction = self
+            .connection
+            .transaction()
+            .map_err(|_| StorageError::Write)?;
+        settings::save_source_config(&transaction, config).map_err(|_| StorageError::Write)?;
+        transaction.commit().map_err(|_| StorageError::Write)
     }
 
     pub fn load_checkpoint(&self, identity: &str) -> Result<Option<FileCheckpoint>, StorageError> {
