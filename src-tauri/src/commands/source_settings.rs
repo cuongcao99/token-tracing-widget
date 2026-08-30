@@ -23,8 +23,7 @@ impl SourceSettingsInput {
             .root_override
             .filter(|root| !root.trim().is_empty())
             .map(|root| {
-                parse_explicit_root(root.trim())
-                    .map_err(|error| format!("invalid_root:{error}"))
+                parse_explicit_root(root.trim()).map_err(|error| format!("invalid_root:{error}"))
             })
             .transpose()?;
 
@@ -59,9 +58,7 @@ pub struct SourceSettingsSnapshot {
     pub sources: Vec<SourceSettingsView>,
 }
 
-pub(crate) fn source_settings_snapshot(
-    state: &AppState,
-) -> Result<SourceSettingsSnapshot, String> {
+pub(crate) fn source_settings_snapshot(state: &AppState) -> Result<SourceSettingsSnapshot, String> {
     [Provider::Claude, Provider::Codex]
         .into_iter()
         .map(|provider| {
@@ -76,7 +73,9 @@ pub(crate) fn source_settings_snapshot(
 
 fn sanitize_runtime_error(error: RuntimeError) -> String {
     match error {
-        RuntimeError::Unavailable | RuntimeError::StatePoisoned => "settings_unavailable".to_owned(),
+        RuntimeError::Unavailable | RuntimeError::StatePoisoned => {
+            "settings_unavailable".to_owned()
+        }
         RuntimeError::Settings(_) => "settings_write".to_owned(),
         RuntimeError::Collection(_) => "settings_refresh".to_owned(),
     }
@@ -177,5 +176,4 @@ mod tests {
         assert!(!error.contains(submitted));
         assert_eq!(error, "invalid_root:unsupported_unc");
     }
-
 }

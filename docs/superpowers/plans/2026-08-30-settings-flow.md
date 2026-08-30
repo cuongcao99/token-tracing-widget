@@ -39,7 +39,7 @@
   - `update_source_settings` Tauri command accepting `{ "settings": { "provider": "claude|codex", "enabled": boolean, "rootOverride": string|null } }` and returning the same snapshot.
   - `SourceSettingsInput`, `SourceSettingsView`, and `SourceSettingsSnapshot` as the typed boundary types.
 
-- [ ] **Step 1: Write the failing command-contract tests**
+- [x] **Step 1: Write the failing command-contract tests**
 
 Add tests proving the wire shape and privacy boundary before adding the commands:
 
@@ -112,11 +112,11 @@ Run: `cargo test --manifest-path src-tauri/Cargo.toml commands::source_settings`
 
 Expected: FAIL because the command boundary types and conversion helper do not exist yet.
 
-- [ ] **Step 2: Run the focused test and confirm the expected RED failure**
+- [x] **Step 2: Run the focused test and confirm the expected RED failure**
 
 Run the command above and verify the failure is missing production symbols, not a malformed test or privacy assertion.
 
-- [ ] **Step 3: Implement the minimal sanitized command boundary**
+- [x] **Step 3: Implement the minimal sanitized command boundary**
 
 Define the public command DTOs with `serde(rename_all = "camelCase")` and `serde(deny_unknown_fields)` on the input. Convert blank strings to `None`, call `parse_explicit_root` for non-blank strings, and map all runtime failures to stable categories such as `settings_unavailable`, `settings_write`, or `settings_refresh`.
 
@@ -131,11 +131,11 @@ source_settings_snapshot(state.inner())
 
 Build the snapshot in the fixed order Claude then Codex, and expose only `rootOverride`, never `configured_root_label` or a profile path.
 
-- [ ] **Step 4: Register the module and commands**
+- [x] **Step 4: Register the module and commands**
 
 Export `source_settings` from `commands/mod.rs` and add both commands to the `tauri::generate_handler!` list in `src-tauri/src/lib.rs`.
 
-- [ ] **Step 5: Run the focused tests and Rust check**
+- [x] **Step 5: Run the focused tests and Rust check**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml commands::source_settings`
 
@@ -145,7 +145,7 @@ Run: `cargo check --manifest-path src-tauri/Cargo.toml`
 
 Expected: PASS with both commands registered.
 
-- [ ] **Step 6: Commit the command boundary**
+- [x] **Step 6: Commit the command boundary**
 
 ```bash
 git add src-tauri/src/commands src-tauri/src/lib.rs
@@ -162,7 +162,7 @@ git commit -m "feat: expose typed source settings commands"
 - Consumes: Tauri `get_source_settings` and `update_source_settings` commands.
 - Produces: `ProviderId`, `SourceSettings`, `SourceSettingsSnapshot`, `getSourceSettings()`, `updateSourceSettings()`, and `parseSourceSettings()` for the settings screen.
 
-- [ ] **Step 1: Write failing bridge tests**
+- [x] **Step 1: Write failing bridge tests**
 
 Add tests for strict parsing, command names/arguments, and forbidden fields:
 
@@ -216,17 +216,17 @@ Run: `npm test -- --run src/lib/source-settings.test.ts`
 
 Expected: FAIL because the bridge module does not exist.
 
-- [ ] **Step 2: Implement strict parsing and command wrappers**
+- [x] **Step 2: Implement strict parsing and command wrappers**
 
 Accept exactly two unique provider records, the two supported provider IDs, booleans for `enabled`, and only string-or-null `rootOverride`. Reject unknown keys, arrays in place of objects, duplicate providers, and snapshots that omit either supported provider. Parse the command result before returning it. Pass the nested `settings` argument exactly as shown above.
 
-- [ ] **Step 3: Run bridge tests and the existing frontend suite**
+- [x] **Step 3: Run bridge tests and the existing frontend suite**
 
 Run: `npm test -- --run src/lib/source-settings.test.ts src/lib/usage-summary.test.ts`
 
 Expected: PASS with no raw-field payload accepted.
 
-- [ ] **Step 4: Commit the bridge**
+- [x] **Step 4: Commit the bridge**
 
 ```bash
 git add src/lib/source-settings.ts src/lib/source-settings.test.ts
@@ -247,7 +247,7 @@ git commit -m "feat: add typed source settings bridge"
 - Consumes: `getSourceSettings()` and `updateSourceSettings()` from `src/lib/source-settings.ts`.
 - Produces: a settings page with one card per provider, enable toggles, optional root override inputs, loading/error/saving states, and a save confirmation.
 
-- [ ] **Step 1: Write failing component tests**
+- [x] **Step 1: Write failing component tests**
 
 Mock only the typed bridge boundary and test user-visible behavior:
 
@@ -318,19 +318,19 @@ Run: `npm test -- --run src/Settings.test.tsx`
 
 Expected: FAIL because the screen and bridge imports do not exist.
 
-- [ ] **Step 2: Implement the form state and provider cards**
+- [x] **Step 2: Implement the form state and provider cards**
 
 Render fixed display names for `claude` and `codex`. Keep a local form copy of `enabled` and a string root input; map an empty input back to `rootOverride: null`. Load once on mount. On submit, update Claude then Codex sequentially through the bridge, replace the local snapshot with each returned result, and show `Saved. Collection will refresh shortly.` only after all updates succeed.
 
-- [ ] **Step 3: Add privacy-safe loading and error handling**
+- [x] **Step 3: Add privacy-safe loading and error handling**
 
 Map only known error categories (`invalid_root:*`, `settings_write`, `settings_refresh`, and `settings_unavailable`) to user-facing generic text. Use a generic fallback for all other errors, and never render the exception string or a submitted path.
 
-- [ ] **Step 4: Add the settings entry point and scoped plain CSS**
+- [x] **Step 4: Add the settings entry point and scoped plain CSS**
 
 Create `settings.html` pointing to `/src/settings-main.tsx`; mount `<Settings />` from that entry and import the existing stylesheet. Configure Vite's Rollup inputs for both `index.html` and `settings.html` so the dynamic Tauri webview can load the settings entry from `dist`. Add only `.settings-page`, `.source-card`, form-control, status, and button styles. Keep the existing overlay styles and dimensions unchanged.
 
-- [ ] **Step 5: Run component tests and build**
+- [x] **Step 5: Run component tests and build**
 
 Run: `npm test -- --run src/Settings.test.tsx src/App.test.tsx`
 
@@ -340,7 +340,7 @@ Run: `npm run build`
 
 Expected: PASS and `dist/settings.html` is emitted alongside the main entry.
 
-- [ ] **Step 6: Commit the settings screen**
+- [x] **Step 6: Commit the settings screen**
 
 ```bash
 git add src/Settings.tsx src/Settings.test.tsx src/settings-main.tsx settings.html src/styles.css
@@ -360,7 +360,7 @@ git commit -m "feat: add source settings screen"
 - Consumes: `settings.html` emitted by Vite and the registered settings commands.
 - Produces: a `Settings` tray action that creates one decorated, non-topmost settings window on demand, focuses an existing settings window, and lets closing it destroy the window.
 
-- [ ] **Step 1: Write failing tray tests**
+- [x] **Step 1: Write failing tray tests**
 
 Extend the existing tray tests:
 
@@ -388,15 +388,15 @@ Run: `cargo test --manifest-path src-tauri/Cargo.toml app::tray`
 
 Expected: FAIL because `SETTINGS_MENU_ID` and `TrayAction::Settings` do not exist.
 
-- [ ] **Step 2: Add the settings tray action and dynamic window builder**
+- [x] **Step 2: Add the settings tray action and dynamic window builder**
 
 Add `SETTINGS_WINDOW_LABEL = "settings"` and `SETTINGS_MENU_ID = "settings"`. Use `WebviewWindowBuilder::new(app, SETTINGS_WINDOW_LABEL, WebviewUrl::App("settings.html".into()))` with a normal decorated window around `520x560`, resizable, and not always-on-top. If the window already exists, call `show()` and `set_focus()` instead of creating a second one. Keep the main overlay visibility actions unchanged.
 
-- [ ] **Step 3: Add settings to the capability window scope**
+- [x] **Step 3: Add settings to the capability window scope**
 
 Change `windows` in `src-tauri/capabilities/default.json` from `["main"]` to `["main", "settings"]`; keep permissions limited to the existing core defaults and drag permission. Do not add filesystem or network permissions.
 
-- [ ] **Step 4: Run tray tests and the integrated Tauri build**
+- [x] **Step 4: Run tray tests and the integrated Tauri build**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml app::tray`
 
@@ -406,7 +406,7 @@ Run: `npm run tauri build -- --debug`
 
 Expected: PASS and the debug executable includes the settings entry.
 
-- [ ] **Step 5: Commit tray and capability wiring**
+- [x] **Step 5: Commit tray and capability wiring**
 
 ```bash
 git add src-tauri/src/app/tray.rs src-tauri/capabilities/default.json
@@ -424,11 +424,11 @@ git commit -m "feat: open settings from system tray"
 - Consumes: all command, bridge, UI, tray, runtime, persistence, and watcher work from Tasks 1–4.
 - Produces: verified settings persistence, sanitized frontend payloads, independent provider updates, and a clean branch ready for review.
 
-- [ ] **Step 1: Add the narrowest runtime regression test for update ordering**
+- [x] **Step 1: Reuse the existing runtime regression test for update ordering**
 
-Prove that updating a valid source config persists it and changes the in-memory config used by the next collection, while a failed invalid input never reaches SQLite. Reuse `AppState::from_paths` and `IndexStore::load_source_configs`; do not inspect raw source files in the UI test.
+The existing `source_config_update_is_persisted_before_shared_state_changes` test already proves that a valid source config persists and changes the in-memory config used by the next collection. The command unit tests prove invalid roots fail before persistence and never echo the submitted path. Keep these two tests as the regression proof; do not inspect raw source files in the UI test.
 
-- [ ] **Step 2: Run all required gates**
+- [x] **Step 2: Run all required gates**
 
 Run each command separately:
 
@@ -443,7 +443,7 @@ npm run tauri build -- --debug
 
 Expected: every command exits zero; Rust tests cover source config, persistence, runtime, collection, watcher refresh, and commands; frontend tests cover summary and settings payload rejection.
 
-- [ ] **Step 3: Inspect the final diff for scope and privacy**
+- [x] **Step 3: Inspect the final diff for scope and privacy**
 
 Run:
 
@@ -454,7 +454,7 @@ git status --short --branch
 
 Confirm the diff contains no raw fixtures, prompts, responses, repository paths, new permissions, network code, or unrelated overlay redesign.
 
-- [ ] **Step 4: Commit final test-only adjustments and plan progress**
+- [x] **Step 4: Commit final test-only adjustments and plan progress**
 
 ```bash
 git add docs/superpowers/plans/2026-08-30-settings-flow.md src-tauri/tests src/lib

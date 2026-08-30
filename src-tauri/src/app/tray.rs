@@ -82,12 +82,8 @@ fn set_main_window_visibility<R: tauri::Runtime>(app: &tauri::AppHandle<R>, visi
 pub(crate) fn setup_tray<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let [
-        (show_id, show_text),
-        (hide_id, hide_text),
-        (settings_id, settings_text),
-        (quit_id, quit_text),
-    ] = menu_items();
+    let [(show_id, show_text), (hide_id, hide_text), (settings_id, settings_text), (quit_id, quit_text)] =
+        menu_items();
     let menu = tauri::menu::MenuBuilder::new(app)
         .text(show_id, show_text)
         .text(hide_id, hide_text)
