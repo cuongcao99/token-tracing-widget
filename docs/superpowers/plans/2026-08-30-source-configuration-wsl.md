@@ -261,7 +261,8 @@ git commit -m "feat: discover configured provider roots"
 - Modify: `src-tauri/tests/collection_core.rs`
 
 **Interfaces:**
-- `ProviderSource::new(enabled: bool, configured_root: String, settings_issue: bool, discovery: DiscoveryResult, adapter: &dyn ProviderAdapter) -> ProviderSource` owns the source-update label and one pending settings diagnostic marker.
+- `ProviderSource::new(enabled: bool, discovery: DiscoveryResult, adapter: &dyn ProviderAdapter) -> ProviderSource` remains the compatibility constructor and derives the discovery label with no pending settings marker.
+- `ProviderSource::with_configured_root(enabled: bool, configured_root: String, settings_issue: bool, discovery: DiscoveryResult, adapter: &dyn ProviderAdapter) -> ProviderSource` owns the explicit source-update label and one pending settings diagnostic marker.
 - `compute_summary(rows, source_health, enabled_providers: &[Provider], clock) -> UsageSummary` filters event rows before active and daily totals.
 - Disabled collection returns `SourceHealth` state `disabled` and performs no adapter read/checkpoint work.
 
@@ -299,7 +300,7 @@ Expected: FAIL because `compute_summary` has no enabled-provider argument and so
 
 - [ ] **Step 3: Implement source labels, disabled state, and settings diagnostics**
 
-Add the owned label and `settings_issue` marker to `ProviderSource`, update every constructor call, write `SourceUpdate.configured_root` from the label, return `disabled` before discovery reads, and map `DiscoveryStatus::Disabled` to `disabled`. When the marker is set, add one `DiagnosticUpdate { category: "invalid_settings" }` without including the setting key/value/path. Runtime supplies the marker only for providers whose malformed persisted setting has not yet been acknowledged by a successful collection.
+Add the owned label and `settings_issue` marker to `ProviderSource`, keep `new` as a compatibility constructor, and use `with_configured_root` for runtime/configured sources. Write `SourceUpdate.configured_root` from the owned label, return `disabled` before discovery reads, and map `DiscoveryStatus::Disabled` to `disabled`. When the marker is set, add one `DiagnosticUpdate { category: "invalid_settings" }` without including the setting key/value/path. Runtime supplies the marker only for providers whose malformed persisted setting has not yet been acknowledged by a successful collection.
 
 - [ ] **Step 4: Implement enabled-provider filtering**
 
@@ -345,7 +346,7 @@ After opening SQLite, load `LoadedSourceConfigs`, map read failure to `RuntimeIn
 
 - [ ] **Step 4: Build discovery/watch roots from config**
 
-Use `discover_configured_source` for both providers. Construct `ProviderSource` with each config's enabled state and label. Iterate only enabled configs in `watch_roots`; missing roots remain eligible for reconciliation after they appear.
+Use `discover_configured_source` for both providers. Construct `ProviderSource::with_configured_root` with each config's enabled state and label. Iterate only enabled configs in `watch_roots`; missing roots remain eligible for reconciliation after they appear.
 
 - [ ] **Step 5: Implement write-before-memory update**
 
