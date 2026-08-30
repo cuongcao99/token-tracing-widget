@@ -29,6 +29,7 @@ impl WatchRoot {
 pub(crate) enum WatchSignal {
     Changed(Provider),
     WatchUnavailable(Provider),
+    ConfigurationChanged,
     Shutdown,
 }
 

@@ -8,6 +8,7 @@ use crate::app::runtime::{AppState, RuntimeError};
 use crate::collection::{CollectionReport, WindowsClock};
 use crate::commands::usage_summary::{emit_usage_summary, SummaryEventError};
 use crate::sources::file_watcher::{FileWatcher, WatchRoot, WatchSignal};
+use crate::sources::source_config::SourceConfig;
 use crate::types::usage_summary::UsageSummary;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -158,7 +159,9 @@ where
 
     pub(crate) fn on_signal(&mut self, signal: WatchSignal, now: Instant) -> bool {
         match signal {
-            WatchSignal::Changed(_) | WatchSignal::WatchUnavailable(_) => {
+            WatchSignal::Changed(_)
+            | WatchSignal::WatchUnavailable(_)
+            | WatchSignal::ConfigurationChanged => {
                 self.scheduler.mark_changed(now);
                 true
             }
@@ -196,7 +199,11 @@ where
                 .saturating_duration_since(Instant::now());
             match receiver.recv_timeout(wait) {
                 Ok(signal) => {
-                    if !self.on_signal(signal, Instant::now()) {
+                    let now = Instant::now();
+                    if matches!(signal, WatchSignal::ConfigurationChanged) {
+                        watcher.replace_roots(self.backend.watch_roots());
+                    }
+                    if !self.on_signal(signal, now) {
                         break;
                     }
                 }
@@ -250,6 +257,16 @@ pub(crate) struct LiveCollectionHandle {
 }
 
 impl LiveCollectionHandle {
+    #[allow(dead_code)]
+    pub(crate) fn request_source_refresh(&self) -> bool {
+        let Ok(sender) = self.sender.lock() else {
+            return false;
+        };
+        sender
+            .as_ref()
+            .is_some_and(|sender| sender.send(WatchSignal::ConfigurationChanged).is_ok())
+    }
+
     pub(crate) fn shutdown(&self) {
         if let Ok(mut sender) = self.sender.lock() {
             if let Some(sender) = sender.take() {
@@ -270,6 +287,17 @@ impl LiveCollectionHandle {
             worker: Mutex::new(Some(worker)),
         }
     }
+}
+
+#[allow(dead_code)]
+pub(crate) fn update_source_config_and_refresh(
+    state: &AppState,
+    handle: &LiveCollectionHandle,
+    config: SourceConfig,
+) -> Result<(), RuntimeError> {
+    state.update_source_config(config)?;
+    let _ = handle.request_source_refresh();
+    Ok(())
 }
 
 impl Drop for LiveCollectionHandle {
@@ -311,7 +339,7 @@ mod tests {
 
     use super::{
         CollectionBackend, CollectionReason, LiveCollectionConfig, LiveCollectionHandle,
-        LiveCollectionLoop, LiveScheduler, SummaryPublisher,
+        LiveCollectionLoop, LiveScheduler, SummaryPublisher, update_source_config_and_refresh,
     };
     use crate::app::runtime::{AppState, RuntimeError};
     use crate::collection::{CollectionError, CollectionReport, FixedClock};
@@ -319,6 +347,7 @@ mod tests {
     use crate::database::connection::StorageError;
     use crate::sources::file_watcher::{WatchRoot, WatchSignal};
     use crate::sources::session_files::DiscoveryLimits;
+    use crate::sources::source_config::SourceConfig;
     use crate::types::provider::Provider;
     use crate::types::usage_summary::UsageSummary;
     use crate::UsageState;
@@ -466,6 +495,69 @@ mod tests {
         let scheduler = LiveScheduler::new(start, test_config());
 
         assert_eq!(scheduler.next_deadline(), start + Duration::from_secs(30));
+    }
+
+    #[test]
+    fn configuration_changed_marks_collection_due_without_carrying_a_path() {
+        let start = Instant::now();
+        let mut live = LiveCollectionLoop::new(
+            ScriptedBackend {
+                attempts: 0,
+                results: std::collections::VecDeque::new(),
+            },
+            RecordingPublisher {
+                summaries: Vec::new(),
+            },
+            start,
+            test_config(),
+        );
+
+        assert!(live.on_signal(WatchSignal::ConfigurationChanged, start));
+        assert_eq!(
+            live.scheduler.next_deadline(),
+            start + test_config().notification_debounce
+        );
+    }
+
+    #[test]
+    fn source_refresh_sends_only_a_path_free_signal() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            assert_eq!(
+                receiver.recv().unwrap(),
+                WatchSignal::ConfigurationChanged
+            );
+            assert_eq!(receiver.recv().unwrap(), WatchSignal::Shutdown);
+        });
+        let handle = LiveCollectionHandle::from_parts(sender, worker);
+
+        assert!(handle.request_source_refresh());
+        handle.shutdown();
+    }
+
+    #[test]
+    fn successful_source_update_requests_live_refresh() {
+        let profile = tempfile::tempdir().unwrap();
+        let database = tempfile::tempdir().unwrap();
+        let state = AppState::from_paths(
+            profile.path().to_path_buf(),
+            &database.path().join("index.sqlite"),
+            DiscoveryLimits::new(10, 10_000),
+        )
+        .unwrap();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            assert_eq!(
+                receiver.recv().unwrap(),
+                WatchSignal::ConfigurationChanged
+            );
+            assert_eq!(receiver.recv().unwrap(), WatchSignal::Shutdown);
+        });
+        let handle = LiveCollectionHandle::from_parts(sender, worker);
+        let config = SourceConfig::try_new(Provider::Claude, false, None).unwrap();
+
+        update_source_config_and_refresh(&state, &handle, config).unwrap();
+        handle.shutdown();
     }
 
     #[test]
