@@ -3,7 +3,7 @@
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use tauri::Manager;
 
@@ -13,7 +13,10 @@ use crate::collection::{
 use crate::database::connection::IndexStore;
 use crate::providers::claude::ClaudeReader;
 use crate::providers::codex::CodexReader;
+use crate::sources::file_watcher::WatchRoot;
+use crate::sources::provider_roots::resolve_native_root;
 use crate::sources::session_files::{discover_native_sources, DiscoveryLimits};
+use crate::types::provider::Provider;
 use crate::types::usage_summary::UsageSummary;
 
 pub const DEFAULT_DISCOVERY_LIMITS: DiscoveryLimits = DiscoveryLimits::new(5, 50 * 1024 * 1024);
@@ -24,8 +27,9 @@ struct Runtime {
     discovery_limits: DiscoveryLimits,
 }
 
+#[derive(Clone)]
 pub struct AppState {
-    runtime: Mutex<Option<Runtime>>,
+    runtime: Arc<Mutex<Option<Runtime>>>,
     fallback_summary: UsageSummary,
 }
 
@@ -89,6 +93,17 @@ impl Runtime {
         ];
         self.coordinator.collect(&sources, clock)
     }
+
+    fn watch_roots(&self) -> Vec<WatchRoot> {
+        [Provider::Claude, Provider::Codex]
+            .into_iter()
+            .filter_map(|provider| {
+                resolve_native_root(&self.profile_root, provider)
+                    .ok()
+                    .map(|root| WatchRoot::new(provider, root.filesystem_path().to_path_buf()))
+            })
+            .collect()
+    }
 }
 
 impl AppState {
@@ -109,18 +124,18 @@ impl AppState {
         let store = IndexStore::open(database_path).map_err(|_| RuntimeInitError::DatabaseOpen)?;
 
         Ok(Self {
-            runtime: Mutex::new(Some(Runtime {
+            runtime: Arc::new(Mutex::new(Some(Runtime {
                 coordinator: CollectionCoordinator::new(store),
                 profile_root,
                 discovery_limits,
-            })),
+            }))),
             fallback_summary: UsageSummary::unavailable(),
         })
     }
 
     pub fn unavailable() -> Self {
         Self {
-            runtime: Mutex::new(None),
+            runtime: Arc::new(Mutex::new(None)),
             fallback_summary: UsageSummary::unavailable(),
         }
     }
@@ -137,6 +152,16 @@ impl AppState {
         runtime
             .collect_once(clock)
             .map_err(RuntimeError::Collection)
+    }
+
+    pub(crate) fn watch_roots(&self) -> Vec<WatchRoot> {
+        let Ok(runtime) = self.runtime.lock() else {
+            return Vec::new();
+        };
+        runtime
+            .as_ref()
+            .map(Runtime::watch_roots)
+            .unwrap_or_default()
     }
 
     pub fn summary(&self) -> UsageSummary {
