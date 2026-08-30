@@ -49,6 +49,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::source_settings::get_source_settings,
+            commands::source_settings::update_source_settings,
             commands::usage_summary::get_usage_summary
         ])
         .build(tauri::generate_context!())
