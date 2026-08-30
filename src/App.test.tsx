@@ -90,3 +90,20 @@ it("shows unavailable when the initial summary is invalid", async () => {
   ).toBeInTheDocument();
   expect(screen.getAllByText("Unavailable")).toHaveLength(2);
 });
+
+it("renders a large daily total without changing the metric text", async () => {
+  vi.mocked(getUsageSummary).mockResolvedValueOnce({
+    state: "active",
+    provider: "Codex",
+    currentSessionTokens: 1234,
+    todayTokens: 13650796,
+    lastUpdatedAt: "2026-08-30T00:00:01Z",
+    sourceHealth: [{ provider: "Codex", state: "active" }],
+  });
+
+  render(<App />);
+
+  expect(
+    await screen.findByText("Today: 13,650,796 tokens"),
+  ).toBeInTheDocument();
+});
