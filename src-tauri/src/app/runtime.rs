@@ -19,7 +19,8 @@ use crate::sources::session_files::{discover_native_sources, DiscoveryLimits};
 use crate::types::provider::Provider;
 use crate::types::usage_summary::UsageSummary;
 
-pub const DEFAULT_DISCOVERY_LIMITS: DiscoveryLimits = DiscoveryLimits::new(5, 50 * 1024 * 1024);
+pub const DEFAULT_DISCOVERY_LIMITS: DiscoveryLimits =
+    DiscoveryLimits::without_file_count(50 * 1024 * 1024);
 
 struct Runtime {
     coordinator: CollectionCoordinator<IndexStore>,
@@ -191,4 +192,14 @@ pub fn initialize_from_app(app: &tauri::AppHandle) -> AppState {
 
     AppState::from_paths(profile_root, &database_path, DEFAULT_DISCOVERY_LIMITS)
         .unwrap_or_else(|_| AppState::unavailable())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DEFAULT_DISCOVERY_LIMITS;
+
+    #[test]
+    fn default_discovery_does_not_cap_file_count() {
+        assert_eq!(DEFAULT_DISCOVERY_LIMITS.max_files, usize::MAX);
+    }
 }

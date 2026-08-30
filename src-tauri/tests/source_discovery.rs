@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use tempfile::tempdir;
 use token_tracing_widget_lib::sources::provider_roots::{
@@ -127,7 +128,7 @@ fn discovery_sanitizes_relative_layout_metadata() {
 }
 
 #[test]
-fn discovery_enforces_file_and_byte_limits_before_selection() {
+fn discovery_enforces_file_and_byte_limits() {
     let profile = tempdir().expect("synthetic profile should be created");
     let root = synthetic_provider_root(profile.path(), Provider::Codex);
     for index in 0..4 {
@@ -141,6 +142,43 @@ fn discovery_enforces_file_and_byte_limits_before_selection() {
 
     assert_eq!(result.files().len(), 2);
     assert_eq!(result.total_bytes(), 6);
+    assert_eq!(result.status(), DiscoveryStatus::LimitReached);
+}
+
+#[test]
+fn unbounded_discovery_accepts_all_small_files() {
+    let profile = tempdir().expect("synthetic profile should be created");
+    let root = synthetic_provider_root(profile.path(), Provider::Codex);
+    for index in 0..6 {
+        create_file(
+            &root.join(format!("session-{index}.jsonl")),
+            b"metadata only",
+        );
+    }
+
+    let result = discover_provider(
+        profile.path(),
+        Provider::Codex,
+        limits(usize::MAX, 50 * 1024 * 1024),
+    );
+
+    assert_eq!(result.files().len(), 6);
+    assert_eq!(result.status(), DiscoveryStatus::Detected);
+}
+
+#[test]
+fn discovery_applies_byte_limit_after_newest_sorting() {
+    let profile = tempdir().expect("synthetic profile should be created");
+    let root = synthetic_provider_root(profile.path(), Provider::Codex);
+    create_file(&root.join("a-old.jsonl"), b"o");
+    std::thread::sleep(Duration::from_millis(50));
+    create_file(&root.join("z-new.jsonl"), b"nn");
+
+    let result = discover_provider(profile.path(), Provider::Codex, limits(usize::MAX, 2));
+
+    assert_eq!(result.files().len(), 1);
+    assert_eq!(result.files()[0].size_bytes(), 2);
+    assert_eq!(result.total_bytes(), 2);
     assert_eq!(result.status(), DiscoveryStatus::LimitReached);
 }
 

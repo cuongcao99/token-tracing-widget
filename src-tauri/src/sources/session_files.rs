@@ -23,6 +23,10 @@ impl DiscoveryLimits {
             max_total_bytes,
         }
     }
+
+    pub const fn without_file_count(max_total_bytes: u64) -> Self {
+        Self::new(usize::MAX, max_total_bytes)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -170,14 +174,14 @@ struct LocatedFile {
 
 fn walk_root(root: &ProviderRoot, limits: DiscoveryLimits) -> DiscoveryResult {
     let mut directories = vec![root.filesystem_path().to_path_buf()];
-    let mut selected = Vec::<LocatedFile>::new();
+    let mut candidates = Vec::<LocatedFile>::new();
     let mut total_bytes = 0_u64;
     let mut rejected_entries = 0_u64;
     let mut permission_seen = false;
     let mut io_seen = false;
     let mut limit_reached = limits.max_files == 0 || limits.max_total_bytes == 0;
 
-    'walk: while let Some(directory) = directories.pop() {
+    while let Some(directory) = directories.pop() {
         let entries = match fs::read_dir(&directory) {
             Ok(entries) => entries,
             Err(error) => {
@@ -187,11 +191,6 @@ fn walk_root(root: &ProviderRoot, limits: DiscoveryLimits) -> DiscoveryResult {
         };
 
         for entry in entries {
-            if selected.len() >= limits.max_files {
-                limit_reached = true;
-                break 'walk;
-            }
-
             let entry = match entry {
                 Ok(entry) => entry,
                 Err(error) => {
@@ -227,11 +226,6 @@ fn walk_root(root: &ProviderRoot, limits: DiscoveryLimits) -> DiscoveryResult {
                 continue;
             };
             let size_bytes = metadata.len();
-            if total_bytes.saturating_add(size_bytes) > limits.max_total_bytes {
-                limit_reached = true;
-                continue;
-            }
-
             let relative_pattern =
                 match sanitized_relative_pattern(root.filesystem_path(), &candidate_path, kind) {
                     Ok(pattern) => pattern,
@@ -241,7 +235,7 @@ fn walk_root(root: &ProviderRoot, limits: DiscoveryLimits) -> DiscoveryResult {
                     }
                 };
 
-            selected.push(LocatedFile {
+            candidates.push(LocatedFile {
                 file: DiscoveredSessionFile {
                     filesystem_path: candidate_path,
                     relative_pattern,
@@ -253,16 +247,28 @@ fn walk_root(root: &ProviderRoot, limits: DiscoveryLimits) -> DiscoveryResult {
                 },
                 modified_at: metadata.modified().unwrap_or(UNIX_EPOCH),
             });
-            total_bytes = total_bytes.saturating_add(size_bytes);
         }
     }
 
-    selected.sort_by(|left, right| {
+    candidates.sort_by(|left, right| {
         right
             .modified_at
             .cmp(&left.modified_at)
             .then_with(|| left.file.relative_pattern.cmp(&right.file.relative_pattern))
     });
+    let mut selected = Vec::new();
+    for located in candidates {
+        if selected.len() >= limits.max_files {
+            limit_reached = true;
+            break;
+        }
+        if total_bytes.saturating_add(located.file.size_bytes()) > limits.max_total_bytes {
+            limit_reached = true;
+            continue;
+        }
+        total_bytes = total_bytes.saturating_add(located.file.size_bytes());
+        selected.push(located);
+    }
     let files = selected.into_iter().map(|located| located.file).collect();
     let status = if permission_seen {
         DiscoveryStatus::PermissionDenied
