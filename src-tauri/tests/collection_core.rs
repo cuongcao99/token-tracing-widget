@@ -495,12 +495,7 @@ fn disabled_provider_events_do_not_enter_summary_totals() {
                 "2026-01-01T10:00:00Z",
                 20,
             ),
-            UsageEvent::for_test(
-                Provider::Codex,
-                "codex-session",
-                "2026-01-01T10:00:01Z",
-                30,
-            ),
+            UsageEvent::for_test(Provider::Codex, "codex-session", "2026-01-01T10:00:01Z", 30),
         ],
     };
     let health = vec![
@@ -536,23 +531,17 @@ fn source_update_preserves_explicit_configured_root_label() {
     )
     .unwrap();
     let label = root.to_string_lossy().into_owned();
-    let discovery =
-        token_tracing_widget_lib::sources::session_files::discover_configured_source(
-            profile.path(),
-            &config,
-            token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
-        );
+    let discovery = token_tracing_widget_lib::sources::session_files::discover_configured_source(
+        profile.path(),
+        &config,
+        token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000),
+    );
     let reader: &'static ClaudeReader = Box::leak(Box::new(ClaudeReader::default()));
     let store = InMemoryStore::default();
     let updates = Arc::clone(&store.source_updates);
     let mut coordinator = CollectionCoordinator::new(store);
-    let source = ProviderSource::with_configured_root(
-        true,
-        label.clone(),
-        false,
-        discovery,
-        reader,
-    );
+    let source =
+        ProviderSource::with_configured_root(true, label.clone(), false, discovery, reader);
 
     coordinator
         .collect(

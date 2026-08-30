@@ -175,7 +175,9 @@ fn validate_explicit_path(path: &Path) -> Result<(), SourceConfigError> {
         match prefix {
             Some(Prefix::Disk(_)) => {}
             Some(Prefix::UNC(server, share))
-                if server.to_string_lossy().eq_ignore_ascii_case("wsl.localhost")
+                if server
+                    .to_string_lossy()
+                    .eq_ignore_ascii_case("wsl.localhost")
                     && !share.is_empty() => {}
             Some(Prefix::UNC(_, _)) => return Err(SourceConfigError::UnsupportedUnc),
             Some(Prefix::Verbatim(_))

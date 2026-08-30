@@ -278,11 +278,8 @@ fn explicit_existing_root_is_discovered_with_its_configured_label() {
     let config = SourceConfig::try_new(Provider::Claude, true, Some(root.clone())).unwrap();
     let label = root.to_string_lossy().into_owned();
 
-    let result = discover_configured_source(
-        profile.path(),
-        &config,
-        DiscoveryLimits::new(10, 1_000),
-    );
+    let result =
+        discover_configured_source(profile.path(), &config, DiscoveryLimits::new(10, 1_000));
 
     assert_eq!(result.status(), DiscoveryStatus::Detected);
     assert_eq!(result.configured_root(), label);
@@ -296,11 +293,8 @@ fn missing_explicit_root_reports_not_detected_without_scanning_profile() {
     let config = SourceConfig::try_new(Provider::Claude, true, Some(root.clone())).unwrap();
     let label = root.to_string_lossy().into_owned();
 
-    let result = discover_configured_source(
-        profile.path(),
-        &config,
-        DiscoveryLimits::new(10, 1_000),
-    );
+    let result =
+        discover_configured_source(profile.path(), &config, DiscoveryLimits::new(10, 1_000));
 
     assert_eq!(result.status(), DiscoveryStatus::NotDetected);
     assert!(result.files().is_empty());
@@ -315,11 +309,8 @@ fn disabled_source_never_walks_its_root() {
     fs::write(root.join("session.jsonl"), b"metadata only").unwrap();
     let config = SourceConfig::try_new(Provider::Claude, false, Some(root)).unwrap();
 
-    let result = discover_configured_source(
-        profile.path(),
-        &config,
-        DiscoveryLimits::new(10, 1_000),
-    );
+    let result =
+        discover_configured_source(profile.path(), &config, DiscoveryLimits::new(10, 1_000));
 
     assert_eq!(result.status(), DiscoveryStatus::Disabled);
     assert!(result.files().is_empty());

@@ -131,8 +131,8 @@ fn runtime_loads_persisted_disabled_provider_without_reading_it() {
         .unwrap();
     drop(index);
 
-    let state = AppState::from_paths(profile.path().to_path_buf(), &database_path, limits())
-        .unwrap();
+    let state =
+        AppState::from_paths(profile.path().to_path_buf(), &database_path, limits()).unwrap();
     let report = state
         .collect_once(&FixedClock::new("2026-01-01T00:00:30Z", "2026-01-01"))
         .unwrap();
@@ -146,8 +146,8 @@ fn source_config_update_is_persisted_before_shared_state_changes() {
     let profile = write_profile(false);
     let database = tempfile::tempdir().unwrap();
     let database_path = database.path().join("index.sqlite");
-    let state = AppState::from_paths(profile.path().to_path_buf(), &database_path, limits())
-        .unwrap();
+    let state =
+        AppState::from_paths(profile.path().to_path_buf(), &database_path, limits()).unwrap();
     let config = SourceConfig::try_new(Provider::Claude, false, None).unwrap();
 
     state.update_source_config(config.clone()).unwrap();
@@ -162,4 +162,71 @@ fn source_config_update_is_persisted_before_shared_state_changes() {
             .get(Provider::Claude),
         &config
     );
+}
+
+#[test]
+fn explicit_root_never_enters_summary_payload() {
+    let profile = write_profile(false);
+    let explicit_root = profile.path().join("private-root");
+    fs::create_dir_all(&explicit_root).unwrap();
+    fs::copy(
+        profile
+            .path()
+            .join(".claude")
+            .join("projects")
+            .join("session.jsonl"),
+        explicit_root.join("session.jsonl"),
+    )
+    .unwrap();
+    let database = tempfile::tempdir().unwrap();
+    let database_path = database.path().join("index.sqlite");
+    let state =
+        AppState::from_paths(profile.path().to_path_buf(), &database_path, limits()).unwrap();
+    let config =
+        SourceConfig::try_new(Provider::Claude, true, Some(explicit_root.clone())).unwrap();
+    let explicit_label = explicit_root.to_string_lossy().into_owned();
+    state.update_source_config(config).unwrap();
+
+    let report = state
+        .collect_once(&FixedClock::new("2026-01-01T00:00:30Z", "2026-01-01"))
+        .unwrap();
+    let serialized = serde_json::to_string(&report.summary).unwrap();
+
+    assert_eq!(report.summary.today_tokens, 20);
+    assert!(!serialized.contains(&explicit_label));
+    assert!(!serialized.contains("rawRecord"));
+    assert!(!serialized.contains("working_directory"));
+}
+
+#[test]
+fn malformed_setting_records_only_a_sanitized_diagnostic_category() {
+    let profile = write_profile(false);
+    let database = tempfile::tempdir().unwrap();
+    let database_path = database.path().join("index.sqlite");
+    let index = IndexStore::open(&database_path).unwrap();
+    drop(index);
+    let connection = rusqlite::Connection::open(&database_path).unwrap();
+    connection
+        .execute(
+            "INSERT INTO settings(setting_key, setting_value) VALUES (?1, ?2)",
+            ["source.claude.root_override", "prompt=secret/private-root"],
+        )
+        .unwrap();
+    drop(connection);
+
+    let state =
+        AppState::from_paths(profile.path().to_path_buf(), &database_path, limits()).unwrap();
+    state
+        .collect_once(&FixedClock::new("2026-01-01T00:00:30Z", "2026-01-01"))
+        .unwrap();
+
+    let connection = rusqlite::Connection::open(&database_path).unwrap();
+    let category: String = connection
+        .query_row(
+            "SELECT category FROM diagnostics WHERE provider = ?1",
+            ["claude"],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(category, "invalid_settings");
 }

@@ -207,7 +207,10 @@ fn malformed_source_setting_defaults_only_its_provider() {
         .unwrap();
     drop(connection);
 
-    let loaded = IndexStore::open(&path).unwrap().load_source_configs().unwrap();
+    let loaded = IndexStore::open(&path)
+        .unwrap()
+        .load_source_configs()
+        .unwrap();
     assert!(loaded.configs.is_enabled(Provider::Claude));
     assert!(loaded.configs.is_enabled(Provider::Codex));
     assert_eq!(loaded.invalid_providers, vec![Provider::Claude]);

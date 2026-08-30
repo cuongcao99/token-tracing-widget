@@ -338,8 +338,9 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::{
-        CollectionBackend, CollectionReason, LiveCollectionConfig, LiveCollectionHandle,
-        LiveCollectionLoop, LiveScheduler, SummaryPublisher, update_source_config_and_refresh,
+        update_source_config_and_refresh, CollectionBackend, CollectionReason,
+        LiveCollectionConfig, LiveCollectionHandle, LiveCollectionLoop, LiveScheduler,
+        SummaryPublisher,
     };
     use crate::app::runtime::{AppState, RuntimeError};
     use crate::collection::{CollectionError, CollectionReport, FixedClock};
@@ -523,10 +524,7 @@ mod tests {
     fn source_refresh_sends_only_a_path_free_signal() {
         let (sender, receiver) = std::sync::mpsc::channel();
         let worker = std::thread::spawn(move || {
-            assert_eq!(
-                receiver.recv().unwrap(),
-                WatchSignal::ConfigurationChanged
-            );
+            assert_eq!(receiver.recv().unwrap(), WatchSignal::ConfigurationChanged);
             assert_eq!(receiver.recv().unwrap(), WatchSignal::Shutdown);
         });
         let handle = LiveCollectionHandle::from_parts(sender, worker);
@@ -547,10 +545,7 @@ mod tests {
         .unwrap();
         let (sender, receiver) = std::sync::mpsc::channel();
         let worker = std::thread::spawn(move || {
-            assert_eq!(
-                receiver.recv().unwrap(),
-                WatchSignal::ConfigurationChanged
-            );
+            assert_eq!(receiver.recv().unwrap(), WatchSignal::ConfigurationChanged);
             assert_eq!(receiver.recv().unwrap(), WatchSignal::Shutdown);
         });
         let handle = LiveCollectionHandle::from_parts(sender, worker);

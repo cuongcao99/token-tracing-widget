@@ -93,16 +93,10 @@ impl Runtime {
     ) -> Result<CollectionReport, CollectionError> {
         let claude_config = self.source_configs.get(Provider::Claude);
         let codex_config = self.source_configs.get(Provider::Codex);
-        let claude_discovery = discover_configured_source(
-            &self.profile_root,
-            claude_config,
-            self.discovery_limits,
-        );
-        let codex_discovery = discover_configured_source(
-            &self.profile_root,
-            codex_config,
-            self.discovery_limits,
-        );
+        let claude_discovery =
+            discover_configured_source(&self.profile_root, claude_config, self.discovery_limits);
+        let codex_discovery =
+            discover_configured_source(&self.profile_root, codex_config, self.discovery_limits);
         let claude_reader = ClaudeReader::default();
         let codex_reader = CodexReader::default();
         let sources = [
@@ -150,7 +144,8 @@ impl Runtime {
             .save_source_config(&config)
             .map_err(RuntimeError::Settings)?;
         self.source_configs.replace(config.clone());
-        self.invalid_settings.retain(|provider| *provider != config.provider());
+        self.invalid_settings
+            .retain(|provider| *provider != config.provider());
         Ok(())
     }
 }
