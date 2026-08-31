@@ -81,6 +81,21 @@ pub fn resolve_configured_root(
     resolve_automatic_root(profile_root, config.provider())
 }
 
+pub fn configured_root_path(
+    profile_root: &Path,
+    config: &SourceConfig,
+) -> Result<PathBuf, RootError> {
+    if let Some(path) = config.root_override() {
+        return Ok(path.to_path_buf());
+    }
+
+    safe_paths::join_under_root(
+        profile_root,
+        Path::new(native_root_relative(config.provider())),
+    )
+    .map_err(map_path_error)
+}
+
 fn resolve_automatic_root(
     profile_root: &Path,
     provider: Provider,

@@ -13,7 +13,7 @@ use crate::collection::{
 use crate::database::connection::{IndexStore, StorageError};
 use crate::providers::registry::provider_registry;
 use crate::sources::file_watcher::WatchRoot;
-use crate::sources::provider_roots::resolve_configured_root;
+use crate::sources::provider_roots::{configured_root_path, resolve_configured_root};
 use crate::sources::session_files::{discover_configured_source, DiscoveryLimits};
 use crate::sources::source_config::{SourceConfig, SourceConfigSet};
 use crate::types::provider::Provider;
@@ -221,6 +221,16 @@ impl AppState {
             .as_ref()
             .map(|runtime| runtime.source_config(provider))
             .ok_or(RuntimeError::Unavailable)
+    }
+
+    pub fn source_root_path(&self, provider: Provider) -> Result<PathBuf, RuntimeError> {
+        let runtime = self
+            .runtime
+            .lock()
+            .map_err(|_| RuntimeError::StatePoisoned)?;
+        let runtime = runtime.as_ref().ok_or(RuntimeError::Unavailable)?;
+        configured_root_path(&runtime.profile_root, runtime.source_configs.get(provider))
+            .map_err(|_| RuntimeError::Unavailable)
     }
 
     pub fn update_source_config(&self, config: SourceConfig) -> Result<(), RuntimeError> {
