@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import type { UnlistenFn } from "@tauri-apps/api/event";
 import {
   getWidgetSettings,
   listenForWidgetSettings,
+  type UnlistenFn,
   type WidgetSettingsSnapshot,
 } from "../lib/widget-settings";
 import {

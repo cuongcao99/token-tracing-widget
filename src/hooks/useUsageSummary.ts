@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import type { UnlistenFn } from "@tauri-apps/api/event";
 import {
   getUsageSummary,
   listenForUsageSummary,
+  type UnlistenFn,
   type UsageState,
   type UsageSummary,
 } from "../lib/usage-summary";

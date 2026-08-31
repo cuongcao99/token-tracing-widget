@@ -1,72 +1,24 @@
-import { invoke } from "@tauri-apps/api/core";
-import { isProviderId, providerOrder, type ProviderId } from "./provider";
+import {
+  invokePickSourceRoot,
+  invokeSourceSettings,
+  invokeUpdateSourceSettings,
+} from "./desktop/commands";
+import {
+  parseSourceSettings,
+  type SourceSettings,
+  type SourceSettingsSnapshot,
+} from "./contracts/source-settings";
+import type { ProviderId } from "./provider";
 
 export type { ProviderId } from "./provider";
-
-export interface SourceSettings {
-  provider: ProviderId;
-  enabled: boolean;
-  rootOverride: string | null;
-}
-
-export interface SourceSettingsSnapshot {
-  sources: SourceSettings[];
-}
-
-const providerIds = providerOrder;
-const snapshotKeys = ["sources"] as const;
-const sourceKeys = ["provider", "enabled", "rootOverride"] as const;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function hasExactKeys(
-  value: Record<string, unknown>,
-  allowed: readonly string[],
-): boolean {
-  const keys = Object.keys(value);
-  return (
-    keys.length === allowed.length &&
-    keys.every((key) => allowed.some((name) => name === key))
-  );
-}
-
-export function parseSourceSettings(
-  value: unknown,
-): SourceSettingsSnapshot | null {
-  if (!isRecord(value) || !hasExactKeys(value, snapshotKeys)) return null;
-  if (!Array.isArray(value.sources) || value.sources.length !== providerIds.length) {
-    return null;
-  }
-
-  const seen = new Set<ProviderId>();
-  const sources: SourceSettings[] = [];
-  for (const entry of value.sources) {
-    if (!isRecord(entry) || !hasExactKeys(entry, sourceKeys)) return null;
-    if (!isProviderId(entry.provider) || seen.has(entry.provider)) return null;
-    if (typeof entry.enabled !== "boolean") return null;
-    if (
-      entry.rootOverride !== null &&
-      typeof entry.rootOverride !== "string"
-    ) {
-      return null;
-    }
-
-    seen.add(entry.provider);
-    sources.push({
-      provider: entry.provider,
-      enabled: entry.enabled,
-      rootOverride: entry.rootOverride,
-    });
-  }
-
-  if (seen.size !== providerIds.length) return null;
-  return { sources };
-}
+export {
+  parseSourceSettings,
+  type SourceSettings,
+  type SourceSettingsSnapshot,
+} from "./contracts/source-settings";
 
 export async function getSourceSettings(): Promise<SourceSettingsSnapshot> {
-  const value = await invoke<unknown>("get_source_settings");
+  const value = await invokeSourceSettings();
   const settings = parseSourceSettings(value);
   if (!settings) {
     throw new Error("invalid_source_settings");
@@ -77,7 +29,7 @@ export async function getSourceSettings(): Promise<SourceSettingsSnapshot> {
 export async function pickSourceRoot(
   provider: ProviderId,
 ): Promise<SourceSettingsSnapshot | null> {
-  const value = await invoke<unknown>("pick_source_root", { provider });
+  const value = await invokePickSourceRoot(provider);
   if (value === null) return null;
 
   const settings = parseSourceSettings(value);
@@ -90,7 +42,7 @@ export async function pickSourceRoot(
 export async function updateSourceSettings(
   settings: SourceSettings,
 ): Promise<SourceSettingsSnapshot> {
-  const value = await invoke<unknown>("update_source_settings", { settings });
+  const value = await invokeUpdateSourceSettings(settings);
   const nextSettings = parseSourceSettings(value);
   if (!nextSettings) {
     throw new Error("invalid_source_settings");

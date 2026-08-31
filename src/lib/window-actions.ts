@@ -1,25 +1,22 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import {
+  closeCurrentWindow as closeDesktopWindow,
+  startCurrentWindowDrag as startDesktopWindowDrag,
+  startCurrentWindowResize as startDesktopWindowResize,
+  type WindowResizeDirection,
+} from "./desktop/window";
 
-export type WindowResizeDirection =
-  | "East"
-  | "North"
-  | "NorthEast"
-  | "NorthWest"
-  | "South"
-  | "SouthEast"
-  | "SouthWest"
-  | "West";
+export type { WindowResizeDirection } from "./desktop/window";
 
 export function startCurrentWindowDrag(): Promise<void> {
-  return getCurrentWindow().startDragging();
+  return startDesktopWindowDrag();
 }
 
 export function startCurrentWindowResize(
   direction: WindowResizeDirection,
 ): Promise<void> {
-  return getCurrentWindow().startResizeDragging(direction);
+  return startDesktopWindowResize(direction);
 }
 
 export function closeCurrentWindow(): Promise<void> {
-  return getCurrentWindow().close();
+  return closeDesktopWindow();
 }
