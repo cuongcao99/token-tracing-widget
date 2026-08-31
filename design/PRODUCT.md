@@ -55,7 +55,7 @@ it can remain visible while the user works elsewhere.
 ## Brand Commitments
 
 - The product name is Token Tracing Widget.
-- The user-provided `DESIGN.md` is the visual authority for the redesign:
+- The user-provided `design/DESIGN_APPLE.md` is the visual authority for the redesign:
   Apple-inspired restraint, system/SF-style typography, Action Blue as the
   single interactive accent, near-black ink, light/parchment surfaces,
   hairlines instead of heavy chrome, no decorative gradients, and restrained
@@ -68,7 +68,7 @@ it can remain visible while the user works elsewhere.
 - `CONTEXT.md` defines the product vocabulary and domain model.
 - `docs/superpowers/specs/2026-08-29-token-tracing-widget-design.md` is the
   approved architecture and version-one source of truth.
-- `DESIGN.md` contains the user-provided Apple UI/UX analysis and token
+- `design/DESIGN_APPLE.md` contains the user-provided Apple UI/UX analysis and token
   references.
 - The current repository contains the Rust collection/runtime, React overlay,
   source settings window, and tray flow.

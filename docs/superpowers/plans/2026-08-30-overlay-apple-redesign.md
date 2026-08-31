@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-30
 **Status:** Ready for implementation approval; no source code changed by this plan
-**Design authority:** `docs/superpowers/specs/2026-08-30-overlay-apple-redesign-design-update.md` and user-provided `DESIGN.md`
+**Design authority:** `docs/superpowers/specs/2026-08-30-overlay-apple-redesign-design-update.md` and user-provided `design/DESIGN_APPLE.md`
 
 ## Goal
 
@@ -53,7 +53,7 @@ Implement only the approved design update:
 ## Global Constraints
 
 - Work on `dev`; do not merge or push to `main`.
-- Do not modify or stage the user-provided `DESIGN.md` unless explicitly asked.
+- Do not modify or stage the user-provided `design/DESIGN_APPLE.md` unless explicitly asked.
 - Do not widen the privacy boundary: prompts, responses, reasoning, tool
   payloads, credentials, repository contents, working directories, raw
   records, and arbitrary file paths must not enter frontend payloads,

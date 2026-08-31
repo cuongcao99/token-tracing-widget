@@ -7,7 +7,7 @@
 ## Related artifacts
 
 - [Approved v1 design](2026-08-29-token-tracing-widget-design.md)
-- [Apple visual reference](../../../DESIGN.md)
+- [Apple visual reference](../../../design/DESIGN_APPLE.md)
 - [Approved comp](../../../.impeccable/mocks/overlay-dark-focus-tile.png)
 - [Measured comp spec](../../../.impeccable/build/spec.json)
 
@@ -16,7 +16,7 @@
 The main overlay will use the Dark Focus Tile direction selected by the user.
 It is a compact, dark, Apple-inspired utility surface with a single strong
 numeric focal point, quiet metadata, hairline separators, and one blue status
-accent. The design language is adapted from `DESIGN.md`; it does not imitate
+accent. The design language is adapted from `design/DESIGN_APPLE.md`; it does not imitate
 Apple product branding, logos, marketing navigation, or photography.
 
 This update records two explicit departures from the 2026-08-29 baseline:
@@ -61,7 +61,7 @@ taskbar-hidden, with the existing remembered-position behavior.
 
 ### Surface and tokens
 
-Use the token family from `DESIGN.md`, adapted to the small desktop surface:
+Use the token family from `design/DESIGN_APPLE.md`, adapted to the small desktop surface:
 
 - Surface: `#272729` (near-black tile)
 - Primary text: `#ffffff`
@@ -71,7 +71,7 @@ Use the token family from `DESIGN.md`, adapted to the small desktop surface:
   token; no visible heavy border
 - Radius: the compact utility radius from the design scale, approximately
   8–11px at the widget edge
-- Shadow: none; the product-image-only shadow from `DESIGN.md` does not apply
+- Shadow: none; the product-image-only shadow from `design/DESIGN_APPLE.md` does not apply
   because this surface contains no imagery
 - Gradient: none
 

@@ -63,3 +63,125 @@ _Avoid_: App status, connection status
 **Usage Summary**:
 The privacy-safe aggregate presented to the overlay: activity state, optional Provider, current-session total, Today's Total, last update, and Source Health.
 _Avoid_: Dashboard data, raw usage
+
+## Repository shape
+
+The implementation is a Windows-first Tauri 2 desktop app. Rust owns local
+data access and the collection pipeline; React owns presentation and typed
+Tauri bridge calls; plain CSS owns the visual system.
+
+### Rust runtime and data flow
+
+- `src-tauri/src/app/` contains startup, live collection orchestration, window
+  lifecycle, and tray behavior.
+- `src-tauri/src/providers/claude/` and `src-tauri/src/providers/codex/` keep
+  provider-specific readers and parsers behind the shared adapter contract.
+- `src-tauri/src/sources/` handles bounded source-root discovery, source
+  configuration, session-file enumeration, and file watching.
+- `src-tauri/src/collection/` and `src-tauri/src/usage/` validate observations,
+  convert cumulative counters to deltas, filter duplicates, calculate provider
+  summaries, and select the Active Provider.
+- `src-tauri/src/database/` persists normalized usage events, sessions,
+  checkpoints, source configuration, and widget settings in SQLite.
+- `src-tauri/src/commands/` exposes typed usage-summary, source-settings, and
+  widget-settings commands. `src-tauri/src/types/` defines the contracts
+  crossing the Rust/React boundary.
+
+The privacy-preserving flow is:
+
+`bounded Source Root → provider reader/parser → Observation → validated Usage Event → SQLite aggregates → typed Usage Summary → React surface`
+
+Raw provider records and conversational content stay inside the Rust boundary.
+
+### Frontend surfaces
+
+- `index.html` and `src/main.tsx` host the widget; `settings.html` and
+  `src/settings-main.tsx` host the settings window.
+- `src/components/widget/` contains the widget header, provider usage rows,
+  total, and composition.
+- `src/components/settings/` contains provider visibility, source settings,
+  appearance, close control, switches, and the settings composition. Pure
+  snapshot transforms live in `settings-model.ts`; async orchestration lives
+  in `src/hooks/useSettingsController.ts`.
+- `src/components/shared/` contains the provider dot, six-dot WindowGrip, and
+  native WindowResizeHandles shared by both windows.
+- `src/hooks/` owns usage-summary and widget-settings subscriptions. `src/lib/`
+  owns typed bridge validation, settings preview events, provider/source
+  transforms, layout sizing, and window actions. `src/styles/` contains base,
+  token, widget, settings, window-control, and shared layout styles.
+- `src/tests/` mirrors the frontend responsibility folders. Rust integration
+  and contract tests remain under `src-tauri/tests/`.
+
+`design-preview.html` with `src/design-preview.css` and
+`src/design-preview.js` is a static visual review surface for the approved
+Apple/Claude directions. Runtime UI changes must still be implemented in the
+React components and their production styles.
+
+## Current product state
+
+The current implementation supports Claude Code and Codex as independently
+healthy Providers while keeping both visible when configured, including when a
+Provider is idle. The widget presents each visible Provider's current-session
+and Today's totals plus one combined `Total`; it does not expose raw source
+data.
+
+Settings currently control:
+
+- per-Provider widget visibility;
+- per-Provider Source collection enabled state and optional Source Root
+  override; and
+- the shared dark-mode preference.
+
+Settings edits are previewed immediately to the widget through typed preview
+events. Save persists the edited snapshot; closing without saving restores the
+last saved snapshot. The settings window has a close control, native drag
+support, and native resize handles. The widget and settings window share the
+six-dot drag affordance, native resize handles, responsive layout, and
+frameless transparent non-topmost taskbar-hidden shell behavior. Window
+geometry is intentionally not persisted.
+
+The widget keeps a breathable responsive height for zero, one, or two visible
+Providers (target heights 176, 228, and 300 logical pixels), preserves a
+manually resized width within 360–720 logical pixels, and clamps its height to
+176–520 logical pixels. Settings uses 440–820 logical pixels for width and
+420–900 logical pixels for height. These bounds are implementation contracts,
+not a persistence format.
+
+The maintained visual references are:
+
+- `design/DESIGN_APPLE.md`: the user-provided Apple visual analysis and token
+  reference;
+- `design/DESIGN_CLAUDE.md`: the Claude-editorial visual direction used for the
+  current review and runtime presentation; and
+- `design/PRODUCT.md`: product scope and brand commitments.
+
+The dated specs under `docs/superpowers/specs/` record approved departures and
+refinements; they remain authoritative for behavior changes. The current
+frontend uses React 19, TypeScript, Vite, Vitest, and plain CSS. No frontend
+state library, CSS framework, font package, network client, telemetry,
+sidecar, background service, or ORM is part of the approved implementation.
+
+## Verification snapshot
+
+The latest implementation baseline was verified with:
+
+- frontend: `npm test -- --run` — 41 tests passing;
+- frontend build: `npm run build` — passing;
+- Rust formatting: `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — passing;
+- Rust compile: `cargo check --manifest-path src-tauri/Cargo.toml` — passing;
+- Rust tests: `cargo test --manifest-path src-tauri/Cargo.toml` — 105 tests passing;
+- debug package build: `npm run tauri build -- --debug` — passing, producing
+  `src-tauri/target/debug/token-tracing-widget.exe`.
+
+Packaged Windows manual smoke coverage for drag, resize, and multi-window
+placement has not yet been completed, so automated success should not be read
+as a substitute for that check.
+
+## Known follow-ups
+
+- Save and close can still race while a save is in flight.
+- Source settings and widget settings are persisted sequentially rather than
+  through one atomic transaction.
+- Historical Windows local-day calculations need a DST-focused follow-up.
+- `.impeccable/` is a local generated browser-review profile and is not part of
+  the product source or the repository commit set.

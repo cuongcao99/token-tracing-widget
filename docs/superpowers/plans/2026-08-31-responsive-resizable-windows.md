@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 19, TypeScript, Vitest, Testing Library, plain CSS, Tauri 2 window API, Rust Tauri window builders, existing Claude-editorial tokens.
 
-**Spec:** `docs/superpowers/specs/2026-08-30-claude-editorial-multi-provider-design-update.md`, preserving `docs/superpowers/specs/2026-08-29-token-tracing-widget-design.md` and `DESIGN_CLAUDE.md`.
+**Spec:** `docs/superpowers/specs/2026-08-30-claude-editorial-multi-provider-design-update.md`, preserving `docs/superpowers/specs/2026-08-29-token-tracing-widget-design.md` and `design/DESIGN_CLAUDE.md`.
 
 ## Global Constraints
 
@@ -18,7 +18,7 @@
 - Preserve the approved Claude editorial visual system: warm cream/coral/dark surfaces, serif display roles, restrained borders, and focused component folders.
 - Use native Tauri resize/drag APIs rather than implementing a JavaScript window-movement or polling loop.
 - Provider visibility remains the only input to automatic widget height; source health and token values must not affect geometry.
-- Do not modify `DESIGN.md`, `DESIGN_CLAUDE.md`, or `.claude/` settings.
+- Do not modify `design/DESIGN_APPLE.md`, `design/DESIGN_CLAUDE.md`, or `.claude/` settings.
 
 ---
 
