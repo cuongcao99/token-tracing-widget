@@ -133,19 +133,39 @@ Settings currently control:
 - the shared dark-mode preference.
 
 Settings edits are previewed immediately to the widget through typed preview
-events. Save persists the edited snapshot; closing without saving restores the
-last saved snapshot. The settings window has a close control, native drag
-support, and native resize handles. The widget and settings window share the
-six-dot drag affordance, native resize handles, responsive layout, and
-frameless transparent non-topmost taskbar-hidden shell behavior. Window
-geometry is intentionally not persisted.
+events and auto-saved through the typed settings commands. Provider visibility,
+source collection, and dark mode changes persist immediately; source-root text
+persists after a short debounce and on blur. Closing waits for pending preview
+and persistence work and does not restore an older snapshot. The settings
+window has a close control, native drag support, native resize handles, a fixed
+header, and a separately scrolling content body with a stable scrollbar gutter.
+The widget and settings window share the six-dot drag affordance, native resize
+handles, responsive layout, and frameless transparent non-topmost taskbar-
+hidden shell behavior. Window geometry is intentionally not persisted.
+
+The settings scrollbar extends into the shell's right padding while preserving
+the content inset, so the thumb stays at the panel edge without changing card
+width when overflow appears. WebKit scrollbar arrow buttons are hidden. Both
+surfaces are borderless; settings uses diffuse negative-spread CSS elevation,
+while the widget remains shadow-free to avoid a rectangular perimeter artifact.
+The native Tauri shadow remains disabled and no crisp near-edge shadow layer is
+used.
 
 The widget keeps a breathable responsive height for zero, one, or two visible
-Providers (target heights 176, 228, and 300 logical pixels), preserves a
+Providers (target heights 192, 244, and 316 logical pixels), preserves a
 manually resized width within 360–720 logical pixels, and clamps its height to
-176–520 logical pixels. Settings uses 440–820 logical pixels for width and
-420–900 logical pixels for height. These bounds are implementation contracts,
-not a persistence format.
+the visible-provider target through 520 logical pixels. Its `Token Tracing`
+title uses the same 32px display-title role as Settings. Its six-dot grip is
+the top-center native drag affordance; edge and corner handles remain native
+resize controls. Settings uses 440–820 logical pixels for width and 420–900
+logical pixels for height, with a 600px default. Transparent frameless windows
+retain layered CSS elevation without a native perimeter shadow. These bounds
+are implementation contracts, not a persistence format.
+
+Current-session values are scoped to the current Windows local calendar day.
+Historical events can preserve a Provider's state and last-update timestamp,
+but a Provider with no event today exposes zero current-session tokens. Today's
+aggregate still sums enabled-provider events for the injected local day.
 
 The maintained visual references are:
 
@@ -153,7 +173,7 @@ The maintained visual references are:
   reference;
 - `design/DESIGN_CLAUDE.md`: the Claude-editorial visual direction used for the
   current review and runtime presentation; and
-- `design/PRODUCT.md`: product scope and brand commitments.
+- `PRODUCT.md`: product scope and brand commitments.
 
 The dated specs under `docs/superpowers/specs/` record approved departures and
 refinements; they remain authoritative for behavior changes. The current
@@ -165,11 +185,11 @@ sidecar, background service, or ORM is part of the approved implementation.
 
 The latest implementation baseline was verified with:
 
-- frontend: `npm test -- --run` — 41 tests passing;
+- frontend: `npm test -- --run` — 47 tests passing;
 - frontend build: `npm run build` — passing;
 - Rust formatting: `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — passing;
 - Rust compile: `cargo check --manifest-path src-tauri/Cargo.toml` — passing;
-- Rust tests: `cargo test --manifest-path src-tauri/Cargo.toml` — 105 tests passing;
+- Rust tests: `cargo test --manifest-path src-tauri/Cargo.toml` — 107 tests passing;
 - debug package build: `npm run tauri build -- --debug` — passing, producing
   `src-tauri/target/debug/token-tracing-widget.exe`.
 
@@ -179,9 +199,11 @@ as a substitute for that check.
 
 ## Known follow-ups
 
-- Save and close can still race while a save is in flight.
 - Source settings and widget settings are persisted sequentially rather than
   through one atomic transaction.
+- Auto-save retry feedback is inline; a future slice may add a more explicit
+  persistence status history without changing the immediate-save contract.
 - Historical Windows local-day calculations need a DST-focused follow-up.
-- `.impeccable/` is a local generated browser-review profile and is not part of
-  the product source or the repository commit set.
+- `.impeccable/` contains generated review artifacts and browser profiles. Only
+  intentionally shared `config.json` files under that directory are eligible
+  for commits; local config overrides and generated state remain ignored.

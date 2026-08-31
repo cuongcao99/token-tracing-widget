@@ -3,7 +3,7 @@
 ## Source-of-truth documents
 
 - Read `CONTEXT.md` before introducing or changing domain terminology.
-- Read `design/PRODUCT.md` before changing product scope, user-facing behavior,
+- Read `PRODUCT.md` before changing product scope, user-facing behavior,
   or the version-one boundary.
 - Read `design/DESIGN_APPLE.md` for the Apple visual reference, design tokens,
   and typography guidance.
@@ -56,8 +56,9 @@
   `src-tauri/tests/` contains Rust integration and contract tests.
 - `design-preview.html` and `src/design-preview.{css,js}` are the static visual
   review surface. They do not replace the runtime React/Tauri surfaces.
-- `design/` contains the maintained product and visual references. Dated
-  implementation specs and plans live under `docs/superpowers/`.
+- `PRODUCT.md` contains product scope and brand commitments. `design/` contains
+  the maintained visual references. Dated implementation specs and plans live
+  under `docs/superpowers/`.
 
 ## UI and window rules
 
@@ -68,8 +69,9 @@
   movement or resizing with a JavaScript polling loop.
 - Preserve the current frameless, transparent, taskbar-hidden, non-topmost
   utility-window behavior, the shared six-dot drag affordance, native resize
-  handles, responsive widget height, and CSS elevation treatment unless a new
-  design decision explicitly changes them.
+  handles, responsive widget height, and the approved surface treatment
+  (settings elevation with a shadow-free widget) unless a new design decision
+  explicitly changes them.
 - Resolve typography through the documented system-font stack. Do not bundle
   or download a font as part of the product.
 
@@ -87,8 +89,8 @@
 - For cross-boundary changes, also run `npm run tauri build -- --debug` and
   perform the relevant Windows smoke checks.
 - Stage only intended source, documentation, and test changes. Keep generated
-  build output, browser-review profiles such as `.impeccable/`, dependency
-  directories, and local `.claude/` settings out of commits unless explicitly
-  requested.
+  build output, browser-review artifacts and profiles under `.impeccable/`,
+  dependency directories, and local `.claude/` settings out of commits; only
+  intentionally shared Impeccable `config.json` files may be committed.
 - Keep changes scoped to the requested behavior; do not opportunistically
   refactor unrelated modules.

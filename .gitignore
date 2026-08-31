@@ -5,5 +5,13 @@ dist/
 src-tauri/target/
 src-tauri/gen/
 
+# Impeccable generated review artifacts and local state. Keep only shared
+# config.json files available for version control.
+.impeccable/**
+!.impeccable/
+!.impeccable/**/
+!.impeccable/config.json
+!.impeccable/**/config.json
+
 *.local
 *.log
