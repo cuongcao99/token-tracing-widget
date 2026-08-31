@@ -82,6 +82,32 @@ fn summary_contains_independent_provider_totals_for_the_overlay() {
 }
 
 #[test]
+fn aggregate_current_session_resets_after_the_windows_local_day_changes() {
+    let summary = compute_summary(
+        &SummaryRows {
+            events: vec![UsageEvent::for_test(
+                Provider::Claude,
+                "claude-session",
+                "2026-01-01T00:00:00Z",
+                115_265,
+            )],
+        },
+        &[SourceHealth::detected(Provider::Claude)],
+        &[Provider::Claude],
+        &FixedClock::new("2026-01-02T00:00:00Z", "2026-01-02"),
+    );
+
+    assert_eq!(summary.current_session_tokens, Some(0));
+    assert_eq!(summary.today_tokens, 0);
+    assert_eq!(summary.provider.as_deref(), Some("Claude Code"));
+    assert_eq!(summary.state, token_tracing_widget_lib::UsageState::Idle);
+    assert_eq!(
+        summary.last_updated_at.as_deref(),
+        Some("2026-01-01T00:00:00Z")
+    );
+}
+
+#[test]
 fn cumulative_snapshots_become_deltas_and_reset_starts_new_segment() {
     let observations = vec![
         ProviderReadObservation::new(codex_observation("2026-01-01T00:00:00Z", 10), 0),

@@ -36,6 +36,32 @@ fn computes_session_and_today_totals_per_provider() {
 }
 
 #[test]
+fn resets_current_session_when_latest_event_is_from_a_previous_local_day() {
+    let events = vec![UsageEvent::for_test(
+        Provider::Claude,
+        "claude-session",
+        "2026-01-01T00:00:00Z",
+        115_265,
+    )];
+
+    let result = compute_provider_summary(
+        Provider::Claude,
+        &events,
+        Some(&SourceHealth::detected(Provider::Claude)),
+        "2026-01-02T00:00:00Z",
+        "2026-01-02",
+    );
+
+    assert_eq!(result.current_session_tokens, Some(0));
+    assert_eq!(result.today_tokens, 0);
+    assert_eq!(result.state, UsageState::Idle);
+    assert_eq!(
+        result.last_updated_at.as_deref(),
+        Some("2026-01-01T00:00:00Z")
+    );
+}
+
+#[test]
 fn preserves_idle_provider_totals_and_marks_missing_source_unavailable() {
     let events = vec![UsageEvent::for_test(
         Provider::Claude,

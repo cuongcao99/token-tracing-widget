@@ -1,7 +1,7 @@
 //! Selecting the provider with the newest valid usage event.
 
 use crate::types::usage_event::UsageEvent;
-use crate::utils::windows_time::parse_timestamp_seconds;
+use crate::utils::windows_time::{parse_timestamp_seconds, timestamp_local_day};
 use crate::UsageState;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,6 +59,31 @@ pub fn compute_active_provider(events: &[UsageEvent], now: &str) -> ActiveProvid
         current_session_tokens: Some(current_session_tokens),
         last_updated_at,
     }
+}
+
+/// Computes the current-session total from events observed on the supplied
+/// Windows-local calendar day while retaining the all-history active-provider
+/// calculation for state and last-update metadata.
+pub fn compute_current_session_tokens_for_local_day(
+    events: &[UsageEvent],
+    now: &str,
+    local_day: &str,
+) -> Option<u64> {
+    if events.is_empty() {
+        return None;
+    }
+
+    let current_day_events: Vec<_> = events
+        .iter()
+        .filter(|event| timestamp_local_day(&event.observed_at).as_deref() == Some(local_day))
+        .cloned()
+        .collect();
+
+    Some(
+        compute_active_provider(&current_day_events, now)
+            .current_session_tokens
+            .unwrap_or(0),
+    )
 }
 
 fn idle_result(last_updated_at: Option<String>) -> ActiveProviderResult {

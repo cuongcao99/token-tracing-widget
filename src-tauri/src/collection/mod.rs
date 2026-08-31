@@ -12,7 +12,9 @@ use crate::types::source_health::SourceHealth;
 use crate::types::usage_event::UsageEvent;
 use crate::types::usage_summary::UsageSummary;
 use crate::types::widget_settings::WidgetSettingsSnapshot;
-use crate::usage::active_provider::compute_active_provider;
+use crate::usage::active_provider::{
+    compute_active_provider, compute_current_session_tokens_for_local_day,
+};
 use crate::usage::cumulative_delta::{convert_observations, DeltaConversionError};
 use crate::usage::daily_total::compute_today_total;
 use crate::usage::provider_summary::compute_provider_summary;
@@ -455,7 +457,11 @@ pub fn compute_summary(
     UsageSummary {
         state,
         provider: active.provider,
-        current_session_tokens: active.current_session_tokens,
+        current_session_tokens: compute_current_session_tokens_for_local_day(
+            &enabled_events,
+            clock.now(),
+            clock.local_day(),
+        ),
         today_tokens: compute_today_total(&enabled_events, clock.local_day()),
         last_updated_at: active.last_updated_at,
         source_health: source_health.to_vec(),

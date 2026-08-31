@@ -4,7 +4,9 @@ use crate::types::provider::Provider;
 use crate::types::provider_usage_summary::ProviderUsageSummary;
 use crate::types::source_health::SourceHealth;
 use crate::types::usage_event::UsageEvent;
-use crate::usage::active_provider::compute_active_provider;
+use crate::usage::active_provider::{
+    compute_active_provider, compute_current_session_tokens_for_local_day,
+};
 use crate::usage::daily_total::compute_today_total;
 use crate::UsageState;
 
@@ -32,7 +34,7 @@ pub fn compute_provider_summary(
     ProviderUsageSummary::new(
         provider,
         state,
-        active.current_session_tokens,
+        compute_current_session_tokens_for_local_day(&provider_events, now, local_day),
         compute_today_total(&provider_events, local_day),
         active.last_updated_at,
     )
