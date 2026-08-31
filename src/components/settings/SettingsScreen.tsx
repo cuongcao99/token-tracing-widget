@@ -1,7 +1,6 @@
 import AppearanceSection from "./AppearanceSection";
-import ProviderVisibilitySection from "./ProviderVisibilitySection";
+import SettingsActivityPanel from "./SettingsActivityPanel";
 import SettingsCloseButton from "./SettingsCloseButton";
-import SourceSettingsSection from "./SourceSettingsSection";
 import WindowGrip from "../shared/WindowGrip";
 import WindowResizeHandles from "../shared/WindowResizeHandles";
 import useSettingsController from "../../hooks/useSettingsController";
@@ -17,9 +16,7 @@ export default function SettingsScreen() {
     onProviderVisibilityToggle,
     onSourceRootChoose,
     onSourceToggle,
-    providerStatuses,
     sources,
-    summary,
     theme,
     visible,
     widgetError,
@@ -28,6 +25,8 @@ export default function SettingsScreen() {
   return (
     <main
       className={`settings-page theme--${theme} settings-page--${darkMode ? "dark" : "light"}`}
+      data-theme={theme}
+      data-color-mode={darkMode ? "dark" : "light"}
       aria-label="Settings"
     >
       <WindowGrip windowName="settings" />
@@ -60,16 +59,12 @@ export default function SettingsScreen() {
 
         {sources && (
           <div className="settings-form">
-            <ProviderVisibilitySection
+            <SettingsActivityPanel
               visible={visible}
-              providers={providerStatuses}
-              onToggle={onProviderVisibilityToggle}
-            />
-            <SourceSettingsSection
+              onProviderVisibilityToggle={onProviderVisibilityToggle}
               sources={sources}
-              health={summary.sourceHealth}
-              onToggle={onSourceToggle}
-              onChooseRoot={onSourceRootChoose}
+              onSourceToggle={onSourceToggle}
+              onSourceRootChoose={onSourceRootChoose}
             />
             <AppearanceSection
               theme={theme}
