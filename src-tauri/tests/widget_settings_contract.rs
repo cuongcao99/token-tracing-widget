@@ -39,6 +39,7 @@ fn widget_settings_serialize_fixed_provider_visibility_and_dark_mode() {
     let object = serde_json::to_value(snapshot).unwrap();
 
     assert_eq!(object["darkMode"], true);
+    assert_eq!(object["theme"], "claude");
     assert_eq!(object["visibleProviders"].as_array().unwrap().len(), 2);
 }
 

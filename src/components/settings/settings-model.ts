@@ -7,6 +7,7 @@ import type {
   WidgetSettingsSnapshot,
 } from "../../lib/widget-settings";
 import type { WidgetSettingsPreview } from "../../lib/widget-settings-preview";
+import type { ThemeId } from "../../lib/theme";
 
 export type SourceFormValues = Record<ProviderId, SourceSettings>;
 export type VisibilityValues = Record<ProviderId, boolean>;
@@ -36,12 +37,14 @@ export function visibilityFromSnapshot(
 }
 
 export function createWidgetSettingsPreview(
+  theme: ThemeId,
   darkMode: boolean,
   visible: VisibilityValues,
   sources: SourceFormValues,
 ): WidgetSettingsPreview {
   return {
     darkMode,
+    theme,
     visibleProviders: providerOrder.map((provider) => ({
       provider,
       visible: visible[provider],
@@ -74,6 +77,15 @@ export function errorMessage(error: unknown): string {
   }
   if (code === "settings_refresh") {
     return "Settings were not applied because collection could not refresh.";
+  }
+  if (code === "source_root_open") {
+    return "Could not open the source folder.";
+  }
+  if (code === "source_root_invalid") {
+    return "That folder cannot be used as a source.";
+  }
+  if (code === "source_root_unavailable") {
+    return "The source folder is unavailable.";
   }
   if (code === "invalid_source_settings" || code === "invalid_widget_settings") {
     return "Settings returned an invalid value.";

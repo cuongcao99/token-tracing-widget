@@ -10,25 +10,24 @@ export default function SettingsScreen() {
   const {
     closeSettings,
     darkMode,
+    onThemeToggle,
     error,
-    expanded,
     loadingSources,
     onDarkModeToggle,
     onProviderVisibilityToggle,
-    onSourceRootBlur,
-    onSourceRootChange,
-    onSourceRootToggle,
+    onSourceRootChoose,
     onSourceToggle,
     providerStatuses,
     sources,
     summary,
+    theme,
     visible,
     widgetError,
   } = useSettingsController();
 
   return (
     <main
-      className={`settings-page settings-page--${darkMode ? "dark" : "light"}`}
+      className={`settings-page theme--${theme} settings-page--${darkMode ? "dark" : "light"}`}
       aria-label="Settings"
     >
       <WindowGrip windowName="settings" />
@@ -69,13 +68,12 @@ export default function SettingsScreen() {
             <SourceSettingsSection
               sources={sources}
               health={summary.sourceHealth}
-              expanded={expanded}
               onToggle={onSourceToggle}
-              onRootChange={onSourceRootChange}
-              onRootBlur={onSourceRootBlur}
-              onToggleRoot={onSourceRootToggle}
+              onChooseRoot={onSourceRootChoose}
             />
             <AppearanceSection
+              theme={theme}
+              onThemeChange={onThemeToggle}
               darkMode={darkMode}
               onToggle={onDarkModeToggle}
             />

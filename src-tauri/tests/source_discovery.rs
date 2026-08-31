@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use tempfile::tempdir;
 use token_tracing_widget_lib::sources::provider_roots::{
-    native_root_relative, resolve_native_root,
+    configured_root_path, native_root_relative, resolve_native_root,
 };
 use token_tracing_widget_lib::sources::session_files::{
     discover_configured_source, discover_native_sources, discover_provider, DiscoveryLimits,
@@ -39,6 +39,17 @@ fn native_roots_are_fixed_beneath_the_synthetic_profile() {
     assert_eq!(claude.relative_path(), ".claude/projects");
     assert_eq!(codex.provider(), Provider::Codex);
     assert_eq!(codex.relative_path(), ".codex/sessions");
+}
+
+#[test]
+fn configured_root_path_can_open_a_missing_native_folder() {
+    let profile = tempdir().expect("synthetic profile should be created");
+    let config = SourceConfig::defaults(Provider::Codex);
+
+    let path = configured_root_path(profile.path(), &config)
+        .expect("the configured native path should be addressable");
+
+    assert_eq!(path, profile.path().join(".codex/sessions"));
 }
 
 #[test]

@@ -5,6 +5,7 @@ use tauri::{AppHandle, Emitter, State};
 
 use crate::app::runtime::{AppState, RuntimeError};
 use crate::types::provider::Provider;
+use crate::types::theme::Theme;
 use crate::types::widget_settings::WidgetSettingsSnapshot;
 
 pub const WIDGET_SETTINGS_CHANGED_EVENT: &str = "widget-settings-changed";
@@ -21,36 +22,43 @@ pub struct VisibleProviderSettingInput {
 pub struct WidgetSettingsInput {
     pub visible_providers: Vec<VisibleProviderSettingInput>,
     pub dark_mode: bool,
+    #[serde(default)]
+    pub theme: Theme,
 }
 
 impl WidgetSettingsInput {
     pub(crate) fn into_snapshot(self) -> Result<WidgetSettingsSnapshot, String> {
-        if self.visible_providers.len() != 2 {
+        if self.visible_providers.len() != Provider::all().len() {
             return Err("invalid_widget_settings".to_owned());
         }
 
-        let mut claude_visible = None;
-        let mut codex_visible = None;
+        let mut visible_providers = Vec::with_capacity(self.visible_providers.len());
 
         for setting in self.visible_providers {
-            match setting.provider {
-                Provider::Claude if claude_visible.is_none() => {
-                    claude_visible = Some(setting.visible);
-                }
-                Provider::Codex if codex_visible.is_none() => {
-                    codex_visible = Some(setting.visible);
-                }
-                _ => return Err("invalid_widget_settings".to_owned()),
+            if !Provider::all().contains(&setting.provider)
+                || visible_providers
+                    .iter()
+                    .any(|(provider, _)| *provider == setting.provider)
+            {
+                return Err("invalid_widget_settings".to_owned());
             }
+            visible_providers.push((setting.provider, setting.visible));
         }
 
-        match (claude_visible, codex_visible) {
-            (Some(claude), Some(codex)) => Ok(WidgetSettingsSnapshot::new(
-                self.dark_mode,
-                [(Provider::Claude, claude), (Provider::Codex, codex)],
-            )),
-            _ => Err("invalid_widget_settings".to_owned()),
-        }
+        let ordered_visibility = Provider::all().iter().copied().map(|provider| {
+            let visible = visible_providers
+                .iter()
+                .find(|(entry_provider, _)| *entry_provider == provider)
+                .map(|(_, visible)| *visible)
+                .unwrap_or(false);
+            (provider, visible)
+        });
+
+        Ok(WidgetSettingsSnapshot::with_theme(
+            self.theme,
+            self.dark_mode,
+            ordered_visibility,
+        ))
     }
 }
 
@@ -96,6 +104,7 @@ mod tests {
     use super::{widget_settings_snapshot, WidgetSettingsInput, WIDGET_SETTINGS_CHANGED_EVENT};
     use crate::app::runtime::AppState;
     use crate::types::provider::Provider;
+    use crate::types::theme::Theme;
     use crate::types::widget_settings::WidgetSettingsSnapshot;
 
     #[test]
@@ -109,13 +118,15 @@ mod tests {
         }))
         .unwrap();
 
+        let snapshot = input.into_snapshot().unwrap();
         assert_eq!(
-            input.into_snapshot().unwrap(),
+            snapshot,
             WidgetSettingsSnapshot::new(
                 false,
                 [(Provider::Claude, true), (Provider::Codex, false)]
             )
         );
+        assert_eq!(snapshot.theme(), Theme::Claude);
     }
 
     #[test]

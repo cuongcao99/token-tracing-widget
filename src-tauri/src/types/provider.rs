@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
 pub enum Provider {
     Claude,
@@ -10,6 +10,10 @@ pub enum Provider {
 }
 
 impl Provider {
+    pub const fn all() -> &'static [Self] {
+        &[Self::Claude, Self::Codex]
+    }
+
     pub const fn display_name(self) -> &'static str {
         match self {
             Self::Claude => "Claude Code",

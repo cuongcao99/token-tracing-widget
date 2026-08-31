@@ -10,8 +10,8 @@
   min-height: 0;
   padding: 21px 22px 19px;
   overflow: hidden;
-  color: var(--claude-on-dark);
-  background: var(--claude-dark);
+  color: var(--theme-dark-ink, var(--claude-on-dark));
+  background: var(--theme-dark-canvas, var(--claude-dark));
   border: 0;
   outline: none;
   border-radius: 16px;
@@ -20,26 +20,28 @@
 }
 
 .widget--light {
-  --widget-ink: var(--claude-ink);
-  --widget-muted: var(--claude-muted);
-  --widget-soft-muted: var(--claude-muted-soft);
-  --widget-line: var(--claude-hairline-soft);
-  --window-grip-ink: var(--claude-muted);
-  --window-grip-line: var(--claude-hairline);
-  --window-grip-surface: var(--claude-surface-card);
+  --widget-ink: var(--theme-light-ink, var(--claude-ink));
+  --widget-muted: var(--theme-light-muted, var(--claude-muted));
+  --widget-soft-muted: var(--theme-light-muted-soft, var(--claude-muted-soft));
+  --widget-line: var(--theme-light-line-soft, var(--claude-hairline-soft));
+  --window-grip-ink: var(--theme-light-muted, var(--claude-muted));
+  --window-grip-line: var(--theme-light-line, var(--claude-hairline));
+  --window-grip-surface: var(--theme-light-card, var(--claude-surface-card));
+  --theme-brand-claude: var(--claude-coral);
   color: var(--widget-ink);
-  background: var(--claude-canvas);
+  background: var(--theme-light-canvas, var(--claude-canvas));
   box-shadow: none;
 }
 
 .widget--dark {
-  --widget-ink: var(--claude-on-dark);
-  --widget-muted: var(--claude-on-dark-soft);
-  --widget-soft-muted: #8f8b83;
-  --widget-line: #37332d;
-  --window-grip-ink: var(--claude-on-dark-soft);
-  --window-grip-line: #3a3630;
-  --window-grip-surface: var(--claude-dark-raised);
+  --widget-ink: var(--theme-dark-ink, var(--claude-on-dark));
+  --widget-muted: var(--theme-dark-muted, var(--claude-on-dark-soft));
+  --widget-soft-muted: var(--theme-dark-muted-soft, #8f8b83);
+  --widget-line: var(--theme-dark-line-soft, #37332d);
+  --window-grip-ink: var(--theme-dark-muted, var(--claude-on-dark-soft));
+  --window-grip-line: var(--theme-dark-line, #3a3630);
+  --window-grip-surface: var(--theme-dark-card, var(--claude-dark-raised));
+  --theme-brand-claude: var(--claude-coral);
 }
 
 .widget-header {
@@ -64,7 +66,7 @@
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  color: var(--claude-coral);
+  color: var(--theme-accent, var(--claude-coral));
   font-family: var(--font-display);
   font-size: var(--type-widget-title);
   font-weight: 400;
@@ -74,7 +76,6 @@
   white-space: nowrap;
 }
 
-.widget-status,
 .provider-status {
   display: inline-flex;
   align-items: center;
@@ -86,7 +87,6 @@
   white-space: nowrap;
 }
 
-.widget-status__dot,
 .provider-status__dot {
   display: inline-block;
   width: 7px;
@@ -95,9 +95,8 @@
   background: currentColor;
 }
 
-.widget-status--active,
 .provider-status--active {
-  color: var(--claude-coral);
+  color: var(--theme-accent, var(--claude-coral));
 }
 
 .provider-status--idle,
@@ -151,21 +150,29 @@
   line-height: 1.2;
 }
 
+.widget-provider__heading h2 .provider-name--font-display {
+  font-size: calc(var(--type-widget-provider) + 4px);
+}
+
 .provider-dot {
-  display: inline-block;
+  display: inline-grid;
+  place-items: center;
   flex: 0 0 auto;
-  width: 9px;
-  height: 9px;
+  width: var(--provider-mark-size);
+  height: var(--provider-mark-size);
   margin-right: 10px;
-  border-radius: 50%;
 }
 
-.provider-dot--claude {
-  background: #d97757;
+.provider-dot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
-.provider-dot--codex {
-  background: #7e9bff;
+.widget--light .provider-dot--codex img,
+.settings-page--light .provider-dot--codex img {
+  filter: brightness(0);
 }
 
 .widget-provider__heading h2 > span:last-child {
@@ -173,6 +180,26 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.provider-name {
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+}
+
+.provider-name--claude {
+  color: var(--theme-brand-claude, var(--theme-accent, var(--claude-coral)));
+}
+
+.provider-name--font-display {
+  font-family: var(--font-provider-claude, var(--font-display));
+  font-weight: 600;
+  letter-spacing: -0.15px;
+}
+
+.provider-name--font-ui {
+  font-family: var(--font-provider-codex, var(--font-ui));
 }
 
 .widget-provider__metrics {

@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { isProviderId, type ProviderId } from "./provider";
+import { isProviderId, providerOrder, type ProviderId } from "./provider";
 
 export type UsageState = "loading" | "active" | "idle" | "unavailable" | "stale";
 
@@ -112,7 +112,10 @@ export function parseUsageSummary(value: unknown): UsageSummary | null {
     sourceHealth.push({ provider: entry.provider, state: entry.state });
   }
 
-  if (!Array.isArray(value.providers) || value.providers.length !== 2) {
+  if (
+    !Array.isArray(value.providers) ||
+    value.providers.length !== providerOrder.length
+  ) {
     return null;
   }
 
@@ -158,7 +161,7 @@ export function parseUsageSummary(value: unknown): UsageSummary | null {
     });
   }
 
-  if (seenProviders.size !== 2) return null;
+  if (seenProviders.size !== providerOrder.length) return null;
 
   return {
     state: value.state as UsageState,

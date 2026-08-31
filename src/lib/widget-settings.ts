@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { isProviderId, providerOrder, type ProviderId } from "./provider";
+import { isThemeId, type ThemeId } from "./theme";
 
 export interface VisibleProviderSetting {
   provider: ProviderId;
@@ -10,11 +11,12 @@ export interface VisibleProviderSetting {
 export interface WidgetSettingsSnapshot {
   visibleProviders: VisibleProviderSetting[];
   darkMode: boolean;
+  theme: ThemeId;
 }
 
 export const WIDGET_SETTINGS_CHANGED_EVENT = "widget-settings-changed";
 
-const snapshotKeys = ["visibleProviders", "darkMode"] as const;
+const snapshotKeys = ["visibleProviders", "darkMode", "theme"] as const;
 const settingKeys = ["provider", "visible"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -38,6 +40,7 @@ export function parseWidgetSettings(
   if (!isRecord(value) || !hasExactKeys(value, snapshotKeys)) return null;
   if (
     typeof value.darkMode !== "boolean" ||
+    !isThemeId(value.theme) ||
     !Array.isArray(value.visibleProviders) ||
     value.visibleProviders.length !== providerOrder.length
   ) {
@@ -61,7 +64,7 @@ export function parseWidgetSettings(
   }
 
   if (seen.size !== providerOrder.length) return null;
-  return { darkMode: value.darkMode, visibleProviders };
+  return { darkMode: value.darkMode, theme: value.theme, visibleProviders };
 }
 
 export async function getWidgetSettings(): Promise<WidgetSettingsSnapshot> {

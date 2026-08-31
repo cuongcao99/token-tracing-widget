@@ -5,7 +5,7 @@ Token Tracing is the domain of deriving privacy-safe token-usage totals from loc
 ## Language
 
 **Provider**:
-A supported coding-agent product that produces local session data, currently Claude Code or Codex.
+A supported coding-agent product that produces local session data, currently Claude Code or Codex, with one canonical registered identity.
 _Avoid_: Agent, integration
 
 **Source**:
@@ -19,6 +19,14 @@ _Avoid_: Scan path, home directory
 **Session**:
 One opaque Provider-defined span of related coding-agent activity.
 _Avoid_: Conversation, chat
+
+**Session Identity**:
+The stable opaque identity used to group Usage Events belonging to one Session.
+_Avoid_: Session name, conversation ID
+
+**Active Session**:
+A Session whose newest valid Usage Event is inside the 120-second activity window.
+_Avoid_: Current conversation, selected session
 
 **Observation**:
 Privacy-safe token metadata derived from one Provider record.
@@ -49,7 +57,7 @@ The Provider with the newest valid Usage Event inside the activity window.
 _Avoid_: Current agent, selected provider
 
 **Current-session Total**:
-The sum of accepted Usage Events belonging to the latest active Session.
+The current-local-day sum for all Active Sessions of the Active Provider, retaining the most recently updated Session's current-day total while idle.
 _Avoid_: Current tokens, conversation total
 
 **Today's Total**:
@@ -63,6 +71,14 @@ _Avoid_: App status, connection status
 **Usage Summary**:
 The privacy-safe aggregate presented to the overlay: activity state, optional Provider, current-session total, Today's Total, last update, and Source Health.
 _Avoid_: Dashboard data, raw usage
+
+**Provider Registry**:
+The canonical set of supported Provider identities and their safe display/adapter metadata.
+_Avoid_: Plugin marketplace, arbitrary provider
+
+**Theme**:
+A named visual token system applied to the widget and settings surfaces; Claude is the current theme.
+_Avoid_: Dark mode, skin
 
 ## Repository shape
 
@@ -119,18 +135,19 @@ React components and their production styles.
 
 ## Current product state
 
-The current implementation supports Claude Code and Codex as independently
-healthy Providers while keeping both visible when configured, including when a
-Provider is idle. The widget presents each visible Provider's current-session
-and Today's totals plus one combined `Total`; it does not expose raw source
-data.
+The current implementation supports the registered Claude Code and Codex
+Providers independently while keeping both visible when configured, including
+when a Provider is idle. Multiple sessions for one Provider can contribute to
+its Active current-session total. The widget presents each visible Provider's
+current-session and Today's totals plus one combined `Total`; it does not
+expose raw source data.
 
 Settings currently control:
 
 - per-Provider widget visibility;
 - per-Provider Source collection enabled state and optional Source Root
   override; and
-- the shared dark-mode preference.
+- the shared Claude Theme and dark-mode preference.
 
 Settings edits are previewed immediately to the widget through typed preview
 events and auto-saved through the typed settings commands. Provider visibility,

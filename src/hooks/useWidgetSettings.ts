@@ -13,6 +13,7 @@ import { providerOrder, type ProviderId } from "../lib/provider";
 
 export const defaultWidgetSettings: WidgetSettingsSnapshot = {
   darkMode: true,
+  theme: "claude",
   visibleProviders: providerOrder.map((provider) => ({
     provider,
     visible: true,
@@ -101,6 +102,7 @@ export function useWidgetSettings(): UseWidgetSettingsResult {
         : {
             ...persistedSettings,
             darkMode: preview.darkMode,
+            theme: preview.theme,
             visibleProviders: preview.visibleProviders,
           },
     [persistedSettings, preview],

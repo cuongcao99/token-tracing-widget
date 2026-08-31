@@ -59,26 +59,37 @@ impl SourceConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceConfigSet {
-    configs: [SourceConfig; 2],
+    configs: Vec<SourceConfig>,
 }
 
 impl SourceConfigSet {
     pub fn defaults() -> Self {
         Self {
-            configs: [
-                SourceConfig::defaults(Provider::Claude),
-                SourceConfig::defaults(Provider::Codex),
-            ],
+            configs: Provider::all()
+                .iter()
+                .copied()
+                .map(SourceConfig::defaults)
+                .collect(),
         }
     }
 
     pub fn get(&self, provider: Provider) -> &SourceConfig {
-        &self.configs[provider_index(provider)]
+        self.configs
+            .iter()
+            .find(|config| config.provider() == provider)
+            .expect("every canonical provider should have source configuration")
     }
 
     pub fn replace(&mut self, config: SourceConfig) {
-        let index = provider_index(config.provider);
-        self.configs[index] = config;
+        if let Some(existing) = self
+            .configs
+            .iter_mut()
+            .find(|existing| existing.provider() == config.provider())
+        {
+            *existing = config;
+        } else {
+            self.configs.push(config);
+        }
     }
 
     pub fn is_enabled(&self, provider: Provider) -> bool {
@@ -200,13 +211,6 @@ fn native_root_label(provider: Provider) -> &'static str {
     match provider {
         Provider::Claude => ".claude/projects",
         Provider::Codex => ".codex/sessions",
-    }
-}
-
-fn provider_index(provider: Provider) -> usize {
-    match provider {
-        Provider::Claude => 0,
-        Provider::Codex => 1,
     }
 }
 

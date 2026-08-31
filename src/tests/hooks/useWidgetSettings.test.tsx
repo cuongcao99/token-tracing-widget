@@ -24,6 +24,7 @@ vi.mock("../../lib/widget-settings-preview", () => ({
 
 const settings: WidgetSettingsSnapshot = {
   darkMode: false,
+  theme: "claude",
   visibleProviders: [
     { provider: "claude", visible: true },
     { provider: "codex", visible: false },
@@ -79,6 +80,7 @@ describe("useWidgetSettings", () => {
     act(() =>
       onPreview!({
         darkMode: false,
+        theme: "claude",
         visibleProviders: [
           { provider: "claude", visible: false },
           { provider: "codex", visible: true },

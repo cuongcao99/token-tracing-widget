@@ -438,8 +438,9 @@ pub fn compute_summary(
     } else {
         UsageState::Unavailable
     };
-    let providers = [Provider::Claude, Provider::Codex]
-        .into_iter()
+    let providers = Provider::all()
+        .iter()
+        .copied()
         .map(|provider| {
             let health = source_health
                 .iter()

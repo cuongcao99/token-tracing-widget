@@ -18,6 +18,7 @@ const sourceSnapshot: SourceSettingsSnapshot = {
 
 const widgetSnapshot: WidgetSettingsSnapshot = {
   darkMode: true,
+  theme: "claude",
   visibleProviders: [
     { provider: "claude", visible: false },
     { provider: "codex", visible: true },
@@ -41,8 +42,9 @@ describe("settings model", () => {
     const sources = sourceValuesFromSnapshot(sourceSnapshot);
     const visible = visibilityFromSnapshot(widgetSnapshot);
 
-    expect(createWidgetSettingsPreview(false, visible, sources)).toEqual({
+    expect(createWidgetSettingsPreview("claude", false, visible, sources)).toEqual({
       darkMode: false,
+      theme: "claude",
       visibleProviders: [
         { provider: "claude", visible: false },
         { provider: "codex", visible: true },
@@ -73,6 +75,7 @@ describe("settings model", () => {
       visibilityFromSnapshot({
         visibleProviders: [{ provider: "claude", visible: true }],
         darkMode: false,
+        theme: "claude",
       }),
     ).toThrowError("invalid_widget_settings");
 
@@ -81,6 +84,9 @@ describe("settings model", () => {
     );
     expect(errorMessage(new Error("settings_refresh"))).toBe(
       "Settings were not applied because collection could not refresh.",
+    );
+    expect(errorMessage(new Error("source_root_invalid"))).toBe(
+      "That folder cannot be used as a source.",
     );
     expect(errorMessage(new Error("unknown"))).toBe("Settings are unavailable.");
   });

@@ -61,8 +61,9 @@ impl UsageSummary {
 }
 
 fn default_provider_summaries(state: UsageState) -> Vec<ProviderUsageSummary> {
-    [Provider::Claude, Provider::Codex]
-        .into_iter()
+    Provider::all()
+        .iter()
+        .copied()
         .map(|provider| ProviderUsageSummary::new(provider, state, None, 0, None))
         .collect()
 }

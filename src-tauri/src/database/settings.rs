@@ -6,11 +6,11 @@ use crate::sources::source_config::{
     parse_explicit_root, LoadedSourceConfigs, SourceConfig, SourceConfigSet,
 };
 use crate::types::provider::Provider;
+use crate::types::theme::Theme;
 use crate::types::widget_settings::WidgetSettingsSnapshot;
 
 const WIDGET_DARK_MODE_KEY: &str = "widget.dark_mode";
-const WIDGET_CLAUDE_VISIBLE_KEY: &str = "widget.visible.claude";
-const WIDGET_CODEX_VISIBLE_KEY: &str = "widget.visible.codex";
+const WIDGET_THEME_KEY: &str = "widget.theme";
 
 fn key(provider: Provider, field: &str) -> String {
     format!("source.{}.{}", provider.as_str(), field)
@@ -22,7 +22,8 @@ pub(crate) fn load_source_configs(
     let mut configs = SourceConfigSet::defaults();
     let mut invalid_providers = Vec::new();
 
-    for provider in [Provider::Claude, Provider::Codex] {
+    for provider in Provider::all() {
+        let provider = *provider;
         let enabled_value = load_value(connection, &key(provider, "enabled"))?;
         let root_value = load_value(connection, &key(provider, "root_override"))?;
         let mut invalid = false;
@@ -100,15 +101,23 @@ pub(crate) fn load_widget_settings(
     connection: &Connection,
 ) -> rusqlite::Result<WidgetSettingsSnapshot> {
     let dark_mode = load_bool_value(connection, WIDGET_DARK_MODE_KEY, true)?;
-    let claude_visible = load_bool_value(connection, WIDGET_CLAUDE_VISIBLE_KEY, true)?;
-    let codex_visible = load_bool_value(connection, WIDGET_CODEX_VISIBLE_KEY, true)?;
+    let theme = load_value(connection, WIDGET_THEME_KEY)?
+        .as_deref()
+        .and_then(Theme::from_str)
+        .unwrap_or_default();
+    let visible_providers = Provider::all()
+        .iter()
+        .copied()
+        .map(|provider| {
+            load_bool_value(connection, &widget_visible_key(provider), true)
+                .map(|visible| (provider, visible))
+        })
+        .collect::<rusqlite::Result<Vec<_>>>()?;
 
-    Ok(WidgetSettingsSnapshot::new(
+    Ok(WidgetSettingsSnapshot::with_theme(
+        theme,
         dark_mode,
-        [
-            (Provider::Claude, claude_visible),
-            (Provider::Codex, codex_visible),
-        ],
+        visible_providers,
     ))
 }
 
@@ -121,25 +130,23 @@ pub(crate) fn save_widget_settings(
         WIDGET_DARK_MODE_KEY,
         if settings.dark_mode() { "1" } else { "0" },
     )?;
-    save_value(
-        transaction,
-        WIDGET_CLAUDE_VISIBLE_KEY,
-        if settings.is_visible(Provider::Claude) {
-            "1"
-        } else {
-            "0"
-        },
-    )?;
-    save_value(
-        transaction,
-        WIDGET_CODEX_VISIBLE_KEY,
-        if settings.is_visible(Provider::Codex) {
-            "1"
-        } else {
-            "0"
-        },
-    )?;
+    save_value(transaction, WIDGET_THEME_KEY, settings.theme().as_str())?;
+    for provider in Provider::all() {
+        save_value(
+            transaction,
+            &widget_visible_key(*provider),
+            if settings.is_visible(*provider) {
+                "1"
+            } else {
+                "0"
+            },
+        )?;
+    }
     Ok(())
+}
+
+fn widget_visible_key(provider: Provider) -> String {
+    format!("widget.visible.{}", provider.as_str())
 }
 
 fn load_value(connection: &Connection, setting_key: &str) -> rusqlite::Result<Option<String>> {

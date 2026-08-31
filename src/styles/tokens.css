@@ -8,6 +8,7 @@
   --claude-hairline: #e6dfd8;
   --claude-hairline-soft: #ebe6df;
   --claude-coral: #cc785c;
+  --claude-coral-soft: rgba(204, 120, 92, 0.28);
   --claude-coral-active: #a9583e;
   --claude-dark: #181715;
   --claude-dark-raised: #252320;
@@ -19,12 +20,14 @@
     "Segoe UI", sans-serif;
   --font-display: "Copernicus", "Tiempos Headline", "Cormorant Garamond",
     "EB Garamond", Garamond, Georgia, "Times New Roman", serif;
+  --font-provider-claude: var(--font-display);
+  --font-provider-codex: var(--font-ui);
   --font-mono: "JetBrains Mono", Consolas, monospace;
   --type-settings-title: 32px;
   --type-settings-section: 20px;
   --type-settings-label: 14px;
   --type-settings-meta: 12px;
-  --type-settings-button: 14px;
+  --provider-mark-size: 20px;
   --type-widget-title: 32px;
   --type-widget-provider: 14px;
   --type-widget-meta: 11px;
@@ -35,4 +38,29 @@
   --widget-height: 316px;
   --settings-width: 520px;
   --settings-height: 600px;
+}
+
+/* Theme components consume these semantic slots so a future theme can change
+   the visual system without changing widget/settings composition. */
+.theme--claude {
+  --theme-light-canvas: var(--claude-canvas);
+  --theme-light-card: var(--claude-surface-card);
+  --theme-light-ink: var(--claude-ink);
+  --theme-light-body: var(--claude-body);
+  --theme-light-muted: var(--claude-muted);
+  --theme-light-muted-soft: var(--claude-muted-soft);
+  --theme-light-line: var(--claude-hairline);
+  --theme-light-line-soft: var(--claude-hairline-soft);
+  --theme-dark-canvas: var(--claude-dark);
+  --theme-dark-card: var(--claude-dark-raised);
+  --theme-dark-ink: var(--claude-on-dark);
+  --theme-dark-body: #d0cbc2;
+  --theme-dark-muted: var(--claude-on-dark-soft);
+  --theme-dark-muted-soft: #8f8b83;
+  --theme-dark-line: #3a3630;
+  --theme-dark-line-soft: #37332d;
+  --theme-accent: var(--claude-coral);
+  --theme-brand-claude: var(--claude-coral);
+  --theme-focus-ring: var(--claude-coral-soft);
+  --theme-positive: var(--claude-teal);
 }
