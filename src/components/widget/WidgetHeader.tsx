@@ -1,5 +1,4 @@
 import type { UsageState } from "../../lib/usage-summary";
-import WindowGrip from "../shared/WindowGrip";
 import { headerStateLabel } from "./widget-types";
 
 interface WidgetHeaderProps {
@@ -8,9 +7,8 @@ interface WidgetHeaderProps {
 
 export default function WidgetHeader({ state }: WidgetHeaderProps) {
   return (
-    <header className="widget-header" data-tauri-drag-region="">
+    <header className="widget-header">
       <div className="widget-header__title">
-        <WindowGrip />
         <h1>Token Tracing</h1>
       </div>
       <div

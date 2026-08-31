@@ -1,16 +1,7 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type MouseEvent,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUsageSummary } from "./useUsageSummary";
 import { useWidgetSettings } from "./useWidgetSettings";
-import {
-  closeCurrentWindow,
-  startCurrentWindowDrag,
-} from "../lib/window-actions";
+import { closeCurrentWindow } from "../lib/window-actions";
 import { providerOrder, type ProviderId } from "../lib/provider";
 import {
   getSourceSettings,
@@ -18,7 +9,10 @@ import {
   type SourceSettings,
 } from "../lib/source-settings";
 import { formatRelativeUpdate } from "../lib/usage-summary";
-import { updateWidgetSettings } from "../lib/widget-settings";
+import {
+  updateWidgetSettings,
+  type WidgetSettingsSnapshot,
+} from "../lib/widget-settings";
 import { emitWidgetSettingsPreview } from "../lib/widget-settings-preview";
 import {
   createWidgetSettingsPreview,
@@ -30,7 +24,10 @@ import {
   type VisibilityValues,
 } from "../components/settings/settings-model";
 
+const SOURCE_ROOT_SAVE_DEBOUNCE_MS = 350;
+
 type ExpandedValues = Record<ProviderId, boolean>;
+type SourceRootTimer = ReturnType<typeof setTimeout>;
 
 export default function useSettingsController() {
   const { summary } = useUsageSummary();
@@ -40,19 +37,18 @@ export default function useSettingsController() {
     visibilityFromSnapshot(widget.settings),
   );
   const [darkMode, setDarkMode] = useState(widget.settings.darkMode);
-  const [savedWidgetSettings, setSavedWidgetSettings] = useState(
-    widget.persistedSettings,
-  );
-  const [savedSources, setSavedSources] = useState<SourceFormValues | null>(null);
   const [expanded, setExpanded] = useState<ExpandedValues>({
     claude: false,
     codex: false,
   });
   const [loadingSources, setLoadingSources] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   const pendingPreview = useRef<Promise<void>>(Promise.resolve());
+  const pendingPersistence = useRef<Promise<void>>(Promise.resolve());
+  const sourceRootTimers = useRef(new Map<ProviderId, SourceRootTimer>());
+  const pendingSourceRootSnapshots = useRef(
+    new Map<ProviderId, SourceFormValues>(),
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -62,7 +58,6 @@ export default function useSettingsController() {
         if (mounted) {
           const nextSources = sourceValuesFromSnapshot(snapshot);
           setSources(nextSources);
-          setSavedSources(nextSources);
           setError(null);
         }
       } catch (loadError) {
@@ -81,9 +76,19 @@ export default function useSettingsController() {
     if (!widget.loading) {
       setVisible(visibilityFromSnapshot(widget.settings));
       setDarkMode(widget.settings.darkMode);
-      setSavedWidgetSettings(widget.persistedSettings);
     }
-  }, [widget.loading, widget.persistedSettings, widget.settings]);
+  }, [widget.loading, widget.settings]);
+
+  useEffect(
+    () => () => {
+      for (const timer of sourceRootTimers.current.values()) {
+        clearTimeout(timer);
+      }
+      sourceRootTimers.current.clear();
+      pendingSourceRootSnapshots.current.clear();
+    },
+    [],
+  );
 
   const sendPreview = (
     nextDarkMode: boolean,
@@ -113,6 +118,76 @@ export default function useSettingsController() {
     void pending.catch(() => setError("Could not preview settings."));
   };
 
+  const enqueuePersistence = (operation: () => Promise<unknown>) => {
+    const request = pendingPersistence.current
+      .catch(() => undefined)
+      .then(operation)
+      .then(() => undefined);
+    pendingPersistence.current = request.catch(() => undefined);
+    void request.catch((persistError) => setError(errorMessage(persistError)));
+    return request;
+  };
+
+  const enqueueWidgetPersistence = (
+    nextDarkMode: boolean,
+    nextVisible: VisibilityValues,
+  ) => {
+    const snapshot: WidgetSettingsSnapshot = {
+      darkMode: nextDarkMode,
+      visibleProviders: providerOrder.map((provider) => ({
+        provider,
+        visible: nextVisible[provider],
+      })),
+    };
+    void enqueuePersistence(() => updateWidgetSettings(snapshot));
+  };
+
+  const enqueueSourcePersistence = (
+    provider: ProviderId,
+    nextSources: SourceFormValues,
+  ) => {
+    const source = normalizedSourceValues(nextSources)[provider];
+    void enqueuePersistence(() =>
+      updateSourceSettings({
+        provider,
+        enabled: source.enabled,
+        rootOverride: source.rootOverride,
+      }),
+    );
+  };
+
+  const cancelSourceRootPersistence = (provider: ProviderId) => {
+    const timer = sourceRootTimers.current.get(provider);
+    if (timer !== undefined) clearTimeout(timer);
+    sourceRootTimers.current.delete(provider);
+    pendingSourceRootSnapshots.current.delete(provider);
+  };
+
+  const flushSourceRootPersistence = (provider: ProviderId) => {
+    const timer = sourceRootTimers.current.get(provider);
+    if (timer !== undefined) clearTimeout(timer);
+    sourceRootTimers.current.delete(provider);
+
+    const snapshot = pendingSourceRootSnapshots.current.get(provider);
+    pendingSourceRootSnapshots.current.delete(provider);
+    if (snapshot) enqueueSourcePersistence(provider, snapshot);
+  };
+
+  const scheduleSourceRootPersistence = (
+    provider: ProviderId,
+    nextSources: SourceFormValues,
+  ) => {
+    cancelSourceRootPersistence(provider);
+    pendingSourceRootSnapshots.current.set(provider, nextSources);
+    const timer = setTimeout(() => {
+      sourceRootTimers.current.delete(provider);
+      const snapshot = pendingSourceRootSnapshots.current.get(provider);
+      pendingSourceRootSnapshots.current.delete(provider);
+      if (snapshot) enqueueSourcePersistence(provider, snapshot);
+    }, SOURCE_ROOT_SAVE_DEBOUNCE_MS);
+    sourceRootTimers.current.set(provider, timer);
+  };
+
   const updateSource = (
     provider: ProviderId,
     changes: Partial<SourceSettings>,
@@ -122,46 +197,12 @@ export default function useSettingsController() {
       ...sources,
       [provider]: { ...sources[provider], ...changes },
     };
-    setSaved(false);
+    setError(null);
     setSources(nextSources);
     if ("enabled" in changes) {
+      cancelSourceRootPersistence(provider);
       sendPreview(darkMode, visible, nextSources);
-    }
-  };
-
-  const save = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!sources) return;
-
-    setSaving(true);
-    setSaved(false);
-    setError(null);
-    try {
-      const nextSources = normalizedSourceValues(sources);
-      await pendingPreview.current;
-      for (const provider of providerOrder) {
-        const source = nextSources[provider];
-        await updateSourceSettings({
-          provider,
-          enabled: source.enabled,
-          rootOverride: source.rootOverride?.trim() || null,
-        });
-      }
-      const nextWidgetSettings = await updateWidgetSettings({
-        darkMode,
-        visibleProviders: providerOrder.map((provider) => ({
-          provider,
-          visible: visible[provider],
-        })),
-      });
-      setSources(nextSources);
-      setSavedSources(nextSources);
-      setSavedWidgetSettings(nextWidgetSettings);
-      setSaved(true);
-    } catch (saveError) {
-      setError(errorMessage(saveError));
-    } finally {
-      setSaving(false);
+      enqueueSourcePersistence(provider, nextSources);
     }
   };
 
@@ -176,28 +217,13 @@ export default function useSettingsController() {
     };
   });
 
-  const handleWindowMouseDown = (event: MouseEvent<HTMLElement>) => {
-    if (event.button !== 0) return;
-    if (event.target instanceof Element && event.target.closest("button")) return;
-    void startCurrentWindowDrag().catch(() => undefined);
-  };
-
   const closeSettings = async () => {
-    try {
-      await pendingPreview.current;
-      const baselineSources = savedSources ?? sources;
-      if (baselineSources) {
-        await emitWidgetSettingsPreview(
-          createWidgetSettingsPreview(
-            savedWidgetSettings.darkMode,
-            visibilityFromSnapshot(savedWidgetSettings),
-            baselineSources,
-          ),
-        );
-      }
-    } catch {
-      // A preview transport failure must not make the close control unusable.
+    for (const provider of providerOrder) {
+      flushSourceRootPersistence(provider);
     }
+
+    await pendingPreview.current;
+    await pendingPersistence.current;
 
     try {
       await closeCurrentWindow();
@@ -208,9 +234,10 @@ export default function useSettingsController() {
 
   const toggleProviderVisibility = (provider: ProviderId, next: boolean) => {
     const nextVisible = { ...visible, [provider]: next };
-    setSaved(false);
+    setError(null);
     setVisible(nextVisible);
     sendPreview(darkMode, nextVisible, sources);
+    enqueueWidgetPersistence(darkMode, nextVisible);
   };
 
   const toggleSource = (provider: ProviderId, enabled: boolean) => {
@@ -218,7 +245,14 @@ export default function useSettingsController() {
   };
 
   const updateSourceRoot = (provider: ProviderId, rootOverride: string) => {
-    updateSource(provider, { rootOverride });
+    if (!sources) return;
+    const nextSources = {
+      ...sources,
+      [provider]: { ...sources[provider], rootOverride },
+    };
+    setError(null);
+    setSources(nextSources);
+    scheduleSourceRootPersistence(provider, nextSources);
   };
 
   const toggleSourceRoot = (provider: ProviderId) => {
@@ -229,9 +263,10 @@ export default function useSettingsController() {
   };
 
   const toggleDarkMode = (next: boolean) => {
-    setSaved(false);
+    setError(null);
     setDarkMode(next);
     sendPreview(next, visible, sources);
+    enqueueWidgetPersistence(next, visible);
   };
 
   return {
@@ -239,17 +274,14 @@ export default function useSettingsController() {
     darkMode,
     error,
     expanded,
-    handleWindowMouseDown,
     loadingSources,
     onDarkModeToggle: toggleDarkMode,
     onProviderVisibilityToggle: toggleProviderVisibility,
+    onSourceRootBlur: flushSourceRootPersistence,
     onSourceRootChange: updateSourceRoot,
     onSourceRootToggle: toggleSourceRoot,
     onSourceToggle: toggleSource,
     providerStatuses,
-    save,
-    saved,
-    saving,
     sources,
     summary,
     visible,

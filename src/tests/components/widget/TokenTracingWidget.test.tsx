@@ -1,10 +1,16 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TokenTracingWidget from "../../../components/widget/TokenTracingWidget";
 import type { UsageSummary } from "../../../lib/usage-summary";
 import type { WidgetSettingsSnapshot } from "../../../lib/widget-settings";
 
-const { syncWidgetWindowHeight, useUsageSummary, useWidgetSettings } = vi.hoisted(() => ({
+const {
+  startCurrentWindowDrag,
+  syncWidgetWindowHeight,
+  useUsageSummary,
+  useWidgetSettings,
+} = vi.hoisted(() => ({
+  startCurrentWindowDrag: vi.fn().mockResolvedValue(undefined),
   syncWidgetWindowHeight: vi.fn().mockResolvedValue(undefined),
   useUsageSummary: vi.fn(),
   useWidgetSettings: vi.fn(),
@@ -15,6 +21,9 @@ vi.mock("../../../hooks/useUsageSummary", () => ({
 }));
 vi.mock("../../../hooks/useWidgetSettings", () => ({
   useWidgetSettings,
+}));
+vi.mock("../../../lib/window-actions", () => ({
+  startCurrentWindowDrag,
 }));
 vi.mock("../../../lib/window-sizing", () => ({
   syncWidgetWindowHeight,
@@ -52,6 +61,7 @@ const settings: WidgetSettingsSnapshot = {
 };
 
 beforeEach(() => {
+  startCurrentWindowDrag.mockClear();
   syncWidgetWindowHeight.mockClear();
   useUsageSummary.mockReturnValue({ summary });
   useWidgetSettings.mockReturnValue({
@@ -70,7 +80,8 @@ describe("TokenTracingWidget", () => {
     expect(screen.getByRole("heading", { name: "Token Tracing" })).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Live");
     expect(screen.getByRole("banner")).toHaveClass("widget-header");
-    expect(screen.getByRole("banner")).toHaveAttribute("data-tauri-drag-region", "");
+    expect(screen.getByRole("banner")).not.toHaveAttribute("data-tauri-drag-region");
+    expect(screen.getByRole("button", { name: "Move widget window" })).toBeInTheDocument();
     expect(screen.getAllByTestId("window-grip-dot")).toHaveLength(6);
     expect(screen.getAllByRole("button", { name: /Resize widget from/ })).toHaveLength(8);
     expect(screen.getByText("Claude Code")).toBeInTheDocument();
@@ -82,6 +93,13 @@ describe("TokenTracingWidget", () => {
     expect(screen.queryByText("Total today")).not.toBeInTheDocument();
     expect(screen.queryByText("T")).not.toBeInTheDocument();
     expect(syncWidgetWindowHeight).toHaveBeenCalledWith(2);
+
+    fireEvent.mouseDown(screen.getByRole("banner"), { button: 0 });
+    expect(startCurrentWindowDrag).not.toHaveBeenCalled();
+    fireEvent.mouseDown(screen.getByRole("button", { name: "Move widget window" }), {
+      button: 0,
+    });
+    expect(startCurrentWindowDrag).toHaveBeenCalledTimes(1);
   });
 
   it("uses persisted visibility and dark mode without changing the summary totals", () => {

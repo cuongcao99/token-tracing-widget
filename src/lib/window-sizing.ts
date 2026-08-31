@@ -1,5 +1,6 @@
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import {
+  WIDGET_MAX_HEIGHT,
   WIDGET_MAX_WIDTH,
   WIDGET_MIN_WIDTH,
   widgetHeightForVisibleProviders,
@@ -24,13 +25,24 @@ export function syncWidgetWindowHeight(visibleProviderCount: number): Promise<vo
     if (requestId !== latestRequest) return;
 
     const factor = Number.isFinite(scaleFactor) && scaleFactor > 0 ? scaleFactor : 1;
+    const targetHeight = widgetHeightForVisibleProviders(visibleProviderCount);
     const logicalWidth = clamp(
       Math.round(physicalSize.width / factor),
       WIDGET_MIN_WIDTH,
       WIDGET_MAX_WIDTH,
     );
+
+    await window.setSizeConstraints({
+      minWidth: WIDGET_MIN_WIDTH,
+      minHeight: targetHeight,
+      maxWidth: WIDGET_MAX_WIDTH,
+      maxHeight: WIDGET_MAX_HEIGHT,
+    });
+
+    if (requestId !== latestRequest) return;
+
     await window.setSize(
-      new LogicalSize(logicalWidth, widgetHeightForVisibleProviders(visibleProviderCount)),
+      new LogicalSize(logicalWidth, targetHeight),
     );
   });
 

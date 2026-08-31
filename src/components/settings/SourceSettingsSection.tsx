@@ -11,6 +11,7 @@ interface SourceSettingsSectionProps {
   expanded: Record<ProviderId, boolean>;
   onToggle: (provider: ProviderId, enabled: boolean) => void;
   onRootChange: (provider: ProviderId, rootOverride: string) => void;
+  onRootBlur: (provider: ProviderId) => void;
   onToggleRoot: (provider: ProviderId) => void;
 }
 
@@ -20,6 +21,7 @@ export default function SourceSettingsSection({
   expanded,
   onToggle,
   onRootChange,
+  onRootBlur,
   onToggleRoot,
 }: SourceSettingsSectionProps) {
   return (
@@ -73,6 +75,7 @@ export default function SourceSettingsSection({
                     value={source.rootOverride ?? ""}
                     placeholder={providerMeta[provider].automaticRoot}
                     onChange={(event) => onRootChange(provider, event.target.value)}
+                    onBlur={() => onRootBlur(provider)}
                   />
                 </label>
               )}

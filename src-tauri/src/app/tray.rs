@@ -29,7 +29,7 @@ struct SettingsWindowOptions {
 fn settings_window_options() -> SettingsWindowOptions {
     SettingsWindowOptions {
         width: 520.0,
-        height: 560.0,
+        height: 600.0,
         min_width: 440.0,
         min_height: 420.0,
         max_width: 820.0,
@@ -39,7 +39,7 @@ fn settings_window_options() -> SettingsWindowOptions {
         transparent: true,
         always_on_top: false,
         skip_taskbar: true,
-        shadow: true,
+        shadow: false,
     }
 }
 
@@ -202,7 +202,7 @@ mod tests {
         let options = settings_window_options();
 
         assert_eq!(options.width, 520.0);
-        assert_eq!(options.height, 560.0);
+        assert_eq!(options.height, 600.0);
         assert_eq!(options.min_width, 440.0);
         assert_eq!(options.min_height, 420.0);
         assert_eq!(options.max_width, 820.0);
@@ -212,6 +212,6 @@ mod tests {
         assert!(options.transparent);
         assert!(!options.always_on_top);
         assert!(options.skip_taskbar);
-        assert!(options.shadow);
+        assert!(!options.shadow);
     }
 }

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsScreen from "../../../components/settings/SettingsScreen";
 import type { UsageSummary } from "../../../lib/usage-summary";
@@ -111,11 +111,13 @@ describe("SettingsScreen", () => {
     render(<SettingsScreen />);
 
     expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
-    expect(screen.getByRole("banner").querySelector(".settings-page__heading")).toHaveAttribute(
+    expect(screen.getByRole("main").querySelector(".settings-page__body")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
+    expect(screen.getByRole("banner").querySelector(".settings-page__heading")).not.toHaveAttribute(
       "data-tauri-drag-region",
-      "",
     );
     expect(screen.getByText("Choose what stays visible.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Move settings window" })).toBeInTheDocument();
     expect(screen.getAllByTestId("window-grip-dot")).toHaveLength(6);
     expect(screen.getAllByRole("button", { name: /Resize settings from/ })).toHaveLength(8);
     expect(screen.getByRole("heading", { name: "Visible providers" })).toBeInTheDocument();
@@ -127,13 +129,17 @@ describe("SettingsScreen", () => {
     expect(screen.queryByText("Local only")).not.toBeInTheDocument();
   });
 
-  it("offers a close control and starts native dragging from the header", async () => {
+  it("offers a close control and starts native dragging from the top-center grip only", async () => {
     render(<SettingsScreen />);
 
     const header = screen.getByRole("banner");
     const closeButton = screen.getByRole("button", { name: "Close settings" });
+    const grip = screen.getByRole("button", { name: "Move settings window" });
 
     fireEvent.mouseDown(header, { button: 0 });
+    expect(startDragging).not.toHaveBeenCalled();
+
+    fireEvent.mouseDown(grip, { button: 0 });
     expect(startDragging).toHaveBeenCalledTimes(1);
 
     fireEvent.mouseDown(closeButton, { button: 0 });
@@ -149,7 +155,7 @@ describe("SettingsScreen", () => {
     await waitFor(() => expect(closeWindow).toHaveBeenCalledTimes(1));
   });
 
-  it("previews dark mode immediately and restores the saved value on close", async () => {
+  it("previews and auto-saves dark mode immediately", async () => {
     render(<SettingsScreen />);
     await screen.findByRole("heading", { name: "Settings" });
 
@@ -168,20 +174,28 @@ describe("SettingsScreen", () => {
       ],
     } satisfies WidgetSettingsPreview);
 
-    fireEvent.click(screen.getByRole("button", { name: "Close settings" }));
     await waitFor(() =>
-      expect(emitWidgetSettingsPreview).toHaveBeenLastCalledWith({
-        darkMode: true,
+      expect(updateWidgetSettings).toHaveBeenCalledWith({
+        darkMode: false,
         visibleProviders: [
           { provider: "claude", visible: true },
           { provider: "codex", visible: true },
         ],
-        sourceEnabled: [
-          { provider: "claude", enabled: true },
-          { provider: "codex", enabled: true },
-        ],
       }),
     );
+  });
+
+  it("keeps the preview when closing after an auto-saved edit", async () => {
+    render(<SettingsScreen />);
+    await screen.findByRole("heading", { name: "Settings" });
+
+    fireEvent.click(screen.getByRole("switch", { name: "Dark mode" }));
+    await waitFor(() => expect(updateWidgetSettings).toHaveBeenCalledTimes(1));
+    const previewCallCount = emitWidgetSettingsPreview.mock.calls.length;
+
+    fireEvent.click(screen.getByRole("button", { name: "Close settings" }));
+    await waitFor(() => expect(closeWindow).toHaveBeenCalledTimes(1));
+    expect(emitWidgetSettingsPreview).toHaveBeenCalledTimes(previewCallCount);
     expect(closeWindow).toHaveBeenCalledTimes(1);
   });
 
@@ -207,7 +221,6 @@ describe("SettingsScreen", () => {
     expect(screen.getByRole("switch", { name: "Show Codex in widget" })).not.toBeChecked();
     expect(screen.getByRole("switch", { name: "Collect Codex source" })).not.toBeChecked();
     expect(screen.getByRole("main")).toHaveClass("settings-page--light");
-    expect(updateWidgetSettings).not.toHaveBeenCalled();
     expect(emitWidgetSettingsPreview).toHaveBeenLastCalledWith({
       darkMode: false,
       visibleProviders: [
@@ -219,67 +232,82 @@ describe("SettingsScreen", () => {
         { provider: "codex", enabled: false },
       ],
     });
+    await waitFor(() => {
+      expect(updateWidgetSettings).toHaveBeenCalledTimes(2);
+      expect(updateSourceSettings).toHaveBeenCalledWith({
+        provider: "codex",
+        enabled: false,
+        rootOverride: null,
+      });
+    });
   });
 
-  it("restores the complete saved snapshot when edited settings are closed", async () => {
+  it("auto-saves source roots after the debounce and on blur", async () => {
+    render(<SettingsScreen />);
+    await screen.findByRole("heading", { name: "Settings" });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Change…" })[0]);
+    const input = screen.getByRole("textbox", { name: "Claude Code source root" });
+    fireEvent.change(input, { target: { value: "C:\\custom\\claude" } });
+    expect(updateSourceSettings).not.toHaveBeenCalled();
+
+    fireEvent.blur(input);
+    await waitFor(() =>
+      expect(updateSourceSettings).toHaveBeenCalledWith({
+        provider: "claude",
+        enabled: true,
+        rootOverride: "C:\\custom\\claude",
+      }),
+    );
+  });
+
+  it("flushes a source-root edit after the debounce window", async () => {
+    render(<SettingsScreen />);
+    await screen.findByRole("heading", { name: "Settings" });
+    vi.useFakeTimers();
+
+    try {
+      fireEvent.click(screen.getAllByRole("button", { name: "Change…" })[0]);
+      fireEvent.change(
+        screen.getByRole("textbox", { name: "Claude Code source root" }),
+        { target: { value: "C:\\custom\\claude" } },
+      );
+      expect(updateSourceSettings).not.toHaveBeenCalled();
+
+      await act(async () => {
+        vi.advanceTimersByTime(349);
+      });
+      expect(updateSourceSettings).not.toHaveBeenCalled();
+
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+        await Promise.resolve();
+      });
+      expect(updateSourceSettings).toHaveBeenCalledWith({
+        provider: "claude",
+        enabled: true,
+        rootOverride: "C:\\custom\\claude",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not require a submit action to persist all setting controls", async () => {
     render(<SettingsScreen />);
     await screen.findByRole("heading", { name: "Settings" });
 
     fireEvent.click(screen.getByRole("switch", { name: "Show Codex in widget" }));
     fireEvent.click(screen.getByRole("switch", { name: "Collect Codex source" }));
     fireEvent.click(screen.getByRole("switch", { name: "Dark mode" }));
-    fireEvent.click(screen.getByRole("button", { name: "Close settings" }));
-
-    await waitFor(() =>
-      expect(emitWidgetSettingsPreview).toHaveBeenLastCalledWith({
-        darkMode: true,
-        visibleProviders: [
-          { provider: "claude", visible: true },
-          { provider: "codex", visible: true },
-        ],
-        sourceEnabled: [
-          { provider: "claude", enabled: true },
-          { provider: "codex", enabled: true },
-        ],
-      }),
-    );
-    expect(closeWindow).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps source roots behind Change and normalizes a blank override", async () => {
-    render(<SettingsScreen />);
-    await screen.findByRole("heading", { name: "Settings" });
-
-    expect(screen.queryByRole("textbox", { name: "Claude Code source root" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button", { name: "Change…" })[0]);
-    fireEvent.change(screen.getByRole("textbox", { name: "Claude Code source root" }), {
-      target: { value: "   " },
+    await waitFor(() => {
+      expect(updateWidgetSettings).toHaveBeenCalledTimes(2);
+      expect(updateSourceSettings).toHaveBeenCalledWith({
+        provider: "codex",
+        enabled: false,
+        rootOverride: null,
+      });
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
-
-    await waitFor(() => expect(updateSourceSettings).toHaveBeenCalled());
-    expect(updateSourceSettings).toHaveBeenNthCalledWith(1, {
-      provider: "claude",
-      enabled: true,
-      rootOverride: null,
-    });
-  });
-
-  it("saves source settings and widget preferences together", async () => {
-    render(<SettingsScreen />);
-    await screen.findByRole("heading", { name: "Settings" });
-    fireEvent.click(screen.getByRole("switch", { name: "Show Codex in widget" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
-
-    await waitFor(() => expect(updateWidgetSettings).toHaveBeenCalled());
-    expect(updateWidgetSettings).toHaveBeenCalledWith({
-      darkMode: true,
-      visibleProviders: [
-        { provider: "claude", visible: true },
-        { provider: "codex", visible: false },
-      ],
-    });
-    expect(updateSourceSettings).toHaveBeenCalledTimes(2);
-    expect(await screen.findByRole("status")).toHaveTextContent("Saved");
+    expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
   });
 });

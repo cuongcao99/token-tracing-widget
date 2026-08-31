@@ -10,14 +10,14 @@ import {
 
 describe("widget layout", () => {
   it("keeps a breathable target height for each visible-provider count", () => {
-    expect(widgetHeightForVisibleProviders(0)).toBe(176);
-    expect(widgetHeightForVisibleProviders(1)).toBe(228);
-    expect(widgetHeightForVisibleProviders(2)).toBe(300);
+    expect(widgetHeightForVisibleProviders(0)).toBe(192);
+    expect(widgetHeightForVisibleProviders(1)).toBe(244);
+    expect(widgetHeightForVisibleProviders(2)).toBe(316);
   });
 
   it("clamps invalid provider counts to a safe window height", () => {
     expect(widgetHeightForVisibleProviders(-1)).toBe(WIDGET_MIN_HEIGHT);
-    expect(widgetHeightForVisibleProviders(99)).toBe(300);
+    expect(widgetHeightForVisibleProviders(99)).toBe(316);
     expect(widgetHeightForVisibleProviders(Number.NaN)).toBe(WIDGET_MIN_HEIGHT);
   });
 
@@ -25,7 +25,7 @@ describe("widget layout", () => {
     expect(WIDGET_DEFAULT_WIDTH).toBe(440);
     expect(WIDGET_MIN_WIDTH).toBe(360);
     expect(WIDGET_MAX_WIDTH).toBe(720);
-    expect(WIDGET_MIN_HEIGHT).toBe(176);
+    expect(WIDGET_MIN_HEIGHT).toBe(192);
     expect(WIDGET_MAX_HEIGHT).toBe(520);
   });
 });

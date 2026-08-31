@@ -1,12 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { syncWidgetWindowHeight } from "../../lib/window-sizing";
 
-const { getCurrentWindow, innerSize, scaleFactor, setSize } = vi.hoisted(() => {
+const {
+  getCurrentWindow,
+  innerSize,
+  scaleFactor,
+  setSize,
+  setSizeConstraints,
+} = vi.hoisted(() => {
   const innerSize = vi.fn();
   const scaleFactor = vi.fn();
   const setSize = vi.fn();
-  const getCurrentWindow = vi.fn(() => ({ innerSize, scaleFactor, setSize }));
-  return { getCurrentWindow, innerSize, scaleFactor, setSize };
+  const setSizeConstraints = vi.fn();
+  const getCurrentWindow = vi.fn(() => ({
+    innerSize,
+    scaleFactor,
+    setSize,
+    setSizeConstraints,
+  }));
+  return { getCurrentWindow, innerSize, scaleFactor, setSize, setSizeConstraints };
 });
 
 vi.mock("@tauri-apps/api/window", async () => {
@@ -20,9 +32,11 @@ beforeEach(() => {
   innerSize.mockReset();
   scaleFactor.mockReset();
   setSize.mockReset();
+  setSizeConstraints.mockReset();
   innerSize.mockResolvedValue({ width: 1200, height: 900 });
   scaleFactor.mockResolvedValue(2);
   setSize.mockResolvedValue(undefined);
+  setSizeConstraints.mockResolvedValue(undefined);
 });
 
 describe("widget window sizing", () => {
@@ -30,7 +44,16 @@ describe("widget window sizing", () => {
     await syncWidgetWindowHeight(1);
 
     expect(setSize).toHaveBeenCalledTimes(1);
-    expect(setSize.mock.calls[0][0]).toMatchObject({ width: 600, height: 228 });
+    expect(setSize.mock.calls[0][0]).toMatchObject({ width: 600, height: 244 });
+    expect(setSizeConstraints).toHaveBeenCalledWith({
+      minWidth: 360,
+      minHeight: 244,
+      maxWidth: 720,
+      maxHeight: 520,
+    });
+    expect(setSizeConstraints.mock.invocationCallOrder[0]).toBeLessThan(
+      setSize.mock.invocationCallOrder[0],
+    );
   });
 
   it("clamps a manually resized width and lets the newest visibility state win", async () => {
@@ -39,6 +62,15 @@ describe("widget window sizing", () => {
     await Promise.all([syncWidgetWindowHeight(1), syncWidgetWindowHeight(2)]);
 
     expect(setSize).toHaveBeenCalledTimes(1);
-    expect(setSize.mock.calls[0][0]).toMatchObject({ width: 720, height: 300 });
+    expect(setSize.mock.calls[0][0]).toMatchObject({ width: 720, height: 316 });
+    expect(setSizeConstraints).toHaveBeenCalledWith({
+      minWidth: 360,
+      minHeight: 316,
+      maxWidth: 720,
+      maxHeight: 520,
+    });
+    expect(setSizeConstraints.mock.invocationCallOrder[0]).toBeLessThan(
+      setSize.mock.invocationCallOrder[0],
+    );
   });
 });

@@ -3,6 +3,7 @@ import { useUsageSummary } from "../../hooks/useUsageSummary";
 import { useWidgetSettings } from "../../hooks/useWidgetSettings";
 import { providerOrder } from "../../lib/provider";
 import { syncWidgetWindowHeight } from "../../lib/window-sizing";
+import WindowGrip from "../shared/WindowGrip";
 import WindowResizeHandles from "../shared/WindowResizeHandles";
 import WidgetHeader from "./WidgetHeader";
 import ProviderUsageRow from "./ProviderUsageRow";
@@ -37,6 +38,7 @@ export default function TokenTracingWidget() {
       className={`widget widget--${settings.darkMode ? "dark" : "light"}`}
       aria-label="Token usage summary"
     >
+      <WindowGrip windowName="widget" />
       <WidgetHeader state={summary.state} />
       <section className="widget-provider-list" aria-label="Provider usage">
         {providerOrder.map((provider) => {

@@ -12,17 +12,14 @@ export default function SettingsScreen() {
     darkMode,
     error,
     expanded,
-    handleWindowMouseDown,
     loadingSources,
     onDarkModeToggle,
     onProviderVisibilityToggle,
+    onSourceRootBlur,
     onSourceRootChange,
     onSourceRootToggle,
     onSourceToggle,
     providerStatuses,
-    save,
-    saved,
-    saving,
     sources,
     summary,
     visible,
@@ -34,13 +31,10 @@ export default function SettingsScreen() {
       className={`settings-page settings-page--${darkMode ? "dark" : "light"}`}
       aria-label="Settings"
     >
-      <header
-        className="settings-page__header"
-        onMouseDown={handleWindowMouseDown}
-      >
-        <div className="settings-page__heading" data-tauri-drag-region="">
+      <WindowGrip windowName="settings" />
+      <header className="settings-page__header">
+        <div className="settings-page__heading">
           <div className="settings-page__title-row">
-            <WindowGrip />
             <h1>Settings</h1>
           </div>
           <p>Choose what stays visible.</p>
@@ -48,49 +42,46 @@ export default function SettingsScreen() {
         <SettingsCloseButton onClick={closeSettings} />
       </header>
 
-      {widgetError && (
-        <p className="settings-status" role="status">
-          {widgetError}
-        </p>
-      )}
-      {error && (
-        <p className="settings-status settings-status--error" role="alert">
-          {error}
-        </p>
-      )}
-      {loadingSources && (
-        <p className="settings-status" role="status">
-          Loading settings…
-        </p>
-      )}
+      <div className="settings-page__body">
+        {widgetError && (
+          <p className="settings-status" role="status">
+            {widgetError}
+          </p>
+        )}
+        {error && (
+          <p className="settings-status settings-status--error" role="alert">
+            {error}
+          </p>
+        )}
+        {loadingSources && (
+          <p className="settings-status" role="status">
+            Loading settings…
+          </p>
+        )}
 
-      {sources && (
-        <form className="settings-form" onSubmit={save}>
-          <ProviderVisibilitySection
-            visible={visible}
-            providers={providerStatuses}
-            onToggle={onProviderVisibilityToggle}
-          />
-          <SourceSettingsSection
-            sources={sources}
-            health={summary.sourceHealth}
-            expanded={expanded}
-            onToggle={onSourceToggle}
-            onRootChange={onSourceRootChange}
-            onToggleRoot={onSourceRootToggle}
-          />
-          <AppearanceSection
-            darkMode={darkMode}
-            onToggle={onDarkModeToggle}
-          />
-          <div className="settings-actions">
-            {saved && <p role="status">Saved.</p>}
-            <button className="save-button" type="submit" disabled={saving}>
-              {saving ? "Saving…" : "Save changes"}
-            </button>
+        {sources && (
+          <div className="settings-form">
+            <ProviderVisibilitySection
+              visible={visible}
+              providers={providerStatuses}
+              onToggle={onProviderVisibilityToggle}
+            />
+            <SourceSettingsSection
+              sources={sources}
+              health={summary.sourceHealth}
+              expanded={expanded}
+              onToggle={onSourceToggle}
+              onRootChange={onSourceRootChange}
+              onRootBlur={onSourceRootBlur}
+              onToggleRoot={onSourceRootToggle}
+            />
+            <AppearanceSection
+              darkMode={darkMode}
+              onToggle={onDarkModeToggle}
+            />
           </div>
-        </form>
-      )}
+        )}
+      </div>
       <WindowResizeHandles windowName="settings" />
     </main>
   );

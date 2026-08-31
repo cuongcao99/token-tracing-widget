@@ -3,24 +3,34 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import WindowGrip from "../../../components/shared/WindowGrip";
 import WindowResizeHandles from "../../../components/shared/WindowResizeHandles";
 
-const { startCurrentWindowResize } = vi.hoisted(() => ({
+const { startCurrentWindowDrag, startCurrentWindowResize } = vi.hoisted(() => ({
+  startCurrentWindowDrag: vi.fn().mockResolvedValue(undefined),
   startCurrentWindowResize: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../../../lib/window-actions", () => ({
+  startCurrentWindowDrag,
   startCurrentWindowResize,
 }));
 
 beforeEach(() => {
+  startCurrentWindowDrag.mockClear();
   startCurrentWindowResize.mockClear();
 });
 
 describe("window controls", () => {
-  it("renders a decorative six-dot drag grip", () => {
-    render(<WindowGrip />);
+  it("renders a focusable six-dot grip that starts native dragging itself", () => {
+    render(<WindowGrip windowName="widget" />);
 
-    expect(screen.getByTestId("window-grip")).toHaveAttribute("aria-hidden", "true");
+    const grip = screen.getByRole("button", { name: "Move widget window" });
+    expect(grip).toHaveAttribute("data-testid", "window-grip");
     expect(screen.getAllByTestId("window-grip-dot")).toHaveLength(6);
+
+    fireEvent.mouseDown(grip, { button: 0 });
+    expect(startCurrentWindowDrag).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(grip, { key: "Enter" });
+    expect(startCurrentWindowDrag).toHaveBeenCalledTimes(2);
   });
 
   it("starts native resize in every edge and corner direction", () => {
