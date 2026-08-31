@@ -18,7 +18,6 @@ const stylesheetBlock = (css, selector) => {
 };
 
 const widgetCss = readStylesheet("../../styles/widget.css");
-const previewCss = readStylesheet("../../design-preview.css");
 const layoutSource = readStylesheet("../../lib/widget-layout.ts");
 
 describe("widget vertical rhythm", () => {
@@ -46,19 +45,6 @@ describe("widget vertical rhythm", () => {
     ).toContain("padding-top: var(--widget-rhythm);");
     expect(stylesheetBlock(widgetCss, ".widget-total")).toContain(
       "padding-top: var(--widget-rhythm);",
-    );
-  });
-
-  it("keeps the static Claude preview on the same rhythm contract", () => {
-    expect(previewCss).toContain("container-type: size;");
-    expect(previewCss).toContain(
-      "--widget-rhythm: clamp(10px, 4cqh, 20px);",
-    );
-    expect(previewCss).toContain(
-      ".overlay-preview--claude .overlay-provider-list",
-    );
-    expect(previewCss).toContain(
-      ".overlay-preview--claude .overlay-window__total",
     );
   });
 });

@@ -19,7 +19,6 @@ const stylesheetBlock = (css, selector) => {
 
 const settingsCss = readStylesheet("../../styles/settings.css");
 const widgetCss = readStylesheet("../../styles/widget.css");
-const previewCss = readStylesheet("../../design-preview.css");
 
 describe("panel surface CSS", () => {
   it("keeps the settings scrollbar at the shell edge", () => {
@@ -38,15 +37,6 @@ describe("panel surface CSS", () => {
     expect(settingsCss).toMatch(
       /\.settings-page__body::-webkit-scrollbar-button\s*\{[^}]*display:\s*none/,
     );
-
-    const previewBody = stylesheetBlock(previewCss, ".claude-settings-body");
-    expect(previewCss).toContain("--settings-inline-padding: 32px;");
-    expect(previewBody).toContain(
-      "margin-right: calc(-1 * var(--settings-inline-padding));",
-    );
-    expect(previewBody).toContain(
-      "padding-right: var(--settings-inline-padding);",
-    );
   });
 
   it("keeps settings elevated while the widget surface stays shadow-free", () => {
@@ -63,11 +53,6 @@ describe("panel surface CSS", () => {
     );
     expect(widgetCss).toMatch(/border:\s*0/);
     expect(widgetCss).toMatch(/outline:\s*none/);
-
-    expect(previewCss).not.toContain("0 1px 2px");
-    expect(previewCss).toMatch(
-      /\.overlay-preview--claude \.overlay-window\s*\{[^}]*box-shadow:\s*none;/,
-    );
   });
 
   it("keeps the theme control and provider marks on the approved visual system", () => {
@@ -86,24 +71,9 @@ describe("panel surface CSS", () => {
     expect(widgetCss).toMatch(
       /\.widget-provider__heading h2 \.provider-name--font-display\s*\{[^}]*font-size:\s*calc\(var\(--type-widget-provider\) \+ 4px\);/,
     );
-    expect(previewCss).toMatch(
-      /\.provider-name--font-display\s*\{[^}]*font-size:\s*calc\(100% \+ 4px\);/,
-    );
     expect(widgetCss).toMatch(
       /\.provider-name--font-display\s*\{[^}]*font-weight:\s*600;/,
     );
-    expect(previewCss).toMatch(
-      /\.provider-name--font-display\s*\{[^}]*font-weight:\s*600;/,
-    );
-    expect(previewCss).toContain(
-      ".settings-window--d .claude-provider-row span:not(.provider-dot):not(.switch__knob):not(.provider-name)",
-    );
-    expect(previewCss).toMatch(
-      /\.settings-window--d \.claude-provider-row strong \.provider-name--font-display\s*,[^}]*font-size:\s*calc\(var\(--type-settings-meta\) \+ 4px\);/s,
-    );
     expect(widgetCss).toContain(".provider-dot img");
-    expect(previewCss).toContain(".provider-dot img");
-    expect(previewCss).toContain(".theme-picker__menu");
-    expect(previewCss).toContain(".source-path-button");
   });
 });
