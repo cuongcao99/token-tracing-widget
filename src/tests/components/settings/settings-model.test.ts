@@ -85,6 +85,9 @@ describe("settings model", () => {
     expect(errorMessage(new Error("settings_refresh"))).toBe(
       "Settings were not applied because collection could not refresh.",
     );
+    expect(errorMessage(new Error("source_root_invalid"))).toBe(
+      "That folder cannot be used as a source.",
+    );
     expect(errorMessage(new Error("unknown"))).toBe("Settings are unavailable.");
   });
 });

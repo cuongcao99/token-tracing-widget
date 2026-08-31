@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import {
   getSourceSettings,
+  pickSourceRoot,
   parseSourceSettings,
   updateSourceSettings,
 } from "../../lib/source-settings";
@@ -41,6 +42,25 @@ describe("source settings bridge", () => {
 
     expect(invoke).toHaveBeenCalledWith("update_source_settings", {
       settings: { provider: "claude", enabled: false, rootOverride: null },
+    });
+  });
+
+  it("opens a folder picker for the selected provider through the native bridge", async () => {
+    vi.mocked(invoke).mockResolvedValue(validSnapshot);
+
+    await expect(pickSourceRoot("codex")).resolves.toEqual(validSnapshot);
+
+    expect(invoke).toHaveBeenCalledWith("pick_source_root", {
+      provider: "codex",
+    });
+  });
+
+  it("returns no update when the native folder picker is cancelled", async () => {
+    vi.mocked(invoke).mockResolvedValue(null);
+
+    await expect(pickSourceRoot("claude")).resolves.toBeNull();
+    expect(invoke).toHaveBeenCalledWith("pick_source_root", {
+      provider: "claude",
     });
   });
 

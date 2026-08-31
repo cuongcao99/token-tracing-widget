@@ -27,6 +27,7 @@
   --window-grip-ink: var(--theme-light-muted, var(--claude-muted));
   --window-grip-line: var(--theme-light-line, var(--claude-hairline));
   --window-grip-surface: var(--theme-light-card, var(--claude-surface-card));
+  --theme-brand-claude: var(--claude-coral);
   color: var(--widget-ink);
   background: var(--theme-light-canvas, var(--claude-canvas));
   box-shadow: none;
@@ -40,6 +41,7 @@
   --window-grip-ink: var(--theme-dark-muted, var(--claude-on-dark-soft));
   --window-grip-line: var(--theme-dark-line, #3a3630);
   --window-grip-surface: var(--theme-dark-card, var(--claude-dark-raised));
+  --theme-brand-claude: var(--claude-coral);
 }
 
 .widget-header {
@@ -74,7 +76,6 @@
   white-space: nowrap;
 }
 
-.widget-status,
 .provider-status {
   display: inline-flex;
   align-items: center;
@@ -86,7 +87,6 @@
   white-space: nowrap;
 }
 
-.widget-status__dot,
 .provider-status__dot {
   display: inline-block;
   width: 7px;
@@ -95,7 +95,6 @@
   background: currentColor;
 }
 
-.widget-status--active,
 .provider-status--active {
   color: var(--theme-accent, var(--claude-coral));
 }
@@ -151,17 +150,29 @@
   line-height: 1.2;
 }
 
-.provider-dot {
-  display: inline-block;
-  flex: 0 0 auto;
-  width: 9px;
-  height: 9px;
-  margin-right: 10px;
-  border-radius: 50%;
+.widget-provider__heading h2 .provider-name--font-display {
+  font-size: calc(var(--type-widget-provider) + 4px);
 }
 
 .provider-dot {
-  background: var(--provider-accent, var(--theme-accent, var(--claude-coral)));
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: var(--provider-mark-size);
+  height: var(--provider-mark-size);
+  margin-right: 10px;
+}
+
+.provider-dot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.widget--light .provider-dot--codex img,
+.settings-page--light .provider-dot--codex img {
+  filter: brightness(0);
 }
 
 .widget-provider__heading h2 > span:last-child {
@@ -169,6 +180,26 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.provider-name {
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+}
+
+.provider-name--claude {
+  color: var(--theme-brand-claude, var(--theme-accent, var(--claude-coral)));
+}
+
+.provider-name--font-display {
+  font-family: var(--font-provider-claude, var(--font-display));
+  font-weight: 600;
+  letter-spacing: -0.15px;
+}
+
+.provider-name--font-ui {
+  font-family: var(--font-provider-codex, var(--font-ui));
 }
 
 .widget-provider__metrics {

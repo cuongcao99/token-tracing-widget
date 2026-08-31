@@ -1,5 +1,6 @@
 import { providerMeta, providerRegistry, type ProviderId } from "../../lib/provider";
 import ProviderDot from "../shared/ProviderDot";
+import ProviderName from "../shared/ProviderName";
 import SettingsSwitch from "./SettingsSwitch";
 import type { ProviderStatusView } from "./settings-types";
 
@@ -29,14 +30,14 @@ export default function ProviderVisibilitySection({
               <div className="settings-row__identity">
                 <ProviderDot provider={provider} />
                 <div>
-                  <strong>{providerMeta[provider].name}</strong>
+                  <strong><ProviderName provider={provider} /></strong>
                   <span>
                     {state.charAt(0).toUpperCase() + state.slice(1)} · {updated}
                   </span>
                 </div>
               </div>
               <SettingsSwitch
-                label={`Show ${providerMeta[provider].name} in widget`}
+                label={`Show ${providerMeta[provider].displayName} in widget`}
                 checked={visible[provider]}
                 onChange={(next) => onToggle(provider, next)}
               />

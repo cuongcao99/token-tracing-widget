@@ -39,7 +39,7 @@ export default function TokenTracingWidget() {
       aria-label="Token usage summary"
     >
       <WindowGrip windowName="widget" />
-      <WidgetHeader state={summary.state} />
+      <WidgetHeader />
       <section className="widget-provider-list" aria-label="Provider usage">
         {providerRegistry.map(({ id: provider }) => {
           const usage = summary.providers.find((entry) => entry.provider === provider);

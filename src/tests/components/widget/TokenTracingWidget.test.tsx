@@ -79,13 +79,13 @@ describe("TokenTracingWidget", () => {
     render(<TokenTracingWidget />);
 
     expect(screen.getByRole("heading", { name: "Token Tracing" })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Live");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.getByRole("banner")).toHaveClass("widget-header");
     expect(screen.getByRole("banner")).not.toHaveAttribute("data-tauri-drag-region");
     expect(screen.getByRole("button", { name: "Move widget window" })).toBeInTheDocument();
     expect(screen.getAllByTestId("window-grip-dot")).toHaveLength(6);
     expect(screen.getAllByRole("button", { name: /Resize widget from/ })).toHaveLength(8);
-    expect(screen.getByText("Claude Code")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Claude" })).toBeInTheDocument();
     expect(screen.getByText("Codex")).toBeInTheDocument();
     expect(screen.getAllByText("Session", { selector: "span" })).toHaveLength(2);
     expect(screen.getAllByText("Today", { selector: "span" })).toHaveLength(2);
@@ -119,7 +119,7 @@ describe("TokenTracingWidget", () => {
 
     render(<TokenTracingWidget />);
 
-    expect(screen.getAllByText("Claude Code")).toHaveLength(1);
+    expect(screen.getAllByRole("heading", { name: "Claude" })).toHaveLength(1);
     expect(screen.queryByText("Codex")).not.toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveClass("widget--light");
     expect(screen.getByText("173,816,684", { selector: "strong" })).toBeInTheDocument();
@@ -135,7 +135,7 @@ describe("TokenTracingWidget", () => {
 
     render(<TokenTracingWidget />);
 
-    expect(screen.getByText("Claude Code")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Claude" })).toBeInTheDocument();
     expect(screen.getByText("Unavailable")).toBeInTheDocument();
     expect(screen.getAllByText("26,544,812", { selector: "strong" })).toHaveLength(2);
     expect(screen.getByRole("contentinfo")).toHaveTextContent("26,544,812");

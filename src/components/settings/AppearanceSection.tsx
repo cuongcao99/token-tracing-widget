@@ -1,5 +1,6 @@
 import SettingsSwitch from "./SettingsSwitch";
-import { themeRegistry, type ThemeId } from "../../lib/theme";
+import ThemeSelect from "./ThemeSelect";
+import type { ThemeId } from "../../lib/theme";
 
 interface AppearanceSectionProps {
   theme: ThemeId;
@@ -21,19 +22,8 @@ export default function AppearanceSection({
       </div>
       <div className="settings-card appearance-card">
         <div className="settings-row appearance-row">
-          <label htmlFor="theme-select">Theme</label>
-          <select
-            id="theme-select"
-            aria-label="Theme"
-            value={theme}
-            onChange={(event) => onThemeChange(event.target.value as ThemeId)}
-          >
-            {themeRegistry.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <span id="theme-label">Theme</span>
+          <ThemeSelect theme={theme} onThemeChange={onThemeChange} />
         </div>
         <div className="settings-row appearance-row">
           <strong>Dark mode</strong>

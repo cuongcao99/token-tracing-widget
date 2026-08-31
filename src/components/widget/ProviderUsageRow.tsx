@@ -1,11 +1,10 @@
 import { formatRelativeUpdate } from "../../lib/usage-summary";
-import { providerMeta } from "../../lib/provider";
 import ProviderDot from "../shared/ProviderDot";
+import ProviderName from "../shared/ProviderName";
 import type { WidgetProviderRowProps } from "./widget-types";
 import { formatTokens, stateLabel } from "./widget-types";
 
 export default function ProviderUsageRow({ usage }: WidgetProviderRowProps) {
-  const meta = providerMeta[usage.provider];
   const session = formatTokens(usage.currentSessionTokens);
   const today = formatTokens(usage.todayTokens);
 
@@ -14,7 +13,7 @@ export default function ProviderUsageRow({ usage }: WidgetProviderRowProps) {
       <div className="widget-provider__heading">
         <h2>
           <ProviderDot provider={usage.provider} />
-          <span>{meta.name}</span>
+          <ProviderName provider={usage.provider} />
         </h2>
         <span className={`provider-status provider-status--${usage.state}`}>
           <span className="provider-status__dot" aria-hidden="true" />

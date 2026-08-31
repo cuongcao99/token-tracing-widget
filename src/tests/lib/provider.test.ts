@@ -14,6 +14,8 @@ describe("provider registry", () => {
     ]);
     expect(providerOrder).toEqual(["claude", "codex"]);
     expect(providerMeta.claude.name).toBe("Claude Code");
+    expect(providerMeta.claude.displayName).toBe("Claude");
+    expect(providerMeta.claude.fontRole).toBe("display");
     expect(providerMeta.codex.automaticRoot).toBe(".codex/sessions");
   });
 

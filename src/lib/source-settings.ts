@@ -74,6 +74,19 @@ export async function getSourceSettings(): Promise<SourceSettingsSnapshot> {
   return settings;
 }
 
+export async function pickSourceRoot(
+  provider: ProviderId,
+): Promise<SourceSettingsSnapshot | null> {
+  const value = await invoke<unknown>("pick_source_root", { provider });
+  if (value === null) return null;
+
+  const settings = parseSourceSettings(value);
+  if (!settings) {
+    throw new Error("invalid_source_settings");
+  }
+  return settings;
+}
+
 export async function updateSourceSettings(
   settings: SourceSettings,
 ): Promise<SourceSettingsSnapshot> {

@@ -12,13 +12,10 @@ export default function SettingsScreen() {
     darkMode,
     onThemeToggle,
     error,
-    expanded,
     loadingSources,
     onDarkModeToggle,
     onProviderVisibilityToggle,
-    onSourceRootBlur,
-    onSourceRootChange,
-    onSourceRootToggle,
+    onSourceRootChoose,
     onSourceToggle,
     providerStatuses,
     sources,
@@ -71,11 +68,8 @@ export default function SettingsScreen() {
             <SourceSettingsSection
               sources={sources}
               health={summary.sourceHealth}
-              expanded={expanded}
               onToggle={onSourceToggle}
-              onRootChange={onSourceRootChange}
-              onRootBlur={onSourceRootBlur}
-              onToggleRoot={onSourceRootToggle}
+              onChooseRoot={onSourceRootChoose}
             />
             <AppearanceSection
               theme={theme}

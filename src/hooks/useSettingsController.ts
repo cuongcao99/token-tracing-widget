@@ -6,6 +6,7 @@ import { providerOrder, type ProviderId } from "../lib/provider";
 import type { ThemeId } from "../lib/theme";
 import {
   getSourceSettings,
+  pickSourceRoot,
   updateSourceSettings,
   type SourceSettings,
 } from "../lib/source-settings";
@@ -25,11 +26,6 @@ import {
   type VisibilityValues,
 } from "../components/settings/settings-model";
 
-const SOURCE_ROOT_SAVE_DEBOUNCE_MS = 350;
-
-type ExpandedValues = Record<ProviderId, boolean>;
-type SourceRootTimer = ReturnType<typeof setTimeout>;
-
 export default function useSettingsController() {
   const { summary } = useUsageSummary();
   const widget = useWidgetSettings();
@@ -39,18 +35,10 @@ export default function useSettingsController() {
   );
   const [darkMode, setDarkMode] = useState(widget.settings.darkMode);
   const [theme, setTheme] = useState<ThemeId>(widget.settings.theme);
-  const [expanded, setExpanded] = useState<ExpandedValues>({
-    claude: false,
-    codex: false,
-  });
   const [loadingSources, setLoadingSources] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const pendingPreview = useRef<Promise<void>>(Promise.resolve());
   const pendingPersistence = useRef<Promise<void>>(Promise.resolve());
-  const sourceRootTimers = useRef(new Map<ProviderId, SourceRootTimer>());
-  const pendingSourceRootSnapshots = useRef(
-    new Map<ProviderId, SourceFormValues>(),
-  );
 
   useEffect(() => {
     let mounted = true;
@@ -81,17 +69,6 @@ export default function useSettingsController() {
       setTheme(widget.settings.theme);
     }
   }, [widget.loading, widget.settings]);
-
-  useEffect(
-    () => () => {
-      for (const timer of sourceRootTimers.current.values()) {
-        clearTimeout(timer);
-      }
-      sourceRootTimers.current.clear();
-      pendingSourceRootSnapshots.current.clear();
-    },
-    [],
-  );
 
   const sendPreview = (
     nextTheme: ThemeId,
@@ -162,38 +139,6 @@ export default function useSettingsController() {
     );
   };
 
-  const cancelSourceRootPersistence = (provider: ProviderId) => {
-    const timer = sourceRootTimers.current.get(provider);
-    if (timer !== undefined) clearTimeout(timer);
-    sourceRootTimers.current.delete(provider);
-    pendingSourceRootSnapshots.current.delete(provider);
-  };
-
-  const flushSourceRootPersistence = (provider: ProviderId) => {
-    const timer = sourceRootTimers.current.get(provider);
-    if (timer !== undefined) clearTimeout(timer);
-    sourceRootTimers.current.delete(provider);
-
-    const snapshot = pendingSourceRootSnapshots.current.get(provider);
-    pendingSourceRootSnapshots.current.delete(provider);
-    if (snapshot) enqueueSourcePersistence(provider, snapshot);
-  };
-
-  const scheduleSourceRootPersistence = (
-    provider: ProviderId,
-    nextSources: SourceFormValues,
-  ) => {
-    cancelSourceRootPersistence(provider);
-    pendingSourceRootSnapshots.current.set(provider, nextSources);
-    const timer = setTimeout(() => {
-      sourceRootTimers.current.delete(provider);
-      const snapshot = pendingSourceRootSnapshots.current.get(provider);
-      pendingSourceRootSnapshots.current.delete(provider);
-      if (snapshot) enqueueSourcePersistence(provider, snapshot);
-    }, SOURCE_ROOT_SAVE_DEBOUNCE_MS);
-    sourceRootTimers.current.set(provider, timer);
-  };
-
   const updateSource = (
     provider: ProviderId,
     changes: Partial<SourceSettings>,
@@ -206,7 +151,6 @@ export default function useSettingsController() {
     setError(null);
     setSources(nextSources);
     if ("enabled" in changes) {
-      cancelSourceRootPersistence(provider);
       sendPreview(theme, darkMode, visible, nextSources);
       enqueueSourcePersistence(provider, nextSources);
     }
@@ -224,10 +168,6 @@ export default function useSettingsController() {
   });
 
   const closeSettings = async () => {
-    for (const provider of providerOrder) {
-      flushSourceRootPersistence(provider);
-    }
-
     await pendingPreview.current;
     await pendingPersistence.current;
 
@@ -250,22 +190,14 @@ export default function useSettingsController() {
     updateSource(provider, { enabled });
   };
 
-  const updateSourceRoot = (provider: ProviderId, rootOverride: string) => {
-    if (!sources) return;
-    const nextSources = {
-      ...sources,
-      [provider]: { ...sources[provider], rootOverride },
-    };
+  const chooseSourceRoot = async (provider: ProviderId) => {
     setError(null);
-    setSources(nextSources);
-    scheduleSourceRootPersistence(provider, nextSources);
-  };
-
-  const toggleSourceRoot = (provider: ProviderId) => {
-    setExpanded((current) => ({
-      ...current,
-      [provider]: !current[provider],
-    }));
+    try {
+      const snapshot = await pickSourceRoot(provider);
+      if (snapshot) setSources(sourceValuesFromSnapshot(snapshot));
+    } catch (openError) {
+      setError(errorMessage(openError));
+    }
   };
 
   const toggleDarkMode = (next: boolean) => {
@@ -287,14 +219,11 @@ export default function useSettingsController() {
     darkMode,
     theme,
     error,
-    expanded,
     loadingSources,
     onDarkModeToggle: toggleDarkMode,
     onThemeToggle: toggleTheme,
     onProviderVisibilityToggle: toggleProviderVisibility,
-    onSourceRootBlur: flushSourceRootPersistence,
-    onSourceRootChange: updateSourceRoot,
-    onSourceRootToggle: toggleSourceRoot,
+    onSourceRootChoose: chooseSourceRoot,
     onSourceToggle: toggleSource,
     providerStatuses,
     sources,

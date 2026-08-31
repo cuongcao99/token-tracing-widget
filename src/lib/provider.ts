@@ -2,14 +2,20 @@ export const providerRegistry = [
   {
     id: "claude",
     name: "Claude Code",
-    accent: "#d97757",
+    displayName: "Claude",
+    fontRole: "display",
+    accent: "#cc785c",
     automaticRoot: ".claude/projects",
+    displayRoot: "~/.claude/projects",
   },
   {
     id: "codex",
     name: "Codex",
+    displayName: "Codex",
+    fontRole: "ui",
     accent: "#7e9bff",
     automaticRoot: ".codex/sessions",
+    displayRoot: "~/.codex/sessions",
   },
 ] as const;
 

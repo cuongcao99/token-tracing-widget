@@ -8,6 +8,7 @@
   --claude-hairline: #e6dfd8;
   --claude-hairline-soft: #ebe6df;
   --claude-coral: #cc785c;
+  --claude-coral-soft: rgba(204, 120, 92, 0.28);
   --claude-coral-active: #a9583e;
   --claude-dark: #181715;
   --claude-dark-raised: #252320;
@@ -19,12 +20,14 @@
     "Segoe UI", sans-serif;
   --font-display: "Copernicus", "Tiempos Headline", "Cormorant Garamond",
     "EB Garamond", Garamond, Georgia, "Times New Roman", serif;
+  --font-provider-claude: var(--font-display);
+  --font-provider-codex: var(--font-ui);
   --font-mono: "JetBrains Mono", Consolas, monospace;
   --type-settings-title: 32px;
   --type-settings-section: 20px;
   --type-settings-label: 14px;
   --type-settings-meta: 12px;
-  --type-settings-button: 14px;
+  --provider-mark-size: 20px;
   --type-widget-title: 32px;
   --type-widget-provider: 14px;
   --type-widget-meta: 11px;
@@ -57,5 +60,7 @@
   --theme-dark-line: #3a3630;
   --theme-dark-line-soft: #37332d;
   --theme-accent: var(--claude-coral);
+  --theme-brand-claude: var(--claude-coral);
+  --theme-focus-ring: var(--claude-coral-soft);
   --theme-positive: var(--claude-teal);
 }

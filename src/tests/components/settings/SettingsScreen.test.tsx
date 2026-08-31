@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsScreen from "../../../components/settings/SettingsScreen";
 import type { UsageSummary } from "../../../lib/usage-summary";
@@ -16,6 +16,7 @@ const {
   useWidgetSettings,
   emitWidgetSettingsPreview,
   getCurrentWindow,
+  pickSourceRoot: pickSourceRootMock,
   startDragging,
   startResizeDragging,
   closeWindow,
@@ -23,6 +24,7 @@ const {
   const startDragging = vi.fn().mockResolvedValue(undefined);
   const startResizeDragging = vi.fn().mockResolvedValue(undefined);
   const closeWindow = vi.fn().mockResolvedValue(undefined);
+  const pickSourceRoot = vi.fn().mockResolvedValue(null);
   const getCurrentWindow = vi.fn(() => ({
     startDragging,
     startResizeDragging,
@@ -33,6 +35,7 @@ const {
     useWidgetSettings: vi.fn(),
     emitWidgetSettingsPreview: vi.fn().mockResolvedValue(undefined),
     getCurrentWindow,
+    pickSourceRoot,
     startDragging,
     startResizeDragging,
     closeWindow,
@@ -52,6 +55,7 @@ vi.mock("../../../lib/source-settings", async () => {
   return {
     ...actual,
     getSourceSettings: vi.fn(),
+    pickSourceRoot: pickSourceRootMock,
     updateSourceSettings: vi.fn(),
   };
 });
@@ -124,7 +128,7 @@ describe("SettingsScreen", () => {
     expect(screen.getByRole("heading", { name: "Visible providers" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Sources" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Appearance" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Theme" })).toHaveValue("claude");
+    expect(screen.getByRole("button", { name: "Theme: Claude" })).toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveClass("settings-page--dark");
     expect(screen.queryByText("Shape the overlay around your work.")).not.toBeInTheDocument();
     expect(screen.queryByText("Automatic")).not.toBeInTheDocument();
@@ -207,9 +211,8 @@ describe("SettingsScreen", () => {
     render(<SettingsScreen />);
     await screen.findByRole("heading", { name: "Settings" });
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Theme" }), {
-      target: { value: "claude" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Theme: Claude" }));
+    fireEvent.click(screen.getByRole("option", { name: "Claude" }));
 
     expect(emitWidgetSettingsPreview).toHaveBeenLastCalledWith({
       theme: "claude",
@@ -279,55 +282,53 @@ describe("SettingsScreen", () => {
     });
   });
 
-  it("auto-saves source roots after the debounce and on blur", async () => {
+  it("shows exact source roots as folder-picker links", async () => {
     render(<SettingsScreen />);
     await screen.findByRole("heading", { name: "Settings" });
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Change…" })[0]);
-    const input = screen.getByRole("textbox", { name: "Claude Code source root" });
-    fireEvent.change(input, { target: { value: "C:\\custom\\claude" } });
-    expect(updateSourceSettings).not.toHaveBeenCalled();
+    const claudePath = screen.getByRole("button", {
+      name: "Choose Claude source folder: ~/.claude/projects",
+    });
+    const codexPath = screen.getByRole("button", {
+      name: "Choose Codex source folder: ~/.codex/sessions",
+    });
 
-    fireEvent.blur(input);
-    await waitFor(() =>
-      expect(updateSourceSettings).toHaveBeenCalledWith({
-        provider: "claude",
-        enabled: true,
-        rootOverride: "C:\\custom\\claude",
-      }),
-    );
+    expect(claudePath).toHaveTextContent("~/.claude/projects");
+    expect(codexPath).toHaveTextContent("~/.codex/sessions");
+    expect(screen.queryByText("Change…")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+
+    fireEvent.click(codexPath);
+    expect(pickSourceRootMock).toHaveBeenCalledWith("codex");
   });
 
-  it("flushes a source-root edit after the debounce window", async () => {
+  it("reflects the selected source root after the native folder picker closes", async () => {
+    pickSourceRootMock.mockResolvedValueOnce({
+      sources: [
+        { provider: "claude", enabled: true, rootOverride: null },
+        {
+          provider: "codex",
+          enabled: true,
+          rootOverride: "C:\\Users\\test\\.codex\\sessions",
+        },
+      ],
+    });
     render(<SettingsScreen />);
     await screen.findByRole("heading", { name: "Settings" });
-    vi.useFakeTimers();
 
-    try {
-      fireEvent.click(screen.getAllByRole("button", { name: "Change…" })[0]);
-      fireEvent.change(
-        screen.getByRole("textbox", { name: "Claude Code source root" }),
-        { target: { value: "C:\\custom\\claude" } },
-      );
-      expect(updateSourceSettings).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Choose Codex source folder: ~/.codex/sessions",
+      }),
+    );
 
-      await act(async () => {
-        vi.advanceTimersByTime(349);
-      });
-      expect(updateSourceSettings).not.toHaveBeenCalled();
-
-      await act(async () => {
-        vi.advanceTimersByTime(1);
-        await Promise.resolve();
-      });
-      expect(updateSourceSettings).toHaveBeenCalledWith({
-        provider: "claude",
-        enabled: true,
-        rootOverride: "C:\\custom\\claude",
-      });
-    } finally {
-      vi.useRealTimers();
-    }
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", {
+          name: "Choose Codex source folder: C:\\Users\\test\\.codex\\sessions",
+        }),
+      ).toBeInTheDocument(),
+    );
   });
 
   it("does not require a submit action to persist all setting controls", async () => {

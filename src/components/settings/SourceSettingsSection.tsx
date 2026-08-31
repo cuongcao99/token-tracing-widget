@@ -2,27 +2,22 @@ import { providerMeta, providerRegistry, type ProviderId } from "../../lib/provi
 import type { SourceSettings } from "../../lib/source-settings";
 import type { SourceHealth } from "../../lib/usage-summary";
 import ProviderDot from "../shared/ProviderDot";
+import ProviderName from "../shared/ProviderName";
 import SettingsSwitch from "./SettingsSwitch";
 import { sourceHealthLabel } from "./settings-types";
 
 interface SourceSettingsSectionProps {
   sources: Record<ProviderId, SourceSettings>;
   health: SourceHealth[];
-  expanded: Record<ProviderId, boolean>;
   onToggle: (provider: ProviderId, enabled: boolean) => void;
-  onRootChange: (provider: ProviderId, rootOverride: string) => void;
-  onRootBlur: (provider: ProviderId) => void;
-  onToggleRoot: (provider: ProviderId) => void;
+  onChooseRoot: (provider: ProviderId) => void | Promise<void>;
 }
 
 export default function SourceSettingsSection({
   sources,
   health,
-  expanded,
   onToggle,
-  onRootChange,
-  onRootBlur,
-  onToggleRoot,
+  onChooseRoot,
 }: SourceSettingsSectionProps) {
   return (
     <section className="settings-section settings-section--sources">
@@ -32,16 +27,23 @@ export default function SourceSettingsSection({
       <div className="settings-card">
         {providerRegistry.map(({ id: provider }) => {
           const source = sources[provider];
-          const root = source.rootOverride || providerMeta[provider].automaticRoot;
-          const isExpanded = expanded[provider];
+          const root = source.rootOverride || providerMeta[provider].displayRoot;
           return (
             <div className="source-settings-row" key={provider}>
               <div className="settings-row source-settings-row__main">
                 <div className="settings-row__identity">
                   <ProviderDot provider={provider} />
                   <div>
-                    <strong>{providerMeta[provider].name}</strong>
-                    <span>{root}</span>
+                    <strong><ProviderName provider={provider} /></strong>
+                    <button
+                      className="source-path-button"
+                      type="button"
+                      title={root}
+                      aria-label={`Choose ${providerMeta[provider].displayName} source folder: ${root}`}
+                      onClick={() => void onChooseRoot(provider)}
+                    >
+                      {root}
+                    </button>
                   </div>
                 </div>
                 <div className="source-settings-row__actions">
@@ -50,35 +52,12 @@ export default function SourceSettingsSection({
                     {sourceHealthLabel(provider, health, source.enabled)}
                   </span>
                   <SettingsSwitch
-                    label={`Collect ${providerMeta[provider].name} source`}
+                    label={`Collect ${providerMeta[provider].displayName} source`}
                     checked={source.enabled}
                     onChange={(next) => onToggle(provider, next)}
                   />
-                  <button
-                    className="change-root-button"
-                    type="button"
-                    aria-expanded={isExpanded}
-                    aria-controls={`${provider}-source-root`}
-                    onClick={() => onToggleRoot(provider)}
-                  >
-                    Change…
-                  </button>
                 </div>
               </div>
-              {isExpanded && (
-                <label className="source-root-field" htmlFor={`${provider}-source-root`}>
-                  <span>Source root</span>
-                  <input
-                    id={`${provider}-source-root`}
-                    type="text"
-                    aria-label={`${providerMeta[provider].name} source root`}
-                    value={source.rootOverride ?? ""}
-                    placeholder={providerMeta[provider].automaticRoot}
-                    onChange={(event) => onRootChange(provider, event.target.value)}
-                    onBlur={() => onRootBlur(provider)}
-                  />
-                </label>
-              )}
             </div>
           );
         })}
