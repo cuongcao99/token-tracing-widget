@@ -1,8 +1,11 @@
 //! Typed source configuration commands for the settings window.
 
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+use crate::app::folder_picker::pick_folder;
 use crate::app::live_collection::{update_source_config_and_refresh, LiveCollectionHandle};
 use crate::app::runtime::{AppState, RuntimeError};
 use crate::sources::source_config::{parse_explicit_root, SourceConfig};
@@ -99,6 +102,31 @@ pub(crate) fn update_source_settings(
     update_source_config_and_refresh(state.inner(), live_handle.inner(), config)
         .map_err(sanitize_runtime_error)?;
     source_settings_snapshot(state.inner())
+}
+
+#[tauri::command]
+pub(crate) fn pick_source_root(
+    state: State<'_, AppState>,
+    live_handle: State<'_, LiveCollectionHandle>,
+    provider: Provider,
+) -> Result<Option<SourceSettingsSnapshot>, String> {
+    let existing_config = state
+        .source_config(provider)
+        .map_err(sanitize_runtime_error)?;
+    let initial_path: Option<PathBuf> = state
+        .source_root_path(provider)
+        .ok()
+        .filter(|path| path.is_dir());
+    let title = format!("Choose {} source folder", provider.display_name());
+    let Some(selected_path) = pick_folder(&title, initial_path.as_deref())? else {
+        return Ok(None);
+    };
+
+    let config = SourceConfig::try_new(provider, existing_config.enabled(), Some(selected_path))
+        .map_err(|_| "source_root_invalid".to_owned())?;
+    update_source_config_and_refresh(state.inner(), live_handle.inner(), config)
+        .map_err(sanitize_runtime_error)?;
+    source_settings_snapshot(state.inner()).map(Some)
 }
 
 #[cfg(test)]
