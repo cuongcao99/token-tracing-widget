@@ -2,6 +2,8 @@
   position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  container-type: size;
+  --widget-rhythm: clamp(10px, 4cqh, 20px);
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -11,9 +13,9 @@
   color: var(--claude-on-dark);
   background: var(--claude-dark);
   border: 0;
+  outline: none;
   border-radius: 16px;
-  box-shadow: 0 14px 32px rgba(20, 20, 19, 0.22),
-    0 3px 8px rgba(20, 20, 19, 0.14);
+  box-shadow: none;
   font-family: var(--font-ui);
 }
 
@@ -22,8 +24,12 @@
   --widget-muted: var(--claude-muted);
   --widget-soft-muted: var(--claude-muted-soft);
   --widget-line: var(--claude-hairline-soft);
+  --window-grip-ink: var(--claude-muted);
+  --window-grip-line: var(--claude-hairline);
+  --window-grip-surface: var(--claude-surface-card);
   color: var(--widget-ink);
   background: var(--claude-canvas);
+  box-shadow: none;
 }
 
 .widget--dark {
@@ -31,6 +37,9 @@
   --widget-muted: var(--claude-on-dark-soft);
   --widget-soft-muted: #8f8b83;
   --widget-line: #37332d;
+  --window-grip-ink: var(--claude-on-dark-soft);
+  --window-grip-line: #3a3630;
+  --window-grip-surface: var(--claude-dark-raised);
 }
 
 .widget-header {
@@ -39,9 +48,8 @@
   justify-content: space-between;
   gap: 18px;
   min-width: 0;
-  padding-bottom: 14px;
+  padding-bottom: var(--widget-rhythm);
   border-bottom: 1px solid var(--widget-line);
-  cursor: grab;
   user-select: none;
 }
 
@@ -50,14 +58,6 @@
   align-items: center;
   min-width: 0;
   gap: 10px;
-}
-
-.widget-header__title .window-grip {
-  color: var(--widget-muted);
-}
-
-.widget-header:active {
-  cursor: grabbing;
 }
 
 .widget-header h1 {
@@ -111,15 +111,19 @@
   display: grid;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
-  padding-top: 6px;
+  overflow: visible;
+  padding-top: var(--widget-rhythm);
   align-content: start;
 }
 
 .widget-provider {
   min-width: 0;
-  padding: 6px 0;
+  padding: 0 0 var(--widget-rhythm);
   border-bottom: 1px solid var(--widget-line);
+}
+
+.widget-provider + .widget-provider {
+  padding-top: var(--widget-rhythm);
 }
 
 .widget-provider:last-child {
@@ -177,7 +181,7 @@
   align-items: end;
   column-gap: 24px;
   row-gap: 0;
-  margin-top: 8px;
+  margin-top: 9px;
 }
 
 .widget-metric {
@@ -231,7 +235,7 @@
   min-width: 0;
   gap: 16px;
   border-top: 1px solid var(--widget-line);
-  padding-top: 14px;
+  padding-top: var(--widget-rhythm);
 }
 
 .widget-total > span {

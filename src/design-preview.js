@@ -60,11 +60,11 @@ function providerDot(provider) {
   return `<span class="provider-dot" style="--provider-accent: ${provider.accent}" aria-hidden="true"></span>`;
 }
 
-function windowGrip() {
-  return `<span class="window-grip" aria-hidden="true">${Array.from(
+function windowGrip(windowName) {
+  return `<button class="window-grip" type="button" aria-label="Move ${windowName} window">${Array.from(
     { length: 6 },
-    () => '<span class="window-grip__dot"></span>',
-  ).join("")}</span>`;
+    () => '<span class="window-grip__dot" aria-hidden="true"></span>',
+  ).join("")}</button>`;
 }
 
 function switchControl(providerId, label, checked = true) {
@@ -215,8 +215,9 @@ function overlayPreview() {
         <span class="preview-chip">Sample data</span>
       </div>
       <div class="overlay-window">
+        ${windowGrip("widget")}
         <header class="overlay-window__header">
-          <div class="overlay-window__title">${windowGrip()}<strong>Token Tracing</strong></div>
+          <div class="overlay-window__title"><strong>Token Tracing</strong></div>
           <div class="overlay-status overlay-status--active"><span></span>Live</div>
         </header>
         <div class="overlay-window__rule"></div>
@@ -253,29 +254,31 @@ function variantD() {
   return `
     <section class="settings-window settings-window--d ${darkMode ? "settings-window--d-dark" : "settings-window--d-light"}">
       <main class="claude-settings-content">
+        ${windowGrip("settings")}
         <header class="claude-settings-panel-header">
           <div>
-            <div class="claude-settings-panel-title-row">${windowGrip()}<h1>Settings</h1></div>
+            <div class="claude-settings-panel-title-row"><h1>Settings</h1></div>
             <p>Choose what stays visible.</p>
           </div>
           <button class="claude-settings-close-button" type="button" aria-label="Close settings">${icon("close")}</button>
         </header>
-        <section class="claude-settings-section">
-          <div class="claude-section-heading"><h2>Visible providers</h2></div>
-          <div class="claude-settings-card">
-            ${claudeProviderControl("claude")}
-            ${claudeProviderControl("codex")}
-          </div>
-        </section>
-        <section class="claude-settings-section">
-          <div class="claude-section-heading"><h2>Sources</h2></div>
-          <div class="claude-settings-card">
-            ${claudeSourceControl("claude")}
-            ${claudeSourceControl("codex")}
-          </div>
-        </section>
-        ${claudeAppearanceControl()}
-        <div class="claude-settings-actions"><button class="claude-save-button" type="button">Save changes</button></div>
+        <div class="claude-settings-body">
+          <section class="claude-settings-section">
+            <div class="claude-section-heading"><h2>Visible providers</h2></div>
+            <div class="claude-settings-card">
+              ${claudeProviderControl("claude")}
+              ${claudeProviderControl("codex")}
+            </div>
+          </section>
+          <section class="claude-settings-section">
+            <div class="claude-section-heading"><h2>Sources</h2></div>
+            <div class="claude-settings-card">
+              ${claudeSourceControl("claude")}
+              ${claudeSourceControl("codex")}
+            </div>
+          </section>
+          ${claudeAppearanceControl()}
+        </div>
       </main>
     </section>`;
 }

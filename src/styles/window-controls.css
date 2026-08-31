@@ -1,14 +1,28 @@
 .window-grip {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  z-index: 30;
+  transform: translateX(-50%);
   display: grid;
   grid-template-columns: repeat(3, 3px);
   grid-template-rows: repeat(2, 3px);
-  flex: 0 0 auto;
-  gap: 3px;
-  width: 15px;
-  height: 9px;
-  color: currentColor;
-  opacity: 0.62;
-  pointer-events: none;
+  place-content: center;
+  gap: 2px;
+  width: 28px;
+  height: 18px;
+  padding: 0;
+  color: var(--window-grip-ink, currentColor);
+  background: var(--window-grip-surface, transparent);
+  border: 1px solid var(--window-grip-line, currentColor);
+  border-radius: 999px;
+  cursor: grab;
+  pointer-events: auto;
+  appearance: none;
+}
+
+.window-grip:active {
+  cursor: grabbing;
 }
 
 .window-grip__dot {
@@ -16,6 +30,7 @@
   height: 3px;
   border-radius: 50%;
   background: currentColor;
+  opacity: 0.68;
 }
 
 .window-resize-handles {
@@ -41,8 +56,8 @@
 
 .window-resize-handle--n,
 .window-resize-handle--s {
-  right: 12px;
-  left: 12px;
+  right: 42px;
+  left: 42px;
   height: 9px;
 }
 

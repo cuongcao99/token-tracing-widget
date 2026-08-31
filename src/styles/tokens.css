@@ -25,14 +25,14 @@
   --type-settings-label: 14px;
   --type-settings-meta: 12px;
   --type-settings-button: 14px;
-  --type-widget-title: 19px;
+  --type-widget-title: 32px;
   --type-widget-provider: 14px;
   --type-widget-meta: 11px;
   --type-widget-value: 18px;
   --type-widget-total-label: 13px;
   --type-widget-total: 20px;
   --widget-width: 440px;
-  --widget-height: 300px;
+  --widget-height: 316px;
   --settings-width: 520px;
-  --settings-height: 560px;
+  --settings-height: 600px;
 }

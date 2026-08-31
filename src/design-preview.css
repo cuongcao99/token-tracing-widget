@@ -34,6 +34,31 @@ body {
 
 button { font: inherit; }
 
+.window-grip {
+  display: grid;
+  grid-template-columns: repeat(3, 3px);
+  grid-template-rows: repeat(2, 3px);
+  place-content: center;
+  gap: 2px;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  padding: 0;
+  color: currentColor;
+  background: transparent;
+  border: 0;
+  cursor: grab;
+  appearance: none;
+}
+
+.window-grip__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .68;
+}
+
 button:focus-visible {
   outline: 2px solid var(--blue-focus);
   outline-offset: 3px;
@@ -459,14 +484,16 @@ button:focus-visible {
 }
 
 .settings-window--d {
+  height: 600px;
   min-height: 0;
   overflow: hidden;
+  --settings-inline-padding: 32px;
   color: var(--claude-ink);
   background: var(--claude-canvas);
   border: 0;
   border-radius: 16px;
-  box-shadow: 0 16px 36px rgba(20, 20, 19, 0.2),
-    0 3px 9px rgba(20, 20, 19, 0.12);
+  box-shadow: 0 18px 42px -16px rgba(20, 20, 19, 0.26),
+    0 36px 82px -26px rgba(20, 20, 19, 0.24);
   font-family: var(--claude-font);
 }
 .settings-window--d .claude-settings-content { padding-top: 27px; }
@@ -481,6 +508,8 @@ button:focus-visible {
   --claude-hairline-soft: #37332d;
   color: var(--claude-ink);
   background: var(--claude-canvas);
+  box-shadow: 0 18px 42px -16px rgba(0, 0, 0, 0.54),
+    0 36px 82px -26px rgba(0, 0, 0, 0.48);
 }
 .settings-window--d-dark .switch { background: #4b4740; }
 .settings-window--d-dark .switch.is-on { background: var(--claude-coral); }
@@ -554,7 +583,37 @@ button:focus-visible {
   border: 1px solid var(--claude-hairline);
   border-radius: 8px;
 }
-.claude-settings-content { padding: 30px 32px 25px; }
+.claude-settings-content {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  padding: 30px var(--settings-inline-padding) 25px;
+}
+.claude-settings-body {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  margin-right: calc(-1 * var(--settings-inline-padding));
+  padding-right: var(--settings-inline-padding);
+  scrollbar-color: var(--claude-hairline) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+.claude-settings-body::-webkit-scrollbar { width: 8px; }
+.claude-settings-body::-webkit-scrollbar-track { background: transparent; }
+.claude-settings-body::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.claude-settings-body::-webkit-scrollbar-thumb {
+  background: var(--claude-hairline);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
 .claude-settings-intro { max-width: 460px; }
 .claude-settings-eyebrow {
   color: var(--claude-coral);
@@ -668,20 +727,6 @@ button:focus-visible {
 .settings-window--d .switch__knob { width: 17px; height: 17px; }
 .settings-window--d .switch.is-on .switch__knob { transform: translateX(16px); }
 .claude-change-button { padding: 0; white-space: nowrap; }
-.claude-settings-actions { display: flex; justify-content: flex-end; margin-top: 27px; }
-.claude-save-button {
-  min-height: 40px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 8px;
-  color: #fff;
-  background: var(--claude-coral);
-  cursor: pointer;
-  font-family: var(--claude-font);
-  font-size: 13px;
-  font-weight: 500;
-}
-.claude-save-button:active,
 .claude-done-button:active,
 .claude-change-button:active { transform: scale(.97); }
 
@@ -697,8 +742,7 @@ button:focus-visible {
   background: var(--claude-dark);
   border: 0;
   border-radius: 16px;
-  box-shadow: 0 14px 32px rgba(20, 20, 19, 0.22),
-    0 3px 8px rgba(20, 20, 19, 0.14);
+  box-shadow: none;
 }
 .overlay-preview--claude .app-mark { color: #fff; background: var(--claude-coral); }
 .overlay-preview--claude .overlay-window__title { font-family: var(--claude-font); }
@@ -760,7 +804,7 @@ button:focus-visible {
   --type-settings-label: 14px;
   --type-settings-meta: 12px;
   --type-settings-button: 14px;
-  --type-widget-title: 19px;
+  --type-widget-title: 32px;
   --type-widget-provider: 14px;
   --type-widget-meta: 11px;
   --type-widget-value: 18px;
@@ -828,7 +872,6 @@ button:focus-visible {
 .settings-window--d .claude-source-row__identity span { font-size: var(--type-settings-meta); }
 .settings-window--d .claude-source-health { font-size: var(--type-settings-meta) !important; }
 .settings-window--d .claude-change-button,
-.settings-window--d .claude-save-button { font-size: var(--type-settings-button); }
 
 .overlay-preview--claude .overlay-window__title {
   font-size: var(--type-widget-title);
@@ -869,7 +912,7 @@ button:focus-visible {
 
 /* Keep the final preview's overlay rhythm aligned with the shipped widget. */
 .overlay-preview--claude .overlay-window {
-  min-height: 300px;
+  min-height: 316px;
   box-sizing: border-box;
 }
 .overlay-preview--claude .overlay-window__title {
@@ -888,6 +931,10 @@ button:focus-visible {
 }
 .overlay-preview--claude.overlay-preview--light .overlay-window__total {
   border-top-color: var(--claude-hairline-soft);
+}
+
+.overlay-preview--claude.overlay-preview--light .overlay-window {
+  box-shadow: none;
 }
 
 .overlay-preview--claude .window-grip {
@@ -909,4 +956,97 @@ button:focus-visible {
 }
 .overlay-preview--claude.overlay-preview--light .overlay-window__title .window-grip {
   color: var(--claude-muted);
+}
+
+/* Final window-control alignment: the grip is a bordered, top-center move target. */
+.overlay-preview--claude .overlay-window,
+.settings-window--d {
+  position: relative;
+  outline: 0;
+  border: 0;
+}
+
+.overlay-preview--claude .window-grip,
+.settings-window--d .window-grip {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(3, 3px);
+  grid-template-rows: repeat(2, 3px);
+  place-content: center;
+  gap: 2px;
+  width: 28px;
+  height: 18px;
+  padding: 0;
+  color: var(--claude-on-dark-soft);
+  background: var(--claude-dark-raised);
+  border: 1px solid #3a3630;
+  border-radius: 999px;
+  cursor: grab;
+  pointer-events: auto;
+  opacity: 1;
+  appearance: none;
+  transform: translateX(-50%);
+}
+
+.overlay-preview--claude .window-grip:active,
+.settings-window--d .window-grip:active {
+  cursor: grabbing;
+}
+
+.overlay-preview--claude .window-grip__dot,
+.settings-window--d .window-grip__dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .68;
+}
+
+.settings-window--d .claude-settings-panel-header {
+  cursor: default;
+}
+
+.settings-window--d .claude-settings-panel-header:active {
+  cursor: default;
+}
+
+.overlay-preview--claude.overlay-preview--light .window-grip,
+.settings-window--d-light .window-grip {
+  color: var(--claude-muted);
+  background: var(--claude-surface-card);
+  border-color: var(--claude-hairline);
+}
+
+.overlay-preview--claude .overlay-provider-list {
+  gap: 0;
+  padding-top: var(--widget-rhythm);
+}
+
+.overlay-preview--claude .overlay-provider {
+  padding: 0 0 var(--widget-rhythm);
+}
+
+.overlay-preview--claude .overlay-provider + .overlay-provider {
+  padding-top: var(--widget-rhythm);
+}
+
+.overlay-preview--claude .overlay-provider__metrics {
+  margin-top: 9px;
+}
+
+/* Keep every divider-to-content gap equal and responsive to the window height. */
+.overlay-preview--claude .overlay-window {
+  container-type: size;
+  --widget-rhythm: clamp(10px, 4cqh, 20px);
+}
+
+.overlay-preview--claude .overlay-window__rule {
+  margin-bottom: 0;
+}
+
+.overlay-preview--claude .overlay-window__total {
+  padding-top: var(--widget-rhythm);
 }
