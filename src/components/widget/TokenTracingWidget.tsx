@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useUsageSummary } from "../../hooks/useUsageSummary";
 import { useWidgetSettings } from "../../hooks/useWidgetSettings";
-import { providerRegistry } from "../../lib/provider";
+import { createWidgetViewModel } from "../../lib/widget-view-model";
 import { syncWidgetWindowHeight } from "../../lib/window-sizing";
 import WindowGrip from "../shared/WindowGrip";
 import WindowResizeHandles from "../shared/WindowResizeHandles";
@@ -12,46 +12,35 @@ import WidgetTotal from "./WidgetTotal";
 export default function TokenTracingWidget() {
   const { summary } = useUsageSummary();
   const { settings, previewSourceEnabled } = useWidgetSettings();
-  const visibleProviders = useMemo(
-    () => new Set(settings.visibleProviders.filter((entry) => entry.visible).map((entry) => entry.provider)),
-    [settings.visibleProviders],
+  const viewModel = useMemo(
+    () =>
+      createWidgetViewModel({
+        summary,
+        settings,
+        previewSourceEnabled,
+      }),
+    [previewSourceEnabled, settings, summary],
   );
-  const visibleProviderCount = visibleProviders.size;
 
   useEffect(() => {
-    void syncWidgetWindowHeight(visibleProviderCount).catch(() => undefined);
-  }, [visibleProviderCount]);
-
-  const totalTokens = useMemo(() => {
-    if (!previewSourceEnabled) return summary.todayTokens;
-    return summary.providers.reduce(
-      (total, usage) =>
-        previewSourceEnabled[usage.provider] === false
-          ? total
-          : total + usage.todayTokens,
-      0,
-    );
-  }, [previewSourceEnabled, summary.providers, summary.todayTokens]);
+    void syncWidgetWindowHeight(viewModel.visibleProviderCount).catch(() => undefined);
+  }, [viewModel.visibleProviderCount]);
 
   return (
     <main
       className={`widget theme--${settings.theme} widget--${settings.darkMode ? "dark" : "light"}`}
+      data-theme={viewModel.theme}
+      data-color-mode={viewModel.colorMode}
       aria-label="Token usage summary"
     >
       <WindowGrip windowName="widget" />
       <WidgetHeader />
       <section className="widget-provider-list" aria-label="Provider usage">
-        {providerRegistry.map(({ id: provider }) => {
-          const usage = summary.providers.find((entry) => entry.provider === provider);
-          if (!usage || !visibleProviders.has(provider)) return null;
-          const displayUsage =
-            previewSourceEnabled?.[provider] === false
-              ? { ...usage, state: "unavailable" as const }
-              : usage;
-          return <ProviderUsageRow key={provider} usage={displayUsage} />;
-        })}
+        {viewModel.providers.map((provider) => (
+          <ProviderUsageRow key={provider.provider} usage={provider} />
+        ))}
       </section>
-      <WidgetTotal tokens={totalTokens} />
+      <WidgetTotal tokens={viewModel.totalTokens} />
       <WindowResizeHandles windowName="widget" />
     </main>
   );

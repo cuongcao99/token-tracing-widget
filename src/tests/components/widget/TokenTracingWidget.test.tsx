@@ -1,6 +1,11 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TokenTracingWidget from "../../../components/widget/TokenTracingWidget";
+import {
+  areProviderUsageRowsEqual,
+} from "../../../components/widget/ProviderUsageRow";
+import type { WidgetProviderRowProps } from "../../../components/widget/widget-types";
+import { createWidgetViewModel } from "../../../lib/widget-view-model";
 import type { UsageSummary } from "../../../lib/usage-summary";
 import type { WidgetSettingsSnapshot } from "../../../lib/widget-settings";
 
@@ -9,11 +14,13 @@ const {
   syncWidgetWindowHeight,
   useUsageSummary,
   useWidgetSettings,
+  providerSectionRender,
 } = vi.hoisted(() => ({
   startCurrentWindowDrag: vi.fn().mockResolvedValue(undefined),
   syncWidgetWindowHeight: vi.fn().mockResolvedValue(undefined),
   useUsageSummary: vi.fn(),
   useWidgetSettings: vi.fn(),
+  providerSectionRender: vi.fn(),
 }));
 
 vi.mock("../../../hooks/useUsageSummary", () => ({
@@ -28,6 +35,13 @@ vi.mock("../../../lib/window-actions", () => ({
 vi.mock("../../../lib/window-sizing", () => ({
   syncWidgetWindowHeight,
 }));
+vi.mock("../../../components/widget/ProviderSection", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../../components/widget/ProviderSection")
+  >("../../../components/widget/ProviderSection");
+  providerSectionRender.mockImplementation(actual.default);
+  return { ...actual, default: providerSectionRender };
+});
 
 const summary: UsageSummary = {
   state: "active",
@@ -64,6 +78,7 @@ const settings: WidgetSettingsSnapshot = {
 beforeEach(() => {
   startCurrentWindowDrag.mockClear();
   syncWidgetWindowHeight.mockClear();
+  providerSectionRender.mockClear();
   useUsageSummary.mockReturnValue({ summary });
   useWidgetSettings.mockReturnValue({
     settings,
@@ -87,6 +102,8 @@ describe("TokenTracingWidget", () => {
     expect(screen.getAllByRole("button", { name: /Resize widget from/ })).toHaveLength(8);
     expect(screen.getByRole("heading", { name: "Claude" })).toBeInTheDocument();
     expect(screen.getByText("Codex")).toBeInTheDocument();
+    expect(screen.getByRole("main").querySelector(".provider-dot--codex")).not.toBeNull();
+    expect(screen.getByRole("main").querySelector(".provider-name--claude")).not.toBeNull();
     expect(screen.getAllByText("Session", { selector: "span" })).toHaveLength(2);
     expect(screen.getAllByText("Today", { selector: "span" })).toHaveLength(2);
     expect(screen.getByText("Total", { selector: "span" })).toBeInTheDocument();
@@ -94,6 +111,8 @@ describe("TokenTracingWidget", () => {
     expect(screen.queryByText("Total today")).not.toBeInTheDocument();
     expect(screen.queryByText("T")).not.toBeInTheDocument();
     expect(syncWidgetWindowHeight).toHaveBeenCalledWith(2);
+    expect(screen.getByRole("main")).toHaveAttribute("data-theme", "claude");
+    expect(screen.getByRole("main")).toHaveAttribute("data-color-mode", "dark");
 
     fireEvent.mouseDown(screen.getByRole("banner"), { button: 0 });
     expect(startCurrentWindowDrag).not.toHaveBeenCalled();
@@ -140,5 +159,52 @@ describe("TokenTracingWidget", () => {
     expect(screen.getAllByText("26,544,812", { selector: "strong" })).toHaveLength(2);
     expect(screen.getByRole("contentinfo")).toHaveTextContent("26,544,812");
     expect(screen.queryByText("173,816,684", { selector: "strong" })).not.toBeInTheDocument();
+  });
+
+  it("keeps an unchanged provider row memo-stable when only Codex changes", () => {
+    const first = createWidgetViewModel({
+      summary,
+      settings,
+      previewSourceEnabled: null,
+    });
+    const next = createWidgetViewModel({
+      summary: {
+        ...summary,
+        providers: summary.providers.map((usage) =>
+          usage.provider === "codex"
+            ? { ...usage, todayTokens: usage.todayTokens + 1 }
+            : usage,
+        ),
+      },
+      settings,
+      previewSourceEnabled: null,
+    });
+
+    const claudeProps: WidgetProviderRowProps = { usage: first.providers[0] };
+    const nextClaudeProps: WidgetProviderRowProps = { usage: next.providers[0] };
+    const nextCodexProps: WidgetProviderRowProps = { usage: next.providers[1] };
+    expect(areProviderUsageRowsEqual(claudeProps, nextClaudeProps)).toBe(true);
+    expect(areProviderUsageRowsEqual({ usage: first.providers[1] }, nextCodexProps)).toBe(false);
+  });
+
+  it("avoids rerendering Claude when a Codex-only summary update arrives", () => {
+    const { rerender } = render(<TokenTracingWidget />);
+    const nextSummary: UsageSummary = {
+      ...summary,
+      providers: summary.providers.map((usage) =>
+        usage.provider === "codex"
+          ? { ...usage, todayTokens: usage.todayTokens + 1 }
+          : usage,
+      ),
+    };
+
+    useUsageSummary.mockReturnValue({ summary: nextSummary });
+    rerender(<TokenTracingWidget />);
+
+    const renderedIdentities = providerSectionRender.mock.calls.map(
+      (call) =>
+        (call[0] as { identity: { displayName: string } }).identity.displayName,
+    );
+    expect(renderedIdentities).toEqual(["Claude", "Codex", "Codex"]);
   });
 });

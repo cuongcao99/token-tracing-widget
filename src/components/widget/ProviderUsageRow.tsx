@@ -1,38 +1,62 @@
-import { formatRelativeUpdate } from "../../lib/usage-summary";
-import ProviderDot from "../shared/ProviderDot";
-import ProviderName from "../shared/ProviderName";
+import { memo } from "react";
+import ProviderSection from "./ProviderSection";
+import UsageMetrics from "./UsageMetrics";
 import type { WidgetProviderRowProps } from "./widget-types";
-import { formatTokens, stateLabel } from "./widget-types";
+import { formatTokens } from "./widget-types";
 
-export default function ProviderUsageRow({ usage }: WidgetProviderRowProps) {
-  const session = formatTokens(usage.currentSessionTokens);
-  const today = formatTokens(usage.todayTokens);
-
+export function areProviderUsageRowsEqual(
+  previous: WidgetProviderRowProps,
+  next: WidgetProviderRowProps,
+): boolean {
+  const before = previous.usage;
+  const after = next.usage;
   return (
-    <article className={`widget-provider widget-provider--${usage.provider}`}>
-      <div className="widget-provider__heading">
-        <h2>
-          <ProviderDot provider={usage.provider} />
-          <ProviderName provider={usage.provider} />
-        </h2>
-        <span className={`provider-status provider-status--${usage.state}`}>
-          <span className="provider-status__dot" aria-hidden="true" />
-          {stateLabel(usage.state)}
-        </span>
-      </div>
-      <div className="widget-provider__metrics">
-        <div className="widget-metric">
-          <span>Session</span>
-          <strong aria-label={`Session: ${session} tokens`}>{session}</strong>
-        </div>
-        <div className="widget-metric">
-          <span>Today</span>
-          <strong aria-label={`Today: ${today} tokens`}>{today}</strong>
-        </div>
-        <span className="widget-provider__updated">
-          {formatRelativeUpdate(usage.lastUpdatedAt)}
-        </span>
-      </div>
-    </article>
+    before.provider === after.provider &&
+    before.identity.name === after.identity.name &&
+    before.identity.displayName === after.identity.displayName &&
+    before.identity.logoSrc === after.identity.logoSrc &&
+    before.identity.logoVariant === after.identity.logoVariant &&
+    before.identity.fontRole === after.identity.fontRole &&
+    before.identity.accent === after.identity.accent &&
+    before.status.state === after.status.state &&
+    before.status.label === after.status.label &&
+    before.metrics.sessionTokens === after.metrics.sessionTokens &&
+    before.metrics.todayTokens === after.metrics.todayTokens &&
+    before.metrics.updatedLabel === after.metrics.updatedLabel
   );
 }
+
+export const ProviderUsageRow = memo(function ProviderUsageRow({
+  usage,
+}: WidgetProviderRowProps) {
+  const session = formatTokens(usage.metrics.sessionTokens);
+  const today = formatTokens(usage.metrics.todayTokens);
+
+  return (
+    <ProviderSection
+      identity={usage.identity}
+      status={usage.status}
+      className={`widget-provider widget-provider--${usage.provider}`}
+      markClassName={`provider-dot provider-dot--${usage.provider}`}
+      nameClassName={`provider-name provider-name--${usage.provider} provider-name--font-${usage.identity.fontRole}`}
+    >
+      <UsageMetrics
+        metrics={[
+          {
+            label: "Session",
+            value: session,
+            ariaLabel: `Session: ${session} tokens`,
+          },
+          {
+            label: "Today",
+            value: today,
+            ariaLabel: `Today: ${today} tokens`,
+          },
+        ]}
+        updatedLabel={usage.metrics.updatedLabel}
+      />
+    </ProviderSection>
+  );
+}, areProviderUsageRowsEqual);
+
+export default ProviderUsageRow;

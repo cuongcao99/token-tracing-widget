@@ -1,17 +1,16 @@
-import { providerMeta, type ProviderId } from "../../lib/provider";
+import { getProviderIdentity, ProviderBrandName } from "./ProviderBrand";
+import type { ProviderId } from "../../lib/provider";
 
 interface ProviderNameProps {
   provider: ProviderId;
 }
 
 export default function ProviderName({ provider }: ProviderNameProps) {
-  const meta = providerMeta[provider];
-
+  const identity = getProviderIdentity(provider);
   return (
-    <span
-      className={`provider-name provider-name--${provider} provider-name--font-${meta.fontRole}`}
-    >
-      {meta.displayName}
-    </span>
+    <ProviderBrandName
+      identity={identity}
+      className={`provider-name provider-name--${provider} provider-name--font-${identity.fontRole}`}
+    />
   );
 }

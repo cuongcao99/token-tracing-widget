@@ -1,11 +1,16 @@
-import type { ProviderUsageSummary, UsageState } from "../../lib/usage-summary";
+import type { WidgetProviderViewModel } from "../../lib/widget-view-model";
+
+export type { WidgetProviderViewModel } from "../../lib/widget-view-model";
+export { stateLabel } from "../../lib/widget-view-model";
 
 export interface WidgetProviderRowProps {
-  usage: ProviderUsageSummary;
+  usage: WidgetProviderViewModel;
 }
 
-export function stateLabel(state: UsageState): string {
-  return state.charAt(0).toUpperCase() + state.slice(1);
+export interface UsageMetric {
+  label: string;
+  value: string;
+  ariaLabel: string;
 }
 
 export function formatTokens(tokens: number | undefined): string {
