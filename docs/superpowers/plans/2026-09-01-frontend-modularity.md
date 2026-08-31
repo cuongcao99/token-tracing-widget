@@ -797,4 +797,3 @@ Root copies the reviewed scratch spec and plan to the canonical
 and reports baseline repair, A/B/C integration, D1/D2 CSS migration,
 automated gates, package result, and manual smoke results separately. Do not
 claim a static preview, a new provider/theme, or Linux/macOS support.
-

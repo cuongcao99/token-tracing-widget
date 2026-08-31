@@ -1,8 +1,8 @@
 # Frontend Modularity, CSS Modules, and Desktop Boundary
 
-**Date:** 2026-09-01  
-**Status:** Implementation-ready design update  
-**Canonical promotion paths:** `docs/superpowers/specs/2026-09-01-frontend-modularity-design-update.md` and `docs/superpowers/plans/2026-09-01-frontend-modularity.md`  
+**Date:** 2026-09-01
+**Status:** Implementation-ready design update
+**Canonical promotion paths:** `docs/superpowers/specs/2026-09-01-frontend-modularity-design-update.md` and `docs/superpowers/plans/2026-09-01-frontend-modularity.md`
 **Working copy:** `.superpowers/sdd/2026-09-01-frontend-modularity/`
 
 ## Decision gate
@@ -383,4 +383,3 @@ git diff --check
 The final report separates the repaired baseline, frontend tests/build,
 desktop/package checks, and Windows smoke evidence. It does not claim the
 static preview exists or claim Linux/macOS support.
-
