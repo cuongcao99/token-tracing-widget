@@ -37,10 +37,6 @@ pub fn compute_active_provider(events: &[UsageEvent], now: &str) -> ActiveProvid
     let latest_seconds = parse_timestamp_seconds(&latest.observed_at).unwrap_or(now_seconds);
     let elapsed = now_seconds.saturating_sub(latest_seconds);
     let last_updated_at = Some(latest.observed_at.clone());
-    if elapsed > 120 {
-        return idle_result(last_updated_at);
-    }
-
     let current_session_tokens = events
         .iter()
         .filter(|event| {
@@ -54,7 +50,11 @@ pub fn compute_active_provider(events: &[UsageEvent], now: &str) -> ActiveProvid
         });
 
     ActiveProviderResult {
-        state: UsageState::Active,
+        state: if elapsed > 120 {
+            UsageState::Idle
+        } else {
+            UsageState::Active
+        },
         provider: Some(latest.provider.display_name().to_owned()),
         current_session_tokens: Some(current_session_tokens),
         last_updated_at,

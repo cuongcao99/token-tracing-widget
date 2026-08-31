@@ -51,7 +51,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::source_settings::get_source_settings,
             commands::source_settings::update_source_settings,
-            commands::usage_summary::get_usage_summary
+            commands::usage_summary::get_usage_summary,
+            commands::widget_settings::get_widget_settings,
+            commands::widget_settings::update_widget_settings
         ])
         .build(tauri::generate_context!())
         .expect("error while building token tracing widget")

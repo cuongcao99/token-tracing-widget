@@ -4,6 +4,9 @@ use serde::Serialize;
 
 use crate::{SourceHealth, UsageState};
 
+use super::provider::Provider;
+use super::provider_usage_summary::ProviderUsageSummary;
+
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageSummary {
@@ -16,6 +19,7 @@ pub struct UsageSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_updated_at: Option<String>,
     pub source_health: Vec<SourceHealth>,
+    pub providers: Vec<ProviderUsageSummary>,
 }
 
 impl UsageSummary {
@@ -27,6 +31,7 @@ impl UsageSummary {
             today_tokens: 0,
             last_updated_at: None,
             source_health: Vec::new(),
+            providers: default_provider_summaries(UsageState::Loading),
         }
     }
 
@@ -38,6 +43,7 @@ impl UsageSummary {
             today_tokens: 0,
             last_updated_at: None,
             source_health: Vec::new(),
+            providers: default_provider_summaries(UsageState::Unavailable),
         }
     }
 
@@ -49,6 +55,14 @@ impl UsageSummary {
             today_tokens: previous.today_tokens,
             last_updated_at: previous.last_updated_at.clone(),
             source_health: previous.source_health.clone(),
+            providers: previous.providers.clone(),
         }
     }
+}
+
+fn default_provider_summaries(state: UsageState) -> Vec<ProviderUsageSummary> {
+    [Provider::Claude, Provider::Codex]
+        .into_iter()
+        .map(|provider| ProviderUsageSummary::new(provider, state, None, 0, None))
+        .collect()
 }

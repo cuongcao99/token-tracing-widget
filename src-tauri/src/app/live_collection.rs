@@ -350,6 +350,7 @@ mod tests {
     use crate::sources::session_files::DiscoveryLimits;
     use crate::sources::source_config::SourceConfig;
     use crate::types::provider::Provider;
+    use crate::types::provider_usage_summary::ProviderUsageSummary;
     use crate::types::usage_summary::UsageSummary;
     use crate::UsageState;
 
@@ -408,6 +409,13 @@ mod tests {
                 today_tokens,
                 last_updated_at: Some("2026-01-01T00:00:00Z".to_owned()),
                 source_health: Vec::new(),
+                providers: vec![ProviderUsageSummary::new(
+                    Provider::Claude,
+                    UsageState::Active,
+                    Some(today_tokens),
+                    today_tokens,
+                    Some("2026-01-01T00:00:00Z".to_owned()),
+                )],
             },
             accepted_event_count: 1,
             source_health: Vec::new(),

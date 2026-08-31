@@ -11,9 +11,11 @@ use crate::types::provider::Provider;
 use crate::types::source_health::SourceHealth;
 use crate::types::usage_event::UsageEvent;
 use crate::types::usage_summary::UsageSummary;
+use crate::types::widget_settings::WidgetSettingsSnapshot;
 use crate::usage::active_provider::compute_active_provider;
 use crate::usage::cumulative_delta::{convert_observations, DeltaConversionError};
 use crate::usage::daily_total::compute_today_total;
+use crate::usage::provider_summary::compute_provider_summary;
 use crate::utils::windows_time::{current_local_day, current_utc_timestamp};
 use crate::UsageState;
 
@@ -402,6 +404,13 @@ impl CollectionCoordinator<IndexStore> {
     pub fn save_source_config(&mut self, config: &SourceConfig) -> Result<(), StorageError> {
         self.store.save_source_config(config)
     }
+
+    pub fn save_widget_settings(
+        &mut self,
+        settings: &WidgetSettingsSnapshot,
+    ) -> Result<(), StorageError> {
+        self.store.save_widget_settings(settings)
+    }
 }
 
 pub fn compute_summary(
@@ -427,6 +436,21 @@ pub fn compute_summary(
     } else {
         UsageState::Unavailable
     };
+    let providers = [Provider::Claude, Provider::Codex]
+        .into_iter()
+        .map(|provider| {
+            let health = source_health
+                .iter()
+                .find(|entry| entry.provider == provider);
+            compute_provider_summary(
+                provider,
+                &enabled_events,
+                health,
+                clock.now(),
+                clock.local_day(),
+            )
+        })
+        .collect();
 
     UsageSummary {
         state,
@@ -435,6 +459,7 @@ pub fn compute_summary(
         today_tokens: compute_today_total(&enabled_events, clock.local_day()),
         last_updated_at: active.last_updated_at,
         source_health: source_health.to_vec(),
+        providers,
     }
 }
 

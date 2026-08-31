@@ -38,6 +38,7 @@ pub fn emit_usage_summary(
 mod tests {
     use super::USAGE_SUMMARY_CHANGED_EVENT;
     use crate::types::provider::Provider;
+    use crate::types::provider_usage_summary::ProviderUsageSummary;
     use crate::{SourceHealth, UsageState, UsageSummary};
 
     #[test]
@@ -49,6 +50,13 @@ mod tests {
             today_tokens: 20,
             last_updated_at: Some("2026-01-01T00:00:00Z".to_owned()),
             source_health: vec![SourceHealth::detected(Provider::Claude)],
+            providers: vec![ProviderUsageSummary::new(
+                Provider::Claude,
+                UsageState::Active,
+                Some(20),
+                20,
+                Some("2026-01-01T00:00:00Z".to_owned()),
+            )],
         };
         let object = serde_json::to_value(summary)
             .expect("summary should serialize")
@@ -62,6 +70,7 @@ mod tests {
                 "currentSessionTokens",
                 "lastUpdatedAt",
                 "provider",
+                "providers",
                 "sourceHealth",
                 "state",
                 "todayTokens",

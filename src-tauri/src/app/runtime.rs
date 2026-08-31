@@ -19,6 +19,7 @@ use crate::sources::session_files::{discover_configured_source, DiscoveryLimits}
 use crate::sources::source_config::{SourceConfig, SourceConfigSet};
 use crate::types::provider::Provider;
 use crate::types::usage_summary::UsageSummary;
+use crate::types::widget_settings::WidgetSettingsSnapshot;
 
 pub const DEFAULT_DISCOVERY_LIMITS: DiscoveryLimits =
     DiscoveryLimits::without_file_count(50 * 1024 * 1024);
@@ -29,6 +30,7 @@ struct Runtime {
     discovery_limits: DiscoveryLimits,
     source_configs: SourceConfigSet,
     invalid_settings: Vec<Provider>,
+    widget_settings: WidgetSettingsSnapshot,
 }
 
 #[derive(Clone)]
@@ -148,6 +150,17 @@ impl Runtime {
             .retain(|provider| *provider != config.provider());
         Ok(())
     }
+
+    fn update_widget_settings(
+        &mut self,
+        settings: WidgetSettingsSnapshot,
+    ) -> Result<(), RuntimeError> {
+        self.coordinator
+            .save_widget_settings(&settings)
+            .map_err(RuntimeError::Settings)?;
+        self.widget_settings = settings;
+        Ok(())
+    }
 }
 
 impl AppState {
@@ -169,6 +182,9 @@ impl AppState {
         let loaded = store
             .load_source_configs()
             .map_err(|_| RuntimeInitError::SettingsRead)?;
+        let widget_settings = store
+            .load_widget_settings()
+            .map_err(|_| RuntimeInitError::SettingsRead)?;
 
         Ok(Self {
             runtime: Arc::new(Mutex::new(Some(Runtime {
@@ -177,6 +193,7 @@ impl AppState {
                 discovery_limits,
                 source_configs: loaded.configs,
                 invalid_settings: loaded.invalid_providers,
+                widget_settings,
             }))),
             fallback_summary: UsageSummary::unavailable(),
         })
@@ -223,6 +240,31 @@ impl AppState {
             .as_mut()
             .ok_or(RuntimeError::Unavailable)?
             .update_source_config(config)
+    }
+
+    pub fn widget_settings(&self) -> Result<WidgetSettingsSnapshot, RuntimeError> {
+        let runtime = self
+            .runtime
+            .lock()
+            .map_err(|_| RuntimeError::StatePoisoned)?;
+        runtime
+            .as_ref()
+            .map(|runtime| runtime.widget_settings.clone())
+            .ok_or(RuntimeError::Unavailable)
+    }
+
+    pub fn update_widget_settings(
+        &self,
+        settings: WidgetSettingsSnapshot,
+    ) -> Result<(), RuntimeError> {
+        let mut runtime = self
+            .runtime
+            .lock()
+            .map_err(|_| RuntimeError::StatePoisoned)?;
+        runtime
+            .as_mut()
+            .ok_or(RuntimeError::Unavailable)?
+            .update_widget_settings(settings)
     }
 
     pub(crate) fn watch_roots(&self) -> Vec<WatchRoot> {

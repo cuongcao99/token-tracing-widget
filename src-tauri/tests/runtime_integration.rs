@@ -56,6 +56,10 @@ fn runtime_collects_native_sources_and_returns_post_commit_summary() {
     assert_eq!(report.summary.today_tokens, 40);
     assert_eq!(report.summary.provider.as_deref(), Some("Codex"));
     assert_eq!(report.summary.state, UsageState::Active);
+    assert_eq!(report.summary.providers[0].provider, Provider::Claude);
+    assert_eq!(report.summary.providers[0].today_tokens, 20);
+    assert_eq!(report.summary.providers[1].provider, Provider::Codex);
+    assert_eq!(report.summary.providers[1].today_tokens, 20);
     assert_eq!(report.accepted_event_count, 2);
 }
 

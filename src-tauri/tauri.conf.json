@@ -14,12 +14,17 @@
       {
         "label": "main",
         "title": "Token Tracing Widget",
-        "width": 320,
-        "height": 120,
-        "resizable": false,
+        "width": 440,
+        "height": 300,
+        "minWidth": 360,
+        "minHeight": 176,
+        "maxWidth": 720,
+        "maxHeight": 520,
+        "resizable": true,
         "decorations": false,
         "transparent": true,
-        "alwaysOnTop": true,
+        "shadow": true,
+        "alwaysOnTop": false,
         "skipTaskbar": true
       }
     ],

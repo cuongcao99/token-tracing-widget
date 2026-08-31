@@ -82,17 +82,19 @@ pub fn parse_timestamp_seconds(timestamp: &str) -> Option<i64> {
         .checked_sub(offset_seconds)
 }
 
-pub fn timestamp_local_day(timestamp: &str) -> Option<&str> {
-    let day = timestamp.get(..10)?;
-    if day.as_bytes().get(4) != Some(&b'-')
-        || day.as_bytes().get(7) != Some(&b'-')
-        || day.get(0..4)?.parse::<u32>().is_err()
-        || day.get(5..7)?.parse::<u32>().is_err()
-        || day.get(8..10)?.parse::<u32>().is_err()
-    {
-        return None;
-    }
-    Some(day)
+pub fn timestamp_local_day(timestamp: &str) -> Option<String> {
+    let seconds = parse_timestamp_seconds(timestamp)?;
+    local_day_from_utc_seconds(seconds, current_local_offset_seconds())
+}
+
+pub(crate) fn local_day_from_utc_seconds(
+    utc_seconds: i64,
+    local_offset_seconds: i64,
+) -> Option<String> {
+    let local_seconds = utc_seconds.checked_add(local_offset_seconds)?;
+    let days = local_seconds.div_euclid(86_400);
+    let (year, month, day) = civil_from_days(days);
+    Some(format!("{year:04}-{month:02}-{day:02}"))
 }
 
 fn format_utc_timestamp(seconds_since_epoch: u64) -> String {
@@ -143,14 +145,54 @@ struct NativeSystemTime {
 }
 
 #[cfg(windows)]
+#[repr(C)]
+struct NativeTimeZoneInformation {
+    bias: i32,
+    standard_name: [u16; 32],
+    standard_date: NativeSystemTime,
+    standard_bias: i32,
+    daylight_name: [u16; 32],
+    daylight_date: NativeSystemTime,
+    daylight_bias: i32,
+}
+
+#[cfg(windows)]
 #[link(name = "kernel32")]
 extern "system" {
     fn GetLocalTime(system_time: *mut NativeSystemTime);
+    fn GetTimeZoneInformation(time_zone_information: *mut NativeTimeZoneInformation) -> u32;
 }
 
 #[cfg(windows)]
 unsafe fn get_local_time(system_time: &mut NativeSystemTime) {
     GetLocalTime(system_time);
+}
+
+fn current_local_offset_seconds() -> i64 {
+    #[cfg(windows)]
+    {
+        const TIME_ZONE_ID_DAYLIGHT: u32 = 2;
+        const TIME_ZONE_ID_INVALID: u32 = u32::MAX;
+
+        let mut information = std::mem::MaybeUninit::<NativeTimeZoneInformation>::zeroed();
+        let state = unsafe { GetTimeZoneInformation(information.as_mut_ptr()) };
+        if state == TIME_ZONE_ID_INVALID {
+            return 0;
+        }
+
+        let information = unsafe { information.assume_init() };
+        let seasonal_bias = if state == TIME_ZONE_ID_DAYLIGHT {
+            information.daylight_bias
+        } else {
+            information.standard_bias
+        };
+        -i64::from(information.bias + seasonal_bias) * 60
+    }
+
+    #[cfg(not(windows))]
+    {
+        0
+    }
 }
 
 fn days_from_civil(year: i64, month: i64, day: i64) -> Option<i64> {

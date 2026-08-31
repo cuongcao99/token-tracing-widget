@@ -40,6 +40,48 @@ fn codex_observation(timestamp: &str, total: u64) -> TokenObservation {
 }
 
 #[test]
+fn summary_contains_independent_provider_totals_for_the_overlay() {
+    let summary = compute_summary(
+        &SummaryRows {
+            events: vec![
+                UsageEvent::for_test(
+                    Provider::Claude,
+                    "claude-session",
+                    "2026-01-01T00:00:01Z",
+                    12,
+                ),
+                UsageEvent::for_test(
+                    Provider::Claude,
+                    "claude-session",
+                    "2026-01-01T00:00:02Z",
+                    3,
+                ),
+                UsageEvent::for_test(Provider::Codex, "codex-session", "2026-01-01T00:00:03Z", 8),
+            ],
+        },
+        &[
+            SourceHealth::detected(Provider::Claude),
+            SourceHealth::detected(Provider::Codex),
+        ],
+        &[Provider::Claude, Provider::Codex],
+        &FixedClock::new("2026-01-01T00:00:04Z", "2026-01-01"),
+    );
+
+    assert_eq!(summary.today_tokens, 23);
+    assert_eq!(summary.providers.len(), 2);
+
+    let claude = &summary.providers[0];
+    assert_eq!(claude.provider, Provider::Claude);
+    assert_eq!(claude.current_session_tokens, Some(15));
+    assert_eq!(claude.today_tokens, 15);
+
+    let codex = &summary.providers[1];
+    assert_eq!(codex.provider, Provider::Codex);
+    assert_eq!(codex.current_session_tokens, Some(8));
+    assert_eq!(codex.today_tokens, 8);
+}
+
+#[test]
 fn cumulative_snapshots_become_deltas_and_reset_starts_new_segment() {
     let observations = vec![
         ProviderReadObservation::new(codex_observation("2026-01-01T00:00:00Z", 10), 0),
@@ -428,6 +470,8 @@ fn active_provider_expires_after_two_minutes_but_last_update_remains() {
     );
 
     assert_eq!(summary.state, token_tracing_widget_lib::UsageState::Idle);
+    assert_eq!(summary.provider.as_deref(), Some("Claude Code"));
+    assert_eq!(summary.current_session_tokens, Some(20));
     assert_eq!(
         summary.last_updated_at.as_deref(),
         Some("2026-01-01T10:00:00Z")

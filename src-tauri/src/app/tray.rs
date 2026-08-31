@@ -10,6 +10,39 @@ pub(crate) const HIDE_MENU_ID: &str = "hide";
 pub(crate) const SETTINGS_MENU_ID: &str = "settings";
 pub(crate) const QUIT_MENU_ID: &str = "quit";
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct SettingsWindowOptions {
+    width: f64,
+    height: f64,
+    min_width: f64,
+    min_height: f64,
+    max_width: f64,
+    max_height: f64,
+    resizable: bool,
+    decorations: bool,
+    transparent: bool,
+    always_on_top: bool,
+    skip_taskbar: bool,
+    shadow: bool,
+}
+
+fn settings_window_options() -> SettingsWindowOptions {
+    SettingsWindowOptions {
+        width: 520.0,
+        height: 560.0,
+        min_width: 440.0,
+        min_height: 420.0,
+        max_width: 820.0,
+        max_height: 900.0,
+        resizable: true,
+        decorations: false,
+        transparent: true,
+        always_on_top: false,
+        skip_taskbar: true,
+        shadow: true,
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TrayAction {
     Show,
@@ -49,15 +82,22 @@ fn open_settings_window<R: Runtime>(app: &AppHandle<R>) {
         return;
     }
 
+    let options = settings_window_options();
     if let Err(error) = WebviewWindowBuilder::new(
         app,
         SETTINGS_WINDOW_LABEL,
         WebviewUrl::App("settings.html".into()),
     )
-    .title("Token Tracing Settings")
-    .inner_size(520.0, 560.0)
-    .resizable(true)
-    .always_on_top(false)
+    .title("Settings")
+    .inner_size(options.width, options.height)
+    .min_inner_size(options.min_width, options.min_height)
+    .max_inner_size(options.max_width, options.max_height)
+    .resizable(options.resizable)
+    .decorations(options.decorations)
+    .transparent(options.transparent)
+    .always_on_top(options.always_on_top)
+    .skip_taskbar(options.skip_taskbar)
+    .shadow(options.shadow)
     .build()
     {
         eprintln!("shell:settings_window:{error}");
@@ -155,5 +195,23 @@ mod tests {
     #[test]
     fn settings_menu_id_opens_settings_window() {
         assert_eq!(action_for_menu_id(SETTINGS_MENU_ID), TrayAction::Settings);
+    }
+
+    #[test]
+    fn settings_window_matches_the_chromeless_editorial_surface() {
+        let options = settings_window_options();
+
+        assert_eq!(options.width, 520.0);
+        assert_eq!(options.height, 560.0);
+        assert_eq!(options.min_width, 440.0);
+        assert_eq!(options.min_height, 420.0);
+        assert_eq!(options.max_width, 820.0);
+        assert_eq!(options.max_height, 900.0);
+        assert!(options.resizable);
+        assert!(!options.decorations);
+        assert!(options.transparent);
+        assert!(!options.always_on_top);
+        assert!(options.skip_taskbar);
+        assert!(options.shadow);
     }
 }
