@@ -1,11 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { isProviderId, type ProviderId } from "./provider";
 
 export type UsageState = "loading" | "active" | "idle" | "unavailable" | "stale";
 
 export interface SourceHealth {
-  provider: string;
+  provider: ProviderId;
   state: string;
+}
+
+export interface ProviderUsageSummary {
+  provider: ProviderId;
+  state: UsageState;
+  currentSessionTokens?: number;
+  todayTokens: number;
+  lastUpdatedAt?: string;
 }
 
 export interface UsageSummary {
@@ -15,6 +24,7 @@ export interface UsageSummary {
   todayTokens: number;
   lastUpdatedAt?: string;
   sourceHealth: SourceHealth[];
+  providers: ProviderUsageSummary[];
 }
 
 export const USAGE_SUMMARY_CHANGED_EVENT = "usage-summary-changed";
@@ -26,9 +36,17 @@ const summaryKeys = [
   "todayTokens",
   "lastUpdatedAt",
   "sourceHealth",
+  "providers",
 ] as const;
 
 const sourceHealthKeys = ["provider", "state"] as const;
+const providerSummaryKeys = [
+  "provider",
+  "state",
+  "currentSessionTokens",
+  "todayTokens",
+  "lastUpdatedAt",
+] as const;
 const states = new Set<UsageState>([
   "loading",
   "active",
@@ -86,13 +104,61 @@ export function parseUsageSummary(value: unknown): UsageSummary | null {
     if (
       !isRecord(entry) ||
       !hasOnlyKeys(entry, sourceHealthKeys) ||
-      typeof entry.provider !== "string" ||
+      !isProviderId(entry.provider) ||
       typeof entry.state !== "string"
     ) {
       return null;
     }
     sourceHealth.push({ provider: entry.provider, state: entry.state });
   }
+
+  if (!Array.isArray(value.providers) || value.providers.length !== 2) {
+    return null;
+  }
+
+  const seenProviders = new Set<ProviderId>();
+  const providers: ProviderUsageSummary[] = [];
+  for (const entry of value.providers) {
+    if (
+      !isRecord(entry) ||
+      !hasOnlyKeys(entry, providerSummaryKeys) ||
+      !isProviderId(entry.provider) ||
+      seenProviders.has(entry.provider) ||
+      typeof entry.state !== "string" ||
+      !states.has(entry.state as UsageState) ||
+      !isTokenCount(entry.todayTokens)
+    ) {
+      return null;
+    }
+    if (
+      "currentSessionTokens" in entry &&
+      !isTokenCount(entry.currentSessionTokens)
+    ) {
+      return null;
+    }
+    if (
+      "lastUpdatedAt" in entry &&
+      (typeof entry.lastUpdatedAt !== "string" ||
+        Number.isNaN(Date.parse(entry.lastUpdatedAt)))
+    ) {
+      return null;
+    }
+
+    seenProviders.add(entry.provider);
+    providers.push({
+      provider: entry.provider,
+      state: entry.state as UsageState,
+      ...(isTokenCount(entry.currentSessionTokens)
+        ? { currentSessionTokens: entry.currentSessionTokens }
+        : {}),
+      todayTokens: entry.todayTokens,
+      ...(typeof entry.lastUpdatedAt === "string"
+        ? { lastUpdatedAt: entry.lastUpdatedAt }
+        : {}),
+    });
+  }
+
+  if (seenProviders.size !== 2) return null;
 
   return {
     state: value.state as UsageState,
@@ -105,6 +171,7 @@ export function parseUsageSummary(value: unknown): UsageSummary | null {
       ? { lastUpdatedAt: value.lastUpdatedAt }
       : {}),
     sourceHealth,
+    providers,
   };
 }
 
@@ -134,10 +201,10 @@ export function formatRelativeUpdate(
   const timestampMs = Date.parse(lastUpdatedAt);
   if (Number.isNaN(timestampMs)) return "No updates yet";
   const elapsedMs = Math.max(0, nowMs - timestampMs);
-  if (elapsedMs < 60_000) return "Updated just now";
+  if (elapsedMs < 60_000) return "just now";
   const minutes = Math.floor(elapsedMs / 60_000);
-  if (minutes < 60) return "Updated " + minutes + " min ago";
+  if (minutes < 60) return minutes + " min ago";
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return "Updated " + hours + " hr ago";
-  return "Updated " + Math.floor(hours / 24) + " d ago";
+  if (hours < 24) return hours + " hr ago";
+  return Math.floor(hours / 24) + " d ago";
 }

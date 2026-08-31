@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
+import { isProviderId, providerOrder, type ProviderId } from "./provider";
 
-export type ProviderId = "claude" | "codex";
+export type { ProviderId } from "./provider";
 
 export interface SourceSettings {
   provider: ProviderId;
@@ -12,7 +13,7 @@ export interface SourceSettingsSnapshot {
   sources: SourceSettings[];
 }
 
-const providerIds: readonly ProviderId[] = ["claude", "codex"];
+const providerIds = providerOrder;
 const snapshotKeys = ["sources"] as const;
 const sourceKeys = ["provider", "enabled", "rootOverride"] as const;
 
@@ -29,10 +30,6 @@ function hasExactKeys(
     keys.length === allowed.length &&
     keys.every((key) => allowed.some((name) => name === key))
   );
-}
-
-function isProviderId(value: unknown): value is ProviderId {
-  return typeof value === "string" && providerIds.includes(value as ProviderId);
 }
 
 export function parseSourceSettings(

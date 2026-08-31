@@ -1,0 +1,38 @@
+:root {
+  --claude-canvas: #faf9f5;
+  --claude-surface-card: #efe9de;
+  --claude-ink: #141413;
+  --claude-body: #3d3d3a;
+  --claude-muted: #6c6a64;
+  --claude-muted-soft: #8e8b82;
+  --claude-hairline: #e6dfd8;
+  --claude-hairline-soft: #ebe6df;
+  --claude-coral: #cc785c;
+  --claude-coral-active: #a9583e;
+  --claude-dark: #181715;
+  --claude-dark-raised: #252320;
+  --claude-on-dark: #faf9f5;
+  --claude-on-dark-soft: #a09d96;
+  --claude-teal: #5db8a6;
+  --focus-blue: #0071e3;
+  --font-ui: "StyreneB", Inter, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-display: "Copernicus", "Tiempos Headline", "Cormorant Garamond",
+    "EB Garamond", Garamond, Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", Consolas, monospace;
+  --type-settings-title: 32px;
+  --type-settings-section: 20px;
+  --type-settings-label: 14px;
+  --type-settings-meta: 12px;
+  --type-settings-button: 14px;
+  --type-widget-title: 19px;
+  --type-widget-provider: 14px;
+  --type-widget-meta: 11px;
+  --type-widget-value: 18px;
+  --type-widget-total-label: 13px;
+  --type-widget-total: 20px;
+  --widget-width: 440px;
+  --widget-height: 300px;
+  --settings-width: 520px;
+  --settings-height: 560px;
+}

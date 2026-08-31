@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import Settings from "./Settings";
-import "./styles.css";
+import SettingsScreen from "./components/settings/SettingsScreen";
+import "./styles/index.css";
 
 const root = document.getElementById("root");
 if (!root) {
@@ -10,6 +10,6 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <Settings />
+    <SettingsScreen />
   </StrictMode>,
 );
