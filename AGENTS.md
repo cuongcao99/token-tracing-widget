@@ -28,9 +28,10 @@
 - Keep provider-specific formats behind adapters. Enforce normalization, delta
   conversion, deduplication, validation, and checkpoint invariants in the Rust
   collection core.
-- Keep settings preview and persistence semantics intact: an edit may preview
-  immediately across the widget and settings windows, while saving is required
-  to persist it and closing an unsaved edit restores the saved snapshot.
+- Keep settings preview and persistence semantics intact: an edit previews
+  immediately across the widget and settings windows, then auto-saves through
+  the typed commands; closing waits for pending persistence instead of restoring
+  an older snapshot.
 - Add no network client, telemetry, sidecar, background service, frontend state
   library, CSS framework, ORM, or font package without an approved design
   change.
