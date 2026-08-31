@@ -14,6 +14,7 @@ vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 
 const validSettings: WidgetSettingsSnapshot = {
   darkMode: true,
+  theme: "claude",
   visibleProviders: [
     { provider: "claude", visible: true },
     { provider: "codex", visible: false },
@@ -55,6 +56,9 @@ describe("widget settings bridge", () => {
     ).toBeNull();
     expect(
       parseWidgetSettings({ ...validSettings, rawRecord: "secret" }),
+    ).toBeNull();
+    expect(
+      parseWidgetSettings({ ...validSettings, theme: "private-theme" }),
     ).toBeNull();
   });
 

@@ -7,6 +7,7 @@ import type {
   WidgetSettingsSnapshot,
 } from "../../lib/widget-settings";
 import type { WidgetSettingsPreview } from "../../lib/widget-settings-preview";
+import type { ThemeId } from "../../lib/theme";
 
 export type SourceFormValues = Record<ProviderId, SourceSettings>;
 export type VisibilityValues = Record<ProviderId, boolean>;
@@ -36,12 +37,14 @@ export function visibilityFromSnapshot(
 }
 
 export function createWidgetSettingsPreview(
+  theme: ThemeId,
   darkMode: boolean,
   visible: VisibilityValues,
   sources: SourceFormValues,
 ): WidgetSettingsPreview {
   return {
     darkMode,
+    theme,
     visibleProviders: providerOrder.map((provider) => ({
       provider,
       visible: visible[provider],

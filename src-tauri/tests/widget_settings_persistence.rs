@@ -18,4 +18,14 @@ fn widget_preferences_default_and_round_trip_without_schema_changes() {
     store.save_widget_settings(&settings).unwrap();
 
     assert_eq!(store.load_widget_settings().unwrap(), settings);
+
+    let connection = rusqlite::Connection::open(path).unwrap();
+    let theme: String = connection
+        .query_row(
+            "SELECT setting_value FROM settings WHERE setting_key = 'widget.theme'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(theme, "claude");
 }

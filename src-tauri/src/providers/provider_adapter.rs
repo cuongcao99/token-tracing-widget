@@ -57,7 +57,7 @@ impl fmt::Display for ProviderReadError {
 
 impl std::error::Error for ProviderReadError {}
 
-pub trait ProviderAdapter {
+pub trait ProviderAdapter: Send + Sync {
     fn provider(&self) -> Provider;
 
     fn read_observations(

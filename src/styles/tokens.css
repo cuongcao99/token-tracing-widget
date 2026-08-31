@@ -36,3 +36,26 @@
   --settings-width: 520px;
   --settings-height: 600px;
 }
+
+/* Theme components consume these semantic slots so a future theme can change
+   the visual system without changing widget/settings composition. */
+.theme--claude {
+  --theme-light-canvas: var(--claude-canvas);
+  --theme-light-card: var(--claude-surface-card);
+  --theme-light-ink: var(--claude-ink);
+  --theme-light-body: var(--claude-body);
+  --theme-light-muted: var(--claude-muted);
+  --theme-light-muted-soft: var(--claude-muted-soft);
+  --theme-light-line: var(--claude-hairline);
+  --theme-light-line-soft: var(--claude-hairline-soft);
+  --theme-dark-canvas: var(--claude-dark);
+  --theme-dark-card: var(--claude-dark-raised);
+  --theme-dark-ink: var(--claude-on-dark);
+  --theme-dark-body: #d0cbc2;
+  --theme-dark-muted: var(--claude-on-dark-soft);
+  --theme-dark-muted-soft: #8f8b83;
+  --theme-dark-line: #3a3630;
+  --theme-dark-line-soft: #37332d;
+  --theme-accent: var(--claude-coral);
+  --theme-positive: var(--claude-teal);
+}

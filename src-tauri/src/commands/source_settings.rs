@@ -59,8 +59,9 @@ pub struct SourceSettingsSnapshot {
 }
 
 pub(crate) fn source_settings_snapshot(state: &AppState) -> Result<SourceSettingsSnapshot, String> {
-    [Provider::Claude, Provider::Codex]
-        .into_iter()
+    Provider::all()
+        .iter()
+        .copied()
         .map(|provider| {
             state
                 .source_config(provider)

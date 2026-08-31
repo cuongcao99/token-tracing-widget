@@ -1,4 +1,4 @@
-import { providerMeta, providerOrder, type ProviderId } from "../../lib/provider";
+import { providerMeta, providerRegistry, type ProviderId } from "../../lib/provider";
 import ProviderDot from "../shared/ProviderDot";
 import SettingsSwitch from "./SettingsSwitch";
 import type { ProviderStatusView } from "./settings-types";
@@ -20,7 +20,7 @@ export default function ProviderVisibilitySection({
         <h2>Visible providers</h2>
       </div>
       <div className="settings-card">
-        {providerOrder.map((provider) => {
+        {providerRegistry.map(({ id: provider }) => {
           const status = providers.find((entry) => entry.provider === provider);
           const state = status?.state ?? "unavailable";
           const updated = status?.updated ?? "No updates yet";

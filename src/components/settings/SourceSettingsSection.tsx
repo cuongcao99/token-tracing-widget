@@ -1,4 +1,4 @@
-import { providerMeta, providerOrder, type ProviderId } from "../../lib/provider";
+import { providerMeta, providerRegistry, type ProviderId } from "../../lib/provider";
 import type { SourceSettings } from "../../lib/source-settings";
 import type { SourceHealth } from "../../lib/usage-summary";
 import ProviderDot from "../shared/ProviderDot";
@@ -30,7 +30,7 @@ export default function SourceSettingsSection({
         <h2>Sources</h2>
       </div>
       <div className="settings-card">
-        {providerOrder.map((provider) => {
+        {providerRegistry.map(({ id: provider }) => {
           const source = sources[provider];
           const root = source.rootOverride || providerMeta[provider].automaticRoot;
           const isExpanded = expanded[provider];

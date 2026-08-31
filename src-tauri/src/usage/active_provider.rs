@@ -1,6 +1,7 @@
 //! Selecting the provider with the newest valid usage event.
 
 use crate::types::usage_event::UsageEvent;
+use crate::usage::session_summary::compute_session_aggregation;
 use crate::utils::windows_time::{parse_timestamp_seconds, timestamp_local_day};
 use crate::UsageState;
 
@@ -17,46 +18,23 @@ pub fn compute_active_provider(events: &[UsageEvent], now: &str) -> ActiveProvid
         return idle_result(None);
     };
 
-    let latest = events
-        .iter()
-        .filter_map(|event| {
-            let timestamp = parse_timestamp_seconds(&event.observed_at)?;
-            (timestamp <= now_seconds).then_some((timestamp, event))
-        })
-        .max_by(|left, right| {
-            left.0
-                .cmp(&right.0)
-                .then_with(|| left.1.source_position.cmp(&right.1.source_position))
-                .then_with(|| left.1.event_id.cmp(&right.1.event_id))
-        })
-        .map(|(_, event)| event);
+    let latest = latest_valid_event(events, now_seconds);
 
     let Some(latest) = latest else {
         return idle_result(None);
     };
-    let latest_seconds = parse_timestamp_seconds(&latest.observed_at).unwrap_or(now_seconds);
-    let elapsed = now_seconds.saturating_sub(latest_seconds);
-    let last_updated_at = Some(latest.observed_at.clone());
-    let current_session_tokens = events
+    let provider_events: Vec<_> = events
         .iter()
-        .filter(|event| {
-            event.provider == latest.provider
-                && event.session_key == latest.session_key
-                && parse_timestamp_seconds(&event.observed_at)
-                    .is_some_and(|timestamp| timestamp <= now_seconds)
-        })
-        .fold(0_u64, |total, event| {
-            total.saturating_add(event.total_tokens)
-        });
+        .filter(|event| event.provider == latest.provider)
+        .cloned()
+        .collect();
+    let aggregation = compute_session_aggregation(&provider_events, now, None);
+    let last_updated_at = Some(latest.observed_at.clone());
 
     ActiveProviderResult {
-        state: if elapsed > 120 {
-            UsageState::Idle
-        } else {
-            UsageState::Active
-        },
+        state: aggregation.state,
         provider: Some(latest.provider.display_name().to_owned()),
-        current_session_tokens: Some(current_session_tokens),
+        current_session_tokens: aggregation.current_session_tokens,
         last_updated_at,
     }
 }
@@ -79,11 +57,37 @@ pub fn compute_current_session_tokens_for_local_day(
         .cloned()
         .collect();
 
+    let active_provider = compute_active_provider(&current_day_events, now);
+    let Some(provider_name) = active_provider.provider else {
+        return Some(0);
+    };
+    let provider_events: Vec<_> = current_day_events
+        .iter()
+        .filter(|event| event.provider.display_name() == provider_name)
+        .cloned()
+        .collect();
+
     Some(
-        compute_active_provider(&current_day_events, now)
+        compute_session_aggregation(&provider_events, now, Some(local_day))
             .current_session_tokens
             .unwrap_or(0),
     )
+}
+
+fn latest_valid_event(events: &[UsageEvent], now_seconds: i64) -> Option<&UsageEvent> {
+    events
+        .iter()
+        .filter_map(|event| {
+            let timestamp = parse_timestamp_seconds(&event.observed_at)?;
+            (timestamp <= now_seconds).then_some((timestamp, event))
+        })
+        .max_by(|left, right| {
+            left.0
+                .cmp(&right.0)
+                .then_with(|| left.1.source_position.cmp(&right.1.source_position))
+                .then_with(|| left.1.event_id.cmp(&right.1.event_id))
+        })
+        .map(|(_, event)| event)
 }
 
 fn idle_result(last_updated_at: Option<String>) -> ActiveProviderResult {

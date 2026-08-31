@@ -11,8 +11,7 @@ use crate::collection::{
     CollectionClock, CollectionCoordinator, CollectionError, CollectionReport, ProviderSource,
 };
 use crate::database::connection::{IndexStore, StorageError};
-use crate::providers::claude::ClaudeReader;
-use crate::providers::codex::CodexReader;
+use crate::providers::registry::provider_registry;
 use crate::sources::file_watcher::WatchRoot;
 use crate::sources::provider_roots::resolve_configured_root;
 use crate::sources::session_files::{discover_configured_source, DiscoveryLimits};
@@ -93,38 +92,31 @@ impl Runtime {
         &mut self,
         clock: &dyn CollectionClock,
     ) -> Result<CollectionReport, CollectionError> {
-        let claude_config = self.source_configs.get(Provider::Claude);
-        let codex_config = self.source_configs.get(Provider::Codex);
-        let claude_discovery =
-            discover_configured_source(&self.profile_root, claude_config, self.discovery_limits);
-        let codex_discovery =
-            discover_configured_source(&self.profile_root, codex_config, self.discovery_limits);
-        let claude_reader = ClaudeReader::default();
-        let codex_reader = CodexReader::default();
-        let sources = [
-            ProviderSource::with_configured_root(
-                claude_config.enabled(),
-                claude_config.configured_root_label(),
-                self.invalid_settings.contains(&Provider::Claude),
-                claude_discovery,
-                &claude_reader,
-            ),
-            ProviderSource::with_configured_root(
-                codex_config.enabled(),
-                codex_config.configured_root_label(),
-                self.invalid_settings.contains(&Provider::Codex),
-                codex_discovery,
-                &codex_reader,
-            ),
-        ];
+        let registry = provider_registry();
+        let sources = registry
+            .registrations()
+            .map(|registration| {
+                let provider = registration.provider();
+                let config = self.source_configs.get(provider);
+                let discovery =
+                    discover_configured_source(&self.profile_root, config, self.discovery_limits);
+                ProviderSource::with_configured_root(
+                    config.enabled(),
+                    config.configured_root_label(),
+                    self.invalid_settings.contains(&provider),
+                    discovery,
+                    registration.adapter(),
+                )
+            })
+            .collect::<Vec<_>>();
         let report = self.coordinator.collect(&sources, clock)?;
         self.invalid_settings.clear();
         Ok(report)
     }
 
     fn watch_roots(&self) -> Vec<WatchRoot> {
-        [Provider::Claude, Provider::Codex]
-            .into_iter()
+        provider_registry()
+            .providers()
             .filter_map(|provider| {
                 let config = self.source_configs.get(provider);
                 if !config.enabled() {

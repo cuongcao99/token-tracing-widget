@@ -21,6 +21,7 @@ beforeEach(() => {
 describe("widget settings preview bridge", () => {
   const preview: WidgetSettingsPreview = {
     darkMode: false,
+    theme: "claude",
     visibleProviders: [
       { provider: "claude", visible: true },
       { provider: "codex", visible: false },
@@ -66,6 +67,9 @@ describe("widget settings preview bridge", () => {
           { provider: "codex", enabled: "false" },
         ],
       }),
+    ).toBeNull();
+    expect(
+      parseWidgetSettingsPreview({ ...preview, theme: "private-theme" }),
     ).toBeNull();
   });
 

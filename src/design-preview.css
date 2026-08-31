@@ -404,6 +404,23 @@ button:focus-visible {
   padding: 9px 0;
 }
 .settings-content--mac-no-sidebar .appearance-row strong { font-size: 13px; font-weight: 600; }
+.settings-content--mac-no-sidebar .appearance-row label {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.settings-content--mac-no-sidebar .appearance-row select,
+.claude-appearance-row select {
+  min-width: 100px;
+  min-height: 30px;
+  padding: 4px 8px;
+  color: var(--ink, var(--claude-ink));
+  background: var(--canvas, var(--claude-canvas));
+  border: 1px solid var(--line, var(--claude-hairline));
+  border-radius: 7px;
+  font: inherit;
+  font-size: 11px;
+}
 
 /* Final review polish: clearer metric rhythm and semibold Apple-like hierarchy. */
 .overlay-window__title strong,
@@ -678,6 +695,7 @@ button:focus-visible {
 }
 .claude-provider-row + .claude-provider-row,
 .claude-source-row + .claude-source-row { border-top: 1px solid var(--claude-hairline-soft); }
+.claude-appearance-row + .claude-appearance-row { border-top: 1px solid var(--claude-hairline-soft); }
 .claude-provider-row__identity,
 .claude-source-row__identity {
   display: flex;
@@ -698,6 +716,11 @@ button:focus-visible {
   letter-spacing: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.claude-appearance-row label {
+  color: var(--claude-ink);
+  font-size: 14px;
+  font-weight: 500;
 }
 .claude-provider-row span:not(.provider-dot):not(.switch__knob),
 .claude-source-row__identity span {

@@ -9,8 +9,8 @@
   overflow: hidden;
   --settings-inline-padding: 32px;
   padding: 27px var(--settings-inline-padding) 25px;
-  color: var(--claude-ink);
-  background: var(--claude-canvas);
+  color: var(--theme-light-ink, var(--claude-ink));
+  background: var(--theme-light-canvas, var(--claude-canvas));
   border: 0;
   outline: none;
   border-radius: 16px;
@@ -55,17 +55,17 @@
 }
 
 .settings-page--dark {
-  --settings-canvas: var(--claude-dark);
-  --settings-card: var(--claude-dark-raised);
-  --settings-ink: var(--claude-on-dark);
-  --settings-body: #d0cbc2;
-  --settings-muted: var(--claude-on-dark-soft);
-  --settings-muted-soft: #8f8b83;
-  --settings-line: #3a3630;
-  --settings-line-soft: #37332d;
-  --window-grip-ink: var(--claude-on-dark-soft);
-  --window-grip-line: #3a3630;
-  --window-grip-surface: var(--claude-dark-raised);
+  --settings-canvas: var(--theme-dark-canvas, var(--claude-dark));
+  --settings-card: var(--theme-dark-card, var(--claude-dark-raised));
+  --settings-ink: var(--theme-dark-ink, var(--claude-on-dark));
+  --settings-body: var(--theme-dark-body, #d0cbc2);
+  --settings-muted: var(--theme-dark-muted, var(--claude-on-dark-soft));
+  --settings-muted-soft: var(--theme-dark-muted-soft, #8f8b83);
+  --settings-line: var(--theme-dark-line, #3a3630);
+  --settings-line-soft: var(--theme-dark-line-soft, #37332d);
+  --window-grip-ink: var(--theme-dark-muted, var(--claude-on-dark-soft));
+  --window-grip-line: var(--theme-dark-line, #3a3630);
+  --window-grip-surface: var(--theme-dark-card, var(--claude-dark-raised));
   color: var(--settings-ink);
   background: var(--settings-canvas);
   box-shadow: 0 18px 42px -16px rgba(0, 0, 0, 0.54),
@@ -73,17 +73,17 @@
 }
 
 .settings-page--light {
-  --settings-canvas: var(--claude-canvas);
-  --settings-card: var(--claude-surface-card);
-  --settings-ink: var(--claude-ink);
-  --settings-body: var(--claude-body);
-  --settings-muted: var(--claude-muted);
-  --settings-muted-soft: var(--claude-muted-soft);
-  --settings-line: var(--claude-hairline);
-  --settings-line-soft: var(--claude-hairline-soft);
-  --window-grip-ink: var(--claude-muted);
-  --window-grip-line: var(--claude-hairline);
-  --window-grip-surface: var(--claude-surface-card);
+  --settings-canvas: var(--theme-light-canvas, var(--claude-canvas));
+  --settings-card: var(--theme-light-card, var(--claude-surface-card));
+  --settings-ink: var(--theme-light-ink, var(--claude-ink));
+  --settings-body: var(--theme-light-body, var(--claude-body));
+  --settings-muted: var(--theme-light-muted, var(--claude-muted));
+  --settings-muted-soft: var(--theme-light-muted-soft, var(--claude-muted-soft));
+  --settings-line: var(--theme-light-line, var(--claude-hairline));
+  --settings-line-soft: var(--theme-light-line-soft, var(--claude-hairline-soft));
+  --window-grip-ink: var(--theme-light-muted, var(--claude-muted));
+  --window-grip-line: var(--theme-light-line, var(--claude-hairline));
+  --window-grip-surface: var(--theme-light-card, var(--claude-surface-card));
   color: var(--settings-ink);
   background: var(--settings-canvas);
   box-shadow: 0 18px 42px -16px rgba(20, 20, 19, 0.26),
@@ -103,7 +103,7 @@
 
 .settings-page__header h1 {
   margin: 0;
-  color: var(--claude-coral);
+  color: var(--theme-accent, var(--claude-coral));
   font-family: var(--font-display);
   font-size: var(--type-settings-title);
   font-weight: 400;
@@ -145,7 +145,7 @@
 }
 
 .settings-close-button:hover {
-  color: var(--claude-coral);
+  color: var(--theme-accent, var(--claude-coral));
   background: var(--settings-card);
 }
 
@@ -276,7 +276,7 @@
 }
 
 .settings-switch.is-on {
-  background: var(--claude-coral);
+  background: var(--theme-accent, var(--claude-coral));
 }
 
 .settings-switch__knob {
@@ -315,7 +315,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--claude-teal);
+  color: var(--theme-positive, var(--claude-teal));
   font-size: var(--type-settings-meta);
   line-height: 1.2;
   white-space: nowrap;
@@ -326,13 +326,13 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--claude-teal);
+  background: var(--theme-positive, var(--claude-teal));
 }
 
 .change-root-button {
   padding: 0;
   border: 0;
-  color: var(--claude-coral);
+  color: var(--theme-accent, var(--claude-coral));
   background: transparent;
   cursor: pointer;
   font-size: var(--type-settings-button);
@@ -369,6 +369,28 @@
 
 .appearance-row {
   min-height: 60px;
+}
+
+.appearance-row + .appearance-row {
+  border-top: 1px solid var(--settings-line-soft);
+}
+
+.appearance-row label {
+  color: var(--settings-ink);
+  font-size: var(--type-settings-label);
+  font-weight: 500;
+}
+
+.appearance-row select {
+  min-width: 112px;
+  min-height: 32px;
+  padding: 5px 28px 5px 10px;
+  color: var(--settings-ink);
+  background: var(--settings-canvas);
+  border: 1px solid var(--settings-line);
+  border-radius: 7px;
+  font: inherit;
+  font-size: var(--type-settings-meta);
 }
 
 .change-root-button:active,

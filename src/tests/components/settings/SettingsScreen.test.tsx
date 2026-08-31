@@ -71,6 +71,7 @@ const sourceSnapshot: SourceSettingsSnapshot = {
 
 const widgetSettings: WidgetSettingsSnapshot = {
   darkMode: true,
+  theme: "claude",
   visibleProviders: [
     { provider: "claude", visible: true },
     { provider: "codex", visible: true },
@@ -123,6 +124,7 @@ describe("SettingsScreen", () => {
     expect(screen.getByRole("heading", { name: "Visible providers" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Sources" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Appearance" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Theme" })).toHaveValue("claude");
     expect(screen.getByRole("main")).toHaveClass("settings-page--dark");
     expect(screen.queryByText("Shape the overlay around your work.")).not.toBeInTheDocument();
     expect(screen.queryByText("Automatic")).not.toBeInTheDocument();
@@ -163,6 +165,7 @@ describe("SettingsScreen", () => {
 
     expect(screen.getByRole("main")).toHaveClass("settings-page--light");
     expect(emitWidgetSettingsPreview).toHaveBeenCalledWith({
+      theme: "claude",
       darkMode: false,
       visibleProviders: [
         { provider: "claude", visible: true },
@@ -176,6 +179,7 @@ describe("SettingsScreen", () => {
 
     await waitFor(() =>
       expect(updateWidgetSettings).toHaveBeenCalledWith({
+        theme: "claude",
         darkMode: false,
         visibleProviders: [
           { provider: "claude", visible: true },
@@ -197,6 +201,38 @@ describe("SettingsScreen", () => {
     await waitFor(() => expect(closeWindow).toHaveBeenCalledTimes(1));
     expect(emitWidgetSettingsPreview).toHaveBeenCalledTimes(previewCallCount);
     expect(closeWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it("previews and auto-saves the selected theme", async () => {
+    render(<SettingsScreen />);
+    await screen.findByRole("heading", { name: "Settings" });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Theme" }), {
+      target: { value: "claude" },
+    });
+
+    expect(emitWidgetSettingsPreview).toHaveBeenLastCalledWith({
+      theme: "claude",
+      darkMode: true,
+      visibleProviders: [
+        { provider: "claude", visible: true },
+        { provider: "codex", visible: true },
+      ],
+      sourceEnabled: [
+        { provider: "claude", enabled: true },
+        { provider: "codex", enabled: true },
+      ],
+    });
+    await waitFor(() =>
+      expect(updateWidgetSettings).toHaveBeenCalledWith({
+        theme: "claude",
+        darkMode: true,
+        visibleProviders: [
+          { provider: "claude", visible: true },
+          { provider: "codex", visible: true },
+        ],
+      }),
+    );
   });
 
   it("surfaces a native close failure instead of swallowing it", async () => {
@@ -222,6 +258,7 @@ describe("SettingsScreen", () => {
     expect(screen.getByRole("switch", { name: "Collect Codex source" })).not.toBeChecked();
     expect(screen.getByRole("main")).toHaveClass("settings-page--light");
     expect(emitWidgetSettingsPreview).toHaveBeenLastCalledWith({
+      theme: "claude",
       darkMode: false,
       visibleProviders: [
         { provider: "claude", visible: true },

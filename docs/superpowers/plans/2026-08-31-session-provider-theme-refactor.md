@@ -255,16 +255,16 @@ registry seams, unchanged current presentation, and passing frontend tests.
 - `src/design-preview.js`.
 - `src/design-preview.css` only for the selector/control styling needed to
   represent the runtime Appearance surface.
-- `src/styles/tokens.css`, `src/styles/widget.css`, and
-  `src/styles/settings.css` only for semantic theme hooks/generic provider
-  accent variables; preserve all existing values.
+- `src/styles/base.css`, `src/styles/tokens.css`, `src/styles/widget.css`, and
+  `src/styles/settings.css` only for the selector focus/font and semantic theme
+  hooks/generic provider accent variables; preserve all existing values.
 
 **Steps:**
 
 1. Add the current Claude option to the static Appearance preview so the review
    surface reflects the runtime contract.
 2. Run the Impeccable detector once after all UI edits:
-   `node C:\Users\caocu\.codex\plugins\cache\impeccable\impeccable\4.1.2\skills\impeccable\scripts\detect.mjs --json src/components/settings/AppearanceSection.tsx src/components/settings/SettingsScreen.tsx src/components/settings/ProviderVisibilitySection.tsx src/components/settings/SourceSettingsSection.tsx src/components/widget/TokenTracingWidget.tsx src/components/shared/ProviderDot.tsx src/lib/theme.ts src/styles/tokens.css src/styles/widget.css src/styles/settings.css src/design-preview.css src/design-preview.js`.
+   `node C:\Users\caocu\.codex\plugins\cache\impeccable\impeccable\4.1.2\skills\impeccable\scripts\detect.mjs --json src/components/settings/AppearanceSection.tsx src/components/settings/SettingsScreen.tsx src/components/settings/ProviderVisibilitySection.tsx src/components/settings/SourceSettingsSection.tsx src/components/widget/TokenTracingWidget.tsx src/components/shared/ProviderDot.tsx src/lib/theme.ts src/styles/base.css src/styles/tokens.css src/styles/widget.css src/styles/settings.css src/design-preview.css src/design-preview.js`.
 3. Inspect findings against the approved Claude-editorial contract and fix only
    actionable regressions introduced by this task. Do not scaffold a separate
    hero/reference page or widen the visual redesign.

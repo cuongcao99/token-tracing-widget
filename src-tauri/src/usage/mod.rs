@@ -6,3 +6,4 @@ pub mod daily_total;
 pub mod duplicate_event_filter;
 pub mod observation_validation;
 pub mod provider_summary;
+pub mod session_summary;

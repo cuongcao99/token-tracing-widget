@@ -1,5 +1,6 @@
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { isProviderId, providerOrder, type ProviderId } from "./provider";
+import { isThemeId, type ThemeId } from "./theme";
 import type { VisibleProviderSetting } from "./widget-settings";
 
 export const WIDGET_SETTINGS_PREVIEW_CHANGED_EVENT =
@@ -12,11 +13,12 @@ export interface SourceEnabledSetting {
 
 export interface WidgetSettingsPreview {
   darkMode: boolean;
+  theme: ThemeId;
   visibleProviders: VisibleProviderSetting[];
   sourceEnabled: SourceEnabledSetting[];
 }
 
-const previewKeys = ["darkMode", "visibleProviders", "sourceEnabled"] as const;
+const previewKeys = ["darkMode", "theme", "visibleProviders", "sourceEnabled"] as const;
 const visibleProviderKeys = ["provider", "visible"] as const;
 const sourceEnabledKeys = ["provider", "enabled"] as const;
 
@@ -42,6 +44,7 @@ export function parseWidgetSettingsPreview(
 
   if (
     typeof value.darkMode !== "boolean" ||
+    !isThemeId(value.theme) ||
     !Array.isArray(value.visibleProviders) ||
     value.visibleProviders.length !== providerOrder.length ||
     !Array.isArray(value.sourceEnabled) ||
@@ -89,7 +92,12 @@ export function parseWidgetSettingsPreview(
     return null;
   }
 
-  return { darkMode: value.darkMode, visibleProviders, sourceEnabled };
+  return {
+    darkMode: value.darkMode,
+    theme: value.theme,
+    visibleProviders,
+    sourceEnabled,
+  };
 }
 
 export function emitWidgetSettingsPreview(

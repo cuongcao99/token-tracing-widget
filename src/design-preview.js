@@ -141,6 +141,12 @@ function appearanceControl() {
       <div class="section-heading"><div><h2>Appearance</h2></div></div>
       <div class="appearance-list">
         <div class="appearance-row">
+          <label for="appearance-theme-select">Theme</label>
+          <select id="appearance-theme-select" aria-label="Theme">
+            <option value="claude">Claude</option>
+          </select>
+        </div>
+        <div class="appearance-row">
           <strong>Dark mode</strong>
           ${switchControl("dark-mode", "Dark mode", darkMode)}
         </div>
@@ -153,6 +159,12 @@ function claudeAppearanceControl() {
     <section class="claude-settings-section claude-settings-section--appearance">
       <div class="claude-section-heading"><h2>Appearance</h2></div>
       <div class="claude-settings-card claude-appearance-card">
+        <div class="claude-appearance-row">
+          <label for="claude-theme-select">Theme</label>
+          <select id="claude-theme-select" aria-label="Theme">
+            <option value="claude">Claude</option>
+          </select>
+        </div>
         <div class="claude-appearance-row">
           <strong>Dark mode</strong>
           ${switchControl("dark-mode", "Dark mode", darkMode)}

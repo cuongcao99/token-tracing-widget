@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useUsageSummary } from "../../hooks/useUsageSummary";
 import { useWidgetSettings } from "../../hooks/useWidgetSettings";
-import { providerOrder } from "../../lib/provider";
+import { providerRegistry } from "../../lib/provider";
 import { syncWidgetWindowHeight } from "../../lib/window-sizing";
 import WindowGrip from "../shared/WindowGrip";
 import WindowResizeHandles from "../shared/WindowResizeHandles";
@@ -35,13 +35,13 @@ export default function TokenTracingWidget() {
 
   return (
     <main
-      className={`widget widget--${settings.darkMode ? "dark" : "light"}`}
+      className={`widget theme--${settings.theme} widget--${settings.darkMode ? "dark" : "light"}`}
       aria-label="Token usage summary"
     >
       <WindowGrip windowName="widget" />
       <WidgetHeader state={summary.state} />
       <section className="widget-provider-list" aria-label="Provider usage">
-        {providerOrder.map((provider) => {
+        {providerRegistry.map(({ id: provider }) => {
           const usage = summary.providers.find((entry) => entry.provider === provider);
           if (!usage || !visibleProviders.has(provider)) return null;
           const displayUsage =

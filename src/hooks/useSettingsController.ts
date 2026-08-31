@@ -3,6 +3,7 @@ import { useUsageSummary } from "./useUsageSummary";
 import { useWidgetSettings } from "./useWidgetSettings";
 import { closeCurrentWindow } from "../lib/window-actions";
 import { providerOrder, type ProviderId } from "../lib/provider";
+import type { ThemeId } from "../lib/theme";
 import {
   getSourceSettings,
   updateSourceSettings,
@@ -37,6 +38,7 @@ export default function useSettingsController() {
     visibilityFromSnapshot(widget.settings),
   );
   const [darkMode, setDarkMode] = useState(widget.settings.darkMode);
+  const [theme, setTheme] = useState<ThemeId>(widget.settings.theme);
   const [expanded, setExpanded] = useState<ExpandedValues>({
     claude: false,
     codex: false,
@@ -76,6 +78,7 @@ export default function useSettingsController() {
     if (!widget.loading) {
       setVisible(visibilityFromSnapshot(widget.settings));
       setDarkMode(widget.settings.darkMode);
+      setTheme(widget.settings.theme);
     }
   }, [widget.loading, widget.settings]);
 
@@ -91,6 +94,7 @@ export default function useSettingsController() {
   );
 
   const sendPreview = (
+    nextTheme: ThemeId,
     nextDarkMode: boolean,
     nextVisible: VisibilityValues,
     nextSources: SourceFormValues | null,
@@ -100,7 +104,7 @@ export default function useSettingsController() {
     let request: Promise<void>;
     try {
       request = emitWidgetSettingsPreview(
-        createWidgetSettingsPreview(nextDarkMode, nextVisible, nextSources),
+        createWidgetSettingsPreview(nextTheme, nextDarkMode, nextVisible, nextSources),
       );
     } catch {
       setError("Could not preview settings.");
@@ -129,11 +133,13 @@ export default function useSettingsController() {
   };
 
   const enqueueWidgetPersistence = (
+    nextTheme: ThemeId,
     nextDarkMode: boolean,
     nextVisible: VisibilityValues,
   ) => {
     const snapshot: WidgetSettingsSnapshot = {
       darkMode: nextDarkMode,
+      theme: nextTheme,
       visibleProviders: providerOrder.map((provider) => ({
         provider,
         visible: nextVisible[provider],
@@ -201,7 +207,7 @@ export default function useSettingsController() {
     setSources(nextSources);
     if ("enabled" in changes) {
       cancelSourceRootPersistence(provider);
-      sendPreview(darkMode, visible, nextSources);
+      sendPreview(theme, darkMode, visible, nextSources);
       enqueueSourcePersistence(provider, nextSources);
     }
   };
@@ -236,8 +242,8 @@ export default function useSettingsController() {
     const nextVisible = { ...visible, [provider]: next };
     setError(null);
     setVisible(nextVisible);
-    sendPreview(darkMode, nextVisible, sources);
-    enqueueWidgetPersistence(darkMode, nextVisible);
+    sendPreview(theme, darkMode, nextVisible, sources);
+    enqueueWidgetPersistence(theme, darkMode, nextVisible);
   };
 
   const toggleSource = (provider: ProviderId, enabled: boolean) => {
@@ -265,17 +271,26 @@ export default function useSettingsController() {
   const toggleDarkMode = (next: boolean) => {
     setError(null);
     setDarkMode(next);
-    sendPreview(next, visible, sources);
-    enqueueWidgetPersistence(next, visible);
+    sendPreview(theme, next, visible, sources);
+    enqueueWidgetPersistence(theme, next, visible);
+  };
+
+  const toggleTheme = (next: ThemeId) => {
+    setError(null);
+    setTheme(next);
+    sendPreview(next, darkMode, visible, sources);
+    enqueueWidgetPersistence(next, darkMode, visible);
   };
 
   return {
     closeSettings,
     darkMode,
+    theme,
     error,
     expanded,
     loadingSources,
     onDarkModeToggle: toggleDarkMode,
+    onThemeToggle: toggleTheme,
     onProviderVisibilityToggle: toggleProviderVisibility,
     onSourceRootBlur: flushSourceRootPersistence,
     onSourceRootChange: updateSourceRoot,

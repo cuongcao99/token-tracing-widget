@@ -54,6 +54,7 @@ const summary: UsageSummary = {
 
 const settings: WidgetSettingsSnapshot = {
   darkMode: true,
+  theme: "claude",
   visibleProviders: [
     { provider: "claude", visible: true },
     { provider: "codex", visible: true },
