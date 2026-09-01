@@ -151,6 +151,29 @@ pub fn remove_provider_hooks(
     Ok(config)
 }
 
+pub fn has_provider_hooks(
+    config: &Value,
+    provider: HookProvider,
+    command: &str,
+) -> Result<bool, HookConfigError> {
+    validate_command(command)?;
+    validate_config(config)?;
+
+    Ok(config
+        .get("hooks")
+        .and_then(Value::as_object)
+        .into_iter()
+        .flat_map(|hooks| {
+            provider
+                .events()
+                .iter()
+                .filter_map(|event| hooks.get(*event))
+        })
+        .flat_map(Value::as_array)
+        .flatten()
+        .any(|group| group_contains_owned_handler(group, provider, command)))
+}
+
 fn validate_command(command: &str) -> Result<(), HookConfigError> {
     if command.trim().is_empty() {
         Err(HookConfigError::EmptyCommand)
@@ -263,7 +286,7 @@ fn is_owned_handler(handler: &Value, provider: HookProvider, command: &str) -> b
 
 #[cfg(test)]
 mod tests {
-    use super::{merge_provider_hooks, remove_provider_hooks, HookProvider};
+    use super::{has_provider_hooks, merge_provider_hooks, remove_provider_hooks, HookProvider};
     use serde_json::{json, Value};
 
     const COMMAND: &str = "TokenTracingWidget.exe --hook";
@@ -369,6 +392,14 @@ mod tests {
 
             assert_eq!(twice, once);
         }
+    }
+
+    #[test]
+    fn has_provider_hooks_validates_and_matches_only_owned_handlers() {
+        let command = merge_provider_hooks(json!({}), HookProvider::Claude, COMMAND).unwrap();
+        assert!(has_provider_hooks(&command, HookProvider::Claude, COMMAND).unwrap());
+        assert!(!has_provider_hooks(&command, HookProvider::Codex, COMMAND).unwrap());
+        assert!(!has_provider_hooks(&json!({}), HookProvider::Claude, COMMAND).unwrap());
     }
 
     #[test]
