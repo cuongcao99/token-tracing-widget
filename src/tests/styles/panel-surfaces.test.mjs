@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const readStylesheet = (path) =>
-  readFileSync(new URL(path, import.meta.url), "utf8");
+  readFileSync(new URL(path, import.meta.url), "utf8").replaceAll(
+    "\r\n",
+    "\n",
+  );
 
 const stylesheetBlock = (css, selector) => {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
