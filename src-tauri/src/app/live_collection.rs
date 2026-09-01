@@ -5,10 +5,12 @@ use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
 
 use crate::app::runtime::{AppState, RuntimeError};
+use crate::app::trace_signal::HookListener;
 use crate::collection::{CollectionReport, WindowsClock};
 use crate::commands::usage_summary::{emit_usage_summary, SummaryEventError};
 use crate::sources::file_watcher::{FileWatcher, WatchRoot, WatchSignal};
 use crate::sources::source_config::SourceConfig;
+use crate::types::trace_signal::TraceSignal;
 use crate::types::usage_summary::UsageSummary;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,6 +129,14 @@ impl LiveScheduler {
 pub(crate) trait CollectionBackend: Send {
     fn collect(&mut self) -> Result<CollectionReport, RuntimeError>;
     fn watch_roots(&self) -> Vec<WatchRoot>;
+
+    fn apply_trace_signal(
+        &mut self,
+        _signal: &TraceSignal,
+        _now: Instant,
+    ) -> Result<Option<UsageSummary>, RuntimeError> {
+        Ok(None)
+    }
 }
 
 pub(crate) trait SummaryPublisher: Send {
@@ -165,6 +175,15 @@ where
                 self.scheduler.mark_changed(now);
                 true
             }
+            WatchSignal::Trace(signal) => {
+                if let Ok(Some(summary)) = self.backend.apply_trace_signal(&signal, now) {
+                    if self.publisher.publish(&summary).is_err() {
+                        eprintln!("summary_event:emit");
+                    }
+                }
+                self.scheduler.mark_changed(now);
+                true
+            }
             WatchSignal::Shutdown => false,
         }
     }
@@ -200,7 +219,7 @@ where
             match receiver.recv_timeout(wait) {
                 Ok(signal) => {
                     let now = Instant::now();
-                    if matches!(signal, WatchSignal::ConfigurationChanged) {
+                    if matches!(&signal, WatchSignal::ConfigurationChanged) {
                         watcher.replace_roots(self.backend.watch_roots());
                     }
                     if !self.on_signal(signal, now) {
@@ -233,6 +252,14 @@ impl CollectionBackend for RuntimeBackend {
     fn watch_roots(&self) -> Vec<WatchRoot> {
         self.state.watch_roots()
     }
+
+    fn apply_trace_signal(
+        &mut self,
+        signal: &TraceSignal,
+        now: Instant,
+    ) -> Result<Option<UsageSummary>, RuntimeError> {
+        self.state.apply_trace_signal(signal, now).map(Some)
+    }
 }
 
 struct TauriSummaryPublisher {
@@ -254,6 +281,7 @@ impl SummaryPublisher for TauriSummaryPublisher {
 pub(crate) struct LiveCollectionHandle {
     sender: Mutex<Option<Sender<WatchSignal>>>,
     worker: Mutex<Option<JoinHandle<()>>>,
+    listener: Mutex<Option<HookListener>>,
 }
 
 impl LiveCollectionHandle {
@@ -268,6 +296,11 @@ impl LiveCollectionHandle {
     }
 
     pub(crate) fn shutdown(&self) {
+        if let Ok(mut listener) = self.listener.lock() {
+            if let Some(mut listener) = listener.take() {
+                listener.shutdown();
+            }
+        }
         if let Ok(mut sender) = self.sender.lock() {
             if let Some(sender) = sender.take() {
                 let _ = sender.send(WatchSignal::Shutdown);
@@ -285,6 +318,7 @@ impl LiveCollectionHandle {
         Self {
             sender: Mutex::new(Some(sender)),
             worker: Mutex::new(Some(worker)),
+            listener: Mutex::new(None),
         }
     }
 }
@@ -312,6 +346,7 @@ pub(crate) fn start_live_collection(
 ) -> LiveCollectionHandle {
     let (sender, receiver) = mpsc::channel();
     let watcher = FileWatcher::start(state.watch_roots(), sender.clone());
+    let listener = HookListener::start(sender.clone());
     let backend = RuntimeBackend::new(state);
     let publisher = TauriSummaryPublisher::new(app);
     let worker = thread::Builder::new()
@@ -330,6 +365,7 @@ pub(crate) fn start_live_collection(
     LiveCollectionHandle {
         sender: Mutex::new(Some(sender)),
         worker: Mutex::new(Some(worker)),
+        listener: Mutex::new(Some(listener)),
     }
 }
 

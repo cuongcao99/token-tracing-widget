@@ -4,6 +4,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use tauri::Manager;
 
@@ -17,11 +18,13 @@ use crate::sources::provider_roots::{configured_root_path, resolve_configured_ro
 use crate::sources::session_files::{discover_configured_source, DiscoveryLimits};
 use crate::sources::source_config::{SourceConfig, SourceConfigSet};
 use crate::types::provider::Provider;
+use crate::types::trace_signal::{TraceLifecycle, TraceSignal};
 use crate::types::usage_summary::UsageSummary;
 use crate::types::widget_settings::WidgetSettingsSnapshot;
 
 pub const DEFAULT_DISCOVERY_LIMITS: DiscoveryLimits =
     DiscoveryLimits::without_file_count(50 * 1024 * 1024);
+const TRACE_ACTIVITY_TTL: Duration = Duration::from_secs(120);
 
 struct Runtime {
     coordinator: CollectionCoordinator<IndexStore>,
@@ -30,6 +33,13 @@ struct Runtime {
     source_configs: SourceConfigSet,
     invalid_settings: Vec<Provider>,
     widget_settings: WidgetSettingsSnapshot,
+    trace_activity: Option<TraceActivity>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct TraceActivity {
+    provider: Provider,
+    received_at: Instant,
 }
 
 #[derive(Clone)]
@@ -109,9 +119,66 @@ impl Runtime {
                 )
             })
             .collect::<Vec<_>>();
-        let report = self.coordinator.collect(&sources, clock)?;
+        let mut report = self.coordinator.collect(&sources, clock)?;
         self.invalid_settings.clear();
+        self.expire_trace_activity(Instant::now());
+        report.summary = self.summary_with_trace(report.summary);
         Ok(report)
+    }
+
+    fn apply_trace_signal(&mut self, signal: &TraceSignal, received_at: Instant) -> UsageSummary {
+        if self.source_configs.is_enabled(signal.provider) {
+            match signal.lifecycle {
+                TraceLifecycle::StartOrContinue => {
+                    self.trace_activity = Some(TraceActivity {
+                        provider: signal.provider,
+                        received_at,
+                    });
+                }
+                TraceLifecycle::Pause | TraceLifecycle::Stop => {
+                    if self
+                        .trace_activity
+                        .is_some_and(|activity| activity.provider == signal.provider)
+                    {
+                        self.trace_activity = None;
+                    }
+                }
+            }
+        }
+        self.expire_trace_activity(received_at);
+        self.summary()
+    }
+
+    fn summary(&mut self) -> UsageSummary {
+        self.expire_trace_activity(Instant::now());
+        self.summary_with_trace(self.coordinator.last_summary().clone())
+    }
+
+    fn summary_with_trace(&self, mut summary: UsageSummary) -> UsageSummary {
+        let Some(activity) = self.trace_activity else {
+            return summary;
+        };
+        if summary.state == crate::UsageState::Stale {
+            return summary;
+        }
+
+        summary.state = crate::UsageState::Active;
+        summary.provider = Some(activity.provider.display_name().to_owned());
+        for provider in &mut summary.providers {
+            if provider.provider == activity.provider {
+                provider.state = crate::UsageState::Active;
+            }
+        }
+        summary
+    }
+
+    fn expire_trace_activity(&mut self, now: Instant) {
+        if self
+            .trace_activity
+            .is_some_and(|activity| now.duration_since(activity.received_at) > TRACE_ACTIVITY_TTL)
+        {
+            self.trace_activity = None;
+        }
     }
 
     fn watch_roots(&self) -> Vec<WatchRoot> {
@@ -186,6 +253,7 @@ impl AppState {
                 source_configs: loaded.configs,
                 invalid_settings: loaded.invalid_providers,
                 widget_settings,
+                trace_activity: None,
             }))),
             fallback_summary: UsageSummary::unavailable(),
         })
@@ -210,6 +278,21 @@ impl AppState {
         runtime
             .collect_once(clock)
             .map_err(RuntimeError::Collection)
+    }
+
+    pub(crate) fn apply_trace_signal(
+        &self,
+        signal: &TraceSignal,
+        received_at: Instant,
+    ) -> Result<UsageSummary, RuntimeError> {
+        let mut runtime = self
+            .runtime
+            .lock()
+            .map_err(|_| RuntimeError::StatePoisoned)?;
+        runtime
+            .as_mut()
+            .ok_or(RuntimeError::Unavailable)
+            .map(|runtime| runtime.apply_trace_signal(signal, received_at))
     }
 
     pub fn source_config(&self, provider: Provider) -> Result<SourceConfig, RuntimeError> {
@@ -280,12 +363,12 @@ impl AppState {
     }
 
     pub fn summary(&self) -> UsageSummary {
-        let Ok(runtime) = self.runtime.lock() else {
+        let Ok(mut runtime) = self.runtime.lock() else {
             return self.fallback_summary.clone();
         };
         runtime
-            .as_ref()
-            .map(|runtime| runtime.coordinator.last_summary().clone())
+            .as_mut()
+            .map(Runtime::summary)
             .unwrap_or_else(|| self.fallback_summary.clone())
     }
 }
@@ -310,10 +393,133 @@ pub fn initialize_from_app(app: &tauri::AppHandle) -> AppState {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{Duration, Instant};
+
     use super::DEFAULT_DISCOVERY_LIMITS;
+    use crate::collection::FixedClock;
+    use crate::sources::session_files::DiscoveryLimits;
+    use crate::types::provider::Provider;
+    use crate::types::trace_signal::{ProviderEvent, TraceLifecycle, TraceSignal};
+    use crate::UsageState;
 
     #[test]
     fn default_discovery_does_not_cap_file_count() {
         assert_eq!(DEFAULT_DISCOVERY_LIMITS.max_files, usize::MAX);
+    }
+
+    fn state_with_native_roots() -> (super::AppState, tempfile::TempDir, tempfile::TempDir) {
+        let profile = tempfile::tempdir().expect("profile should be created");
+        std::fs::create_dir_all(profile.path().join(r".claude\projects"))
+            .expect("Claude root should be created");
+        std::fs::create_dir_all(profile.path().join(r".codex\sessions"))
+            .expect("Codex root should be created");
+        let database = tempfile::tempdir().expect("database directory should be created");
+        let state = super::AppState::from_paths(
+            profile.path().to_path_buf(),
+            &database.path().join("index.sqlite"),
+            DiscoveryLimits::new(10, 10_000),
+        )
+        .expect("runtime should open");
+        state
+            .collect_once(&FixedClock::new("2026-09-01T10:00:00Z", "2026-09-01"))
+            .expect("initial collection should complete");
+        (state, profile, database)
+    }
+
+    fn signal(provider: Provider, lifecycle: TraceLifecycle, event: ProviderEvent) -> TraceSignal {
+        TraceSignal {
+            schema_version: crate::types::trace_signal::TRACE_SIGNAL_SCHEMA_VERSION,
+            provider,
+            lifecycle,
+            provider_event: event,
+            observed_at: "2026-09-01T10:00:00Z".to_owned(),
+            opaque_session_id: Some("session-1".to_owned()),
+            opaque_turn_id: Some("turn-1".to_owned()),
+            sequence: None,
+        }
+    }
+
+    #[test]
+    fn hook_start_publishes_transient_active_state_without_tokens() {
+        let (state, _profile, _database) = state_with_native_roots();
+        let active = state
+            .apply_trace_signal(
+                &signal(
+                    Provider::Claude,
+                    TraceLifecycle::StartOrContinue,
+                    ProviderEvent::UserPromptSubmit,
+                ),
+                Instant::now(),
+            )
+            .expect("runtime should accept hook signal");
+
+        assert_eq!(active.state, UsageState::Active);
+        assert_eq!(active.provider.as_deref(), Some("Claude Code"));
+        assert_eq!(active.today_tokens, 0);
+        assert!(active.current_session_tokens.is_none());
+        assert_eq!(
+            active
+                .providers
+                .iter()
+                .find(|provider| provider.provider == Provider::Claude)
+                .unwrap()
+                .state,
+            UsageState::Active
+        );
+    }
+
+    #[test]
+    fn hook_pause_only_clears_the_matching_provider_hint() {
+        let (state, _profile, _database) = state_with_native_roots();
+        state
+            .apply_trace_signal(
+                &signal(
+                    Provider::Claude,
+                    TraceLifecycle::StartOrContinue,
+                    ProviderEvent::UserPromptSubmit,
+                ),
+                Instant::now(),
+            )
+            .unwrap();
+
+        let unchanged = state
+            .apply_trace_signal(
+                &signal(Provider::Codex, TraceLifecycle::Pause, ProviderEvent::Stop),
+                Instant::now(),
+            )
+            .unwrap();
+        assert_eq!(unchanged.state, UsageState::Active);
+        assert_eq!(unchanged.provider.as_deref(), Some("Claude Code"));
+
+        let idle = state
+            .apply_trace_signal(
+                &signal(Provider::Claude, TraceLifecycle::Pause, ProviderEvent::Stop),
+                Instant::now(),
+            )
+            .unwrap();
+        assert_eq!(idle.state, UsageState::Idle);
+        assert!(idle.provider.is_none());
+    }
+
+    #[test]
+    fn hook_hint_expires_without_affecting_restart_safe_totals() {
+        let (state, _profile, _database) = state_with_native_roots();
+        let old = Instant::now()
+            .checked_sub(Duration::from_secs(121))
+            .expect("test instant should support subtraction");
+        let expired = state
+            .apply_trace_signal(
+                &signal(
+                    Provider::Claude,
+                    TraceLifecycle::StartOrContinue,
+                    ProviderEvent::UserPromptSubmit,
+                ),
+                old,
+            )
+            .unwrap();
+
+        assert_eq!(expired.state, UsageState::Idle);
+        assert_eq!(expired.today_tokens, 0);
+        assert!(expired.provider.is_none());
     }
 }

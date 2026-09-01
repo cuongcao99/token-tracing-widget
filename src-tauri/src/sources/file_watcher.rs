@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 
 use crate::types::provider::Provider;
+use crate::types::trace_signal::TraceSignal;
 
 #[derive(Debug, Clone)]
 pub(crate) struct WatchRoot {
@@ -25,11 +26,12 @@ impl WatchRoot {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum WatchSignal {
     Changed(Provider),
     WatchUnavailable(Provider),
     ConfigurationChanged,
+    Trace(TraceSignal),
     Shutdown,
 }
 
