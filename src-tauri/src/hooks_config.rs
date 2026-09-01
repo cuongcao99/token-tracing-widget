@@ -11,7 +11,7 @@ impl HookProvider {
     fn events(self) -> &'static [&'static str] {
         match self {
             Self::Claude => &["UserPromptSubmit", "Stop", "StopFailure", "SessionEnd"],
-            Self::Codex => &["UserPromptSubmit", "Stop", "SessionEnd"],
+            Self::Codex => &["SessionStart", "UserPromptSubmit", "Stop", "SessionEnd"],
         }
     }
 }
@@ -294,7 +294,7 @@ mod tests {
     fn hook_events(provider: HookProvider) -> &'static [&'static str] {
         match provider {
             HookProvider::Claude => &["UserPromptSubmit", "Stop", "StopFailure", "SessionEnd"],
-            HookProvider::Codex => &["UserPromptSubmit", "Stop", "SessionEnd"],
+            HookProvider::Codex => &["SessionStart", "UserPromptSubmit", "Stop", "SessionEnd"],
         }
     }
 
@@ -325,7 +325,7 @@ mod tests {
         let result = merge_provider_hooks(json!({}), HookProvider::Codex, COMMAND).unwrap();
         let hooks = result["hooks"].as_object().unwrap();
 
-        assert_eq!(hooks.len(), 3);
+        assert_eq!(hooks.len(), 4);
         for event in hook_events(HookProvider::Codex) {
             assert_eq!(
                 generated_hook(&result, event),
