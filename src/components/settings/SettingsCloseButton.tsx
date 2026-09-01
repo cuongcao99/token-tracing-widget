@@ -1,3 +1,5 @@
+import styles from "../../styles/settings/surface.module.css";
+
 interface SettingsCloseButtonProps {
   onClick: () => void;
 }
@@ -5,12 +7,13 @@ interface SettingsCloseButtonProps {
 export default function SettingsCloseButton({ onClick }: SettingsCloseButtonProps) {
   return (
     <button
-      className="settings-close-button"
+      className={styles.closeButton}
       type="button"
       aria-label="Close settings"
       onClick={onClick}
     >
       <svg
+        className={styles.closeIcon}
         viewBox="0 0 24 24"
         aria-hidden="true"
         fill="none"

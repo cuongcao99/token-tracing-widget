@@ -1,0 +1,88 @@
+.picker {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--settings-picker-gap);
+  min-width: var(--settings-picker-min-width);
+  min-height: var(--settings-picker-min-height);
+  padding: var(--settings-picker-padding-block)
+    var(--settings-picker-padding-end)
+    var(--settings-picker-padding-block)
+    var(--settings-picker-padding-start);
+  color: var(--color-accent);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: var(--type-settings-label);
+  font-weight: 600;
+  line-height: 1.1;
+  transition:
+    border-color var(--motion-duration) var(--motion-easing),
+    box-shadow var(--motion-duration) var(--motion-easing);
+}
+
+.button:hover,
+.pickerOpen .button {
+  border-color: var(--color-accent);
+}
+
+.button:focus-visible {
+  outline: var(--focus-width) solid var(--color-accent);
+  outline-offset: var(--focus-offset);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.chevron {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  transition: transform var(--motion-duration) var(--motion-easing);
+}
+
+.pickerOpen .chevron {
+  transform: rotate(180deg);
+}
+
+.menu {
+  position: absolute;
+  top: auto;
+  right: 0;
+  bottom: calc(100% + var(--settings-picker-menu-gap));
+  z-index: 5;
+  min-width: 100%;
+  padding: var(--settings-picker-menu-padding);
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-picker);
+}
+
+.option {
+  display: block;
+  width: 100%;
+  padding: var(--settings-picker-option-padding-block)
+    var(--settings-picker-option-padding-inline);
+  color: var(--color-ink);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: var(--type-settings-label);
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: left;
+}
+
+.option:hover,
+.option[aria-selected="true"] {
+  color: var(--color-accent);
+  background: var(--color-line-soft);
+}

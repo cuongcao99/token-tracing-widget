@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const readSource = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 
-const modulePaths = [
+const widgetModulePaths = [
   "../../styles/widget/surface.module.css",
   "../../styles/widget/provider.module.css",
   "../../styles/widget/metrics.module.css",
@@ -12,9 +12,15 @@ const modulePaths = [
   "../../styles/shared/window-controls.module.css",
 ];
 
+const settingsModulePaths = [
+  "../../styles/settings/surface.module.css",
+  "../../styles/settings/forms.module.css",
+  "../../styles/settings/theme-picker.module.css",
+];
+
 describe("widget CSS module boundaries", () => {
   it("keeps every D1 module local and provider agnostic", () => {
-    for (const path of modulePaths) {
+    for (const path of widgetModulePaths) {
       const css = readSource(path);
       expect(css).not.toContain(":global");
       expect(css).not.toMatch(/var\(\s*--claude-/);
@@ -52,8 +58,38 @@ describe("widget CSS module boundaries", () => {
     expect(main).not.toContain("styles/settings/");
   });
 
+  it("keeps the settings entry out of the widget surface graph", () => {
+    const settingsMain = readSource("../../settings-main.tsx");
+
+    for (const path of [
+      "./styles/globals/reset.css",
+      "./styles/globals/tokens.css",
+      "./styles/globals/themes.css",
+      "./styles/settings/surface.module.css",
+      "./styles/settings/forms.module.css",
+      "./styles/settings/theme-picker.module.css",
+      "./styles/shared/branding.module.css",
+      "./styles/shared/window-controls.module.css",
+    ]) {
+      expect(settingsMain).toContain(path);
+    }
+
+    expect(settingsMain).not.toContain("./styles/index.css");
+    expect(settingsMain).not.toContain("styles/widget/");
+  });
+
+  it("keeps every settings module local without provider selectors or fallbacks", () => {
+    for (const path of settingsModulePaths) {
+      const css = readSource(path);
+      expect(css).not.toContain(":global");
+      expect(css).not.toMatch(/var\(\s*--claude-/);
+      expect(css).not.toMatch(/var\([^)]*,/);
+      expect(css).not.toMatch(/\.(?:[^{}\n]*)(?:claude|codex)/i);
+    }
+  });
+
   it("uses semantic color slots throughout component modules", () => {
-    const css = modulePaths.map(readSource).join("\n");
+    const css = widgetModulePaths.map(readSource).join("\n");
 
     expect(css).toContain("var(--color-canvas)");
     expect(css).toContain("var(--color-ink)");
@@ -81,5 +117,17 @@ describe("widget CSS module boundaries", () => {
     expect(provider).toContain("--provider-name-ui-size");
     expect(tokens).toContain("--provider-name-display-weight: 600;");
     expect(tokens).toContain("--provider-name-display-tracking: -0.15px;");
+  });
+
+  it("keeps shared branding on a generic gap token with a widget override", () => {
+    const branding = readSource("../../styles/shared/branding.module.css");
+    const provider = readSource("../../styles/widget/provider.module.css");
+    const tokens = readSource("../../styles/globals/tokens.css");
+
+    expect(branding).toContain("margin-right: var(--provider-mark-gap);");
+    expect(branding).not.toContain("--widget-provider-mark-gap");
+    expect(tokens).toContain("--provider-mark-gap: 10px;");
+    expect(tokens).not.toContain("--widget-provider-mark-gap");
+    expect(provider).toContain("--provider-mark-gap: 10px;");
   });
 });

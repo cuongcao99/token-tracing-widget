@@ -1,0 +1,140 @@
+.status {
+  margin: 0 0 var(--space-4);
+  color: var(--color-muted);
+  font-size: var(--type-settings-meta);
+  line-height: 1.4;
+}
+
+.statusError {
+  color: var(--color-ink);
+}
+
+.switch {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: var(--settings-switch-width);
+  height: var(--settings-switch-height);
+  padding: var(--settings-switch-padding);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: transparent;
+  background: var(--color-switch-off);
+  cursor: pointer;
+  transition: background var(--motion-duration) var(--motion-easing);
+}
+
+.switchOn {
+  background: var(--color-accent);
+}
+
+.switchKnob {
+  display: block;
+  width: var(--settings-switch-knob-size);
+  height: var(--settings-switch-knob-size);
+  border-radius: 50%;
+  background: var(--color-switch-knob);
+  transition: transform var(--motion-duration) var(--motion-easing);
+}
+
+.switchOn .switchKnob {
+  transform: translateX(var(--settings-switch-on-offset));
+}
+
+.switch:active {
+  transform: scale(0.97);
+}
+
+.sourceRow {
+  min-width: 0;
+}
+
+.sourceRow + .sourceRow {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.sourceMain {
+  min-height: var(--settings-row-min-height);
+}
+
+.sourceActions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: var(--settings-source-actions-gap);
+}
+
+.sourceHealth {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--settings-health-gap);
+  color: var(--color-positive);
+  font-size: var(--type-settings-meta);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.sourceHealthDot {
+  display: inline-block;
+  width: var(--settings-health-dot-size);
+  height: var(--settings-health-dot-size);
+  border-radius: 50%;
+  background: var(--color-positive);
+}
+
+.sourcePath {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  color: var(--color-accent);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: var(--type-settings-meta);
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.18em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sourcePath:hover {
+  color: var(--color-accent-active);
+  text-decoration-thickness: 0.1em;
+}
+
+.sourcePath:focus-visible {
+  outline: var(--focus-width) solid var(--color-accent);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--settings-path-focus-radius);
+}
+
+.appearanceRow {
+  min-height: var(--settings-row-min-height);
+}
+
+.appearanceRow + .appearanceRow {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.appearanceLabel {
+  color: var(--color-ink);
+  font-size: var(--type-settings-label);
+  font-weight: 500;
+}
+
+@media (max-width: 420px) {
+  .sourceActions {
+    gap: var(--settings-mobile-source-actions-gap);
+  }
+
+  .sourceHealth {
+    display: none;
+  }
+}

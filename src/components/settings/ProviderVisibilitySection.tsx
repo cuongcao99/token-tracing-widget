@@ -3,6 +3,7 @@ import ProviderDot from "../shared/ProviderDot";
 import ProviderName from "../shared/ProviderName";
 import SettingsSwitch from "./SettingsSwitch";
 import type { ProviderStatusView } from "./settings-types";
+import surfaceStyles from "../../styles/settings/surface.module.css";
 
 interface ProviderVisibilitySectionProps {
   visible: Record<ProviderId, boolean>;
@@ -16,22 +17,22 @@ export default function ProviderVisibilitySection({
   onToggle,
 }: ProviderVisibilitySectionProps) {
   return (
-    <section className="settings-section settings-section--providers">
-      <div className="settings-section__heading">
-        <h2>Visible providers</h2>
+    <section className={surfaceStyles.section}>
+      <div className={surfaceStyles.sectionHeading}>
+        <h2 className={surfaceStyles.sectionTitle}>Visible providers</h2>
       </div>
-      <div className="settings-card">
+      <div className={surfaceStyles.card}>
         {providerRegistry.map(({ id: provider }) => {
           const status = providers.find((entry) => entry.provider === provider);
           const state = status?.state ?? "unavailable";
           const updated = status?.updated ?? "No updates yet";
           return (
-            <div className="settings-row provider-settings-row" key={provider}>
-              <div className="settings-row__identity">
+            <div className={surfaceStyles.row} key={provider}>
+              <div className={surfaceStyles.identity}>
                 <ProviderDot provider={provider} />
-                <div>
+                <div className={surfaceStyles.identityContent}>
                   <strong><ProviderName provider={provider} /></strong>
-                  <span>
+                  <span className={surfaceStyles.identityMeta}>
                     {state.charAt(0).toUpperCase() + state.slice(1)} · {updated}
                   </span>
                 </div>

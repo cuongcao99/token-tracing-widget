@@ -1,3 +1,5 @@
+import styles from "../../styles/settings/forms.module.css";
+
 interface SettingsSwitchProps {
   label: string;
   checked: boolean;
@@ -13,7 +15,9 @@ export default function SettingsSwitch({
 }: SettingsSwitchProps) {
   return (
     <button
-      className={`settings-switch${checked ? " is-on" : ""}`}
+      className={[styles.switch, checked ? styles.switchOn : ""]
+        .filter(Boolean)
+        .join(" ")}
       type="button"
       role="switch"
       aria-label={label}
@@ -21,7 +25,7 @@ export default function SettingsSwitch({
       disabled={disabled}
       onClick={() => onChange(!checked)}
     >
-      <span className="settings-switch__knob" aria-hidden="true" />
+      <span className={styles.switchKnob} aria-hidden="true" />
     </button>
   );
 }

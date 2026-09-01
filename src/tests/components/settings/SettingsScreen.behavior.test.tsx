@@ -148,7 +148,7 @@ describe("SettingsScreen behavior", () => {
 
     expect(screen.getByRole("switch", { name: "Show Codex in widget" })).not.toBeChecked();
     expect(screen.getByRole("switch", { name: "Collect Codex source" })).not.toBeChecked();
-    expect(screen.getByRole("main")).toHaveClass("settings-page--light");
+    expect(screen.getByRole("main")).toHaveAttribute("data-color-mode", "light");
     expect(mocks.emitPreview).toHaveBeenLastCalledWith({
       theme: "claude",
       darkMode: false,

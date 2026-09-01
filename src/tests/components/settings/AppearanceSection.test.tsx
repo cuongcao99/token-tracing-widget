@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import AppearanceSection from "../../../components/settings/AppearanceSection";
+import themePickerStyles from "../../../styles/settings/theme-picker.module.css";
 
 describe("AppearanceSection", () => {
   it("uses a styled theme picker with a keyboard-accessible option list", () => {
@@ -17,7 +18,7 @@ describe("AppearanceSection", () => {
 
     const themePicker = screen.getByRole("button", { name: "Theme: Claude" });
 
-    expect(themePicker).toHaveClass("theme-picker__button");
+    expect(themePicker).toHaveClass(themePickerStyles.button);
     expect(themePicker).toHaveAttribute("aria-expanded", "false");
 
     fireEvent.click(themePicker);

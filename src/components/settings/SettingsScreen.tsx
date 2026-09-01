@@ -4,6 +4,8 @@ import SettingsCloseButton from "./SettingsCloseButton";
 import WindowGrip from "../shared/WindowGrip";
 import WindowResizeHandles from "../shared/WindowResizeHandles";
 import useSettingsController from "../../hooks/useSettingsController";
+import surfaceStyles from "../../styles/settings/surface.module.css";
+import formStyles from "../../styles/settings/forms.module.css";
 
 export default function SettingsScreen() {
   const {
@@ -24,41 +26,41 @@ export default function SettingsScreen() {
 
   return (
     <main
-      className={`settings-page theme--${theme} settings-page--${darkMode ? "dark" : "light"}`}
+      className={surfaceStyles.root}
       data-theme={theme}
       data-color-mode={darkMode ? "dark" : "light"}
       aria-label="Settings"
     >
       <WindowGrip windowName="settings" />
-      <header className="settings-page__header">
-        <div className="settings-page__heading">
-          <div className="settings-page__title-row">
-            <h1>Settings</h1>
+      <header className={surfaceStyles.header}>
+        <div className={surfaceStyles.heading}>
+          <div className={surfaceStyles.titleRow}>
+            <h1 className={surfaceStyles.title}>Settings</h1>
           </div>
-          <p>Choose what stays visible.</p>
+          <p className={surfaceStyles.subtitle}>Choose what stays visible.</p>
         </div>
         <SettingsCloseButton onClick={closeSettings} />
       </header>
 
-      <div className="settings-page__body">
+      <div className={surfaceStyles.body}>
         {widgetError && (
-          <p className="settings-status" role="status">
+          <p className={formStyles.status} role="status">
             {widgetError}
           </p>
         )}
         {error && (
-          <p className="settings-status settings-status--error" role="alert">
+          <p className={`${formStyles.status} ${formStyles.statusError}`} role="alert">
             {error}
           </p>
         )}
         {loadingSources && (
-          <p className="settings-status" role="status">
+          <p className={formStyles.status} role="status">
             Loading settings…
           </p>
         )}
 
         {sources && (
-          <div className="settings-form">
+          <div className={surfaceStyles.form}>
             <SettingsActivityPanel
               visible={visible}
               onProviderVisibilityToggle={onProviderVisibilityToggle}

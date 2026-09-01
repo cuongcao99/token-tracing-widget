@@ -5,6 +5,8 @@ import ProviderDot from "../shared/ProviderDot";
 import ProviderName from "../shared/ProviderName";
 import SettingsSwitch from "./SettingsSwitch";
 import { sourceHealthLabel } from "./settings-types";
+import formStyles from "../../styles/settings/forms.module.css";
+import surfaceStyles from "../../styles/settings/surface.module.css";
 
 interface SourceSettingsSectionProps {
   sources: Record<ProviderId, SourceSettings>;
@@ -20,23 +22,23 @@ export default function SourceSettingsSection({
   onChooseRoot,
 }: SourceSettingsSectionProps) {
   return (
-    <section className="settings-section settings-section--sources">
-      <div className="settings-section__heading">
-        <h2>Sources</h2>
+    <section className={surfaceStyles.section}>
+      <div className={surfaceStyles.sectionHeading}>
+        <h2 className={surfaceStyles.sectionTitle}>Sources</h2>
       </div>
-      <div className="settings-card">
+      <div className={surfaceStyles.card}>
         {providerRegistry.map(({ id: provider }) => {
           const source = sources[provider];
           const root = source.rootOverride || providerMeta[provider].displayRoot;
           return (
-            <div className="source-settings-row" key={provider}>
-              <div className="settings-row source-settings-row__main">
-                <div className="settings-row__identity">
+            <div className={formStyles.sourceRow} key={provider}>
+              <div className={`${surfaceStyles.row} ${formStyles.sourceMain}`}>
+                <div className={surfaceStyles.identity}>
                   <ProviderDot provider={provider} />
-                  <div>
+                  <div className={surfaceStyles.identityContent}>
                     <strong><ProviderName provider={provider} /></strong>
                     <button
-                      className="source-path-button"
+                      className={formStyles.sourcePath}
                       type="button"
                       title={root}
                       aria-label={`Choose ${providerMeta[provider].displayName} source folder: ${root}`}
@@ -46,9 +48,9 @@ export default function SourceSettingsSection({
                     </button>
                   </div>
                 </div>
-                <div className="source-settings-row__actions">
-                  <span className="source-health">
-                    <span className="source-health__dot" aria-hidden="true" />
+                <div className={formStyles.sourceActions}>
+                  <span className={formStyles.sourceHealth}>
+                    <span className={formStyles.sourceHealthDot} aria-hidden="true" />
                     {sourceHealthLabel(provider, health, source.enabled)}
                   </span>
                   <SettingsSwitch

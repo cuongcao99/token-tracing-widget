@@ -1,6 +1,8 @@
 import SettingsSwitch from "./SettingsSwitch";
 import ThemeSelect from "./ThemeSelect";
 import type { ThemeId } from "../../lib/theme";
+import formStyles from "../../styles/settings/forms.module.css";
+import surfaceStyles from "../../styles/settings/surface.module.css";
 
 interface AppearanceSectionProps {
   theme: ThemeId;
@@ -16,17 +18,19 @@ export default function AppearanceSection({
   onToggle,
 }: AppearanceSectionProps) {
   return (
-    <section className="settings-section settings-section--appearance">
-      <div className="settings-section__heading">
-        <h2>Appearance</h2>
+    <section className={`${surfaceStyles.section} ${surfaceStyles.appearanceSection}`}>
+      <div className={surfaceStyles.sectionHeading}>
+        <h2 className={surfaceStyles.sectionTitle}>Appearance</h2>
       </div>
-      <div className="settings-card appearance-card">
-        <div className="settings-row appearance-row">
-          <span id="theme-label">Theme</span>
+      <div className={surfaceStyles.card}>
+        <div className={`${surfaceStyles.row} ${formStyles.appearanceRow}`}>
+          <span className={formStyles.appearanceLabel} id="theme-label">
+            Theme
+          </span>
           <ThemeSelect theme={theme} onThemeChange={onThemeChange} />
         </div>
-        <div className="settings-row appearance-row">
-          <strong>Dark mode</strong>
+        <div className={`${surfaceStyles.row} ${formStyles.appearanceRow}`}>
+          <strong className={formStyles.appearanceLabel}>Dark mode</strong>
           <SettingsSwitch
             label="Dark mode"
             checked={darkMode}

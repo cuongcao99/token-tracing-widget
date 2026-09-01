@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { themeRegistry, type ThemeId } from "../../lib/theme";
+import styles from "../../styles/settings/theme-picker.module.css";
 
 interface ThemeSelectProps {
   theme: ThemeId;
@@ -12,6 +13,7 @@ export default function ThemeSelect({
 }: ThemeSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const listboxId = `${useId()}-theme-options`;
   const selectedTheme =
     themeRegistry.find((option) => option.id === theme) ?? themeRegistry[0];
@@ -27,9 +29,7 @@ export default function ThemeSelect({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setIsOpen(false);
-      rootRef.current?.querySelector<HTMLButtonElement>(
-        ".theme-picker__button",
-      )?.focus();
+      buttonRef.current?.focus();
     };
 
     document.addEventListener("pointerdown", handlePointerDown);
@@ -43,10 +43,13 @@ export default function ThemeSelect({
   return (
     <div
       ref={rootRef}
-      className={`theme-picker${isOpen ? " is-open" : ""}`}
+      className={[styles.picker, isOpen ? styles.pickerOpen : ""]
+        .filter(Boolean)
+        .join(" ")}
     >
       <button
-        className="theme-picker__button"
+        ref={buttonRef}
+        className={styles.button}
         type="button"
         aria-label={`Theme: ${selectedTheme.label}`}
         aria-haspopup="listbox"
@@ -56,7 +59,7 @@ export default function ThemeSelect({
       >
         <span>{selectedTheme.label}</span>
         <svg
-          className="theme-picker__chevron"
+          className={styles.chevron}
           viewBox="0 0 16 16"
           fill="none"
           aria-hidden="true"
@@ -73,14 +76,14 @@ export default function ThemeSelect({
       {isOpen && (
         <div
           id={listboxId}
-          className="theme-picker__menu"
+          className={styles.menu}
           role="listbox"
           aria-label="Theme options"
         >
           {themeRegistry.map((option) => (
             <button
               key={option.id}
-              className="theme-picker__option"
+              className={styles.option}
               type="button"
               role="option"
               aria-selected={option.id === selectedTheme.id}

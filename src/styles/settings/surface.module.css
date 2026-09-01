@@ -1,0 +1,221 @@
+.root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  --settings-left-padding: calc(
+    var(--settings-inline-padding) + var(--settings-scrollbar-gutter)
+  );
+  padding: var(--settings-padding-top) var(--settings-inline-padding)
+    var(--settings-padding-bottom) var(--settings-left-padding);
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  border: 0;
+  outline: none;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-settings);
+  font-family: var(--font-ui);
+}
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  margin-right: calc(-1 * var(--settings-inline-padding));
+  padding-right: var(--settings-inline-padding);
+  scrollbar-color: var(--color-line) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.body::-webkit-scrollbar {
+  width: var(--settings-scrollbar-gutter);
+}
+
+.body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.body::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.body::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border: 2px solid transparent;
+  border-radius: var(--radius-pill);
+  background-clip: padding-box;
+}
+
+.header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+  gap: var(--settings-header-gap);
+  margin: 0 0 var(--settings-header-bottom);
+  user-select: none;
+}
+
+.heading {
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--settings-title-gap);
+}
+
+.title {
+  margin: 0;
+  color: var(--color-accent);
+  font-family: var(--font-display);
+  font-size: var(--type-settings-title);
+  font-weight: 400;
+  letter-spacing: -0.7px;
+  line-height: 1.05;
+}
+
+.subtitle {
+  margin: var(--settings-subtitle-margin-top) 0 0;
+  color: var(--color-muted);
+  font-size: var(--type-settings-meta);
+  line-height: 1.35;
+}
+
+.closeButton {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: var(--settings-close-size);
+  height: var(--settings-close-size);
+  margin: var(--settings-close-margin-top)
+    var(--settings-close-margin-end) 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-muted);
+  background: var(--color-card);
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  color: var(--color-accent);
+  background: var(--color-card);
+}
+
+.closeIcon {
+  width: var(--settings-close-icon-size);
+  height: var(--settings-close-icon-size);
+}
+
+.form {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 0;
+}
+
+.section {
+  margin-top: var(--settings-section-gap);
+}
+
+.section:first-child {
+  margin-top: 0;
+}
+
+.appearanceSection {
+  margin-top: var(--settings-appearance-gap);
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--settings-section-heading-gap);
+  margin-bottom: var(--settings-section-heading-bottom);
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: var(--type-settings-section);
+  font-weight: 400;
+  letter-spacing: -0.25px;
+  line-height: 1.2;
+}
+
+.card {
+  padding: 2px var(--settings-card-padding-inline);
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  min-height: var(--settings-row-min-height);
+  padding: var(--settings-row-padding-block) 0;
+  gap: var(--settings-row-gap);
+}
+
+.row + .row {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.identity {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  gap: 0;
+}
+
+.identityContent {
+  display: grid;
+  min-width: 0;
+  gap: var(--settings-identity-gap);
+  --provider-name-display-size: calc(var(--type-settings-meta) + 4px);
+  --provider-name-ui-size: var(--type-settings-label);
+}
+
+.row strong {
+  overflow: hidden;
+  color: var(--color-ink);
+  font-size: var(--type-settings-label);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.identityMeta {
+  overflow: hidden;
+  color: var(--color-muted);
+  font-size: var(--type-settings-meta);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .root {
+    --settings-inline-padding: var(--settings-mobile-inline-padding);
+  }
+}
