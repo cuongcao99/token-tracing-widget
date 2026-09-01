@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "SQLite Persistence: Events, Checkpoints, and Summary",
+    "subtitle": "What is written, what is queried, and what is intentionally never stored",
+    "output": "05-sqlite-storage.html",
+    "animation": "none",
+    "visual_preset": "editorial",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/cuongcao99/token-tracing-widget.git",
+      "revision": "4f6dece2599b09449e5540d286c29bd08f199dc2"
+    },
+    "viewBox": [1340, 700],
+    "views": [
+      {
+        "id": "write-transaction",
+        "label": "Write transaction",
+        "focus": ["coordinator", "store", "events", "checkpoints", "sessions", "health"],
+        "note": "A single apply_batch transaction writes normalized facts and restart state together."
+      },
+      {
+        "id": "summary-read",
+        "label": "Summary read",
+        "focus": ["store", "summary", "wire", "widget"],
+        "note": "The current collector queries event history, computes aggregates in Rust, then emits a safe summary."
+      },
+      {
+        "id": "restart-proof",
+        "label": "Restart proof",
+        "focus": ["events", "checkpoints", "sessions"],
+        "note": "Events remain deduplicated by primary key while checkpoints control future byte reads."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "coordinator",
+      "type": "backend",
+      "label": "Collection coordinator",
+      "sublabel": "batch + query",
+      "tag": "Rust",
+      "pos": [24, 304],
+      "size": [184, 72],
+      "sources": [
+        { "path": "src-tauri/src/collection/mod.rs", "line": 244, "label": "collect" }
+      ]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "IndexStore",
+      "sublabel": "one SQLite connection",
+      "tag": "transaction boundary",
+      "pos": [240, 304],
+      "size": [176, 72],
+      "sources": [
+        { "path": "src-tauri/src/database/connection.rs", "line": 99, "label": "apply_batch" }
+      ]
+    },
+    {
+      "id": "events",
+      "type": "database",
+      "label": "usage_events",
+      "sublabel": "event_id PK; token deltas",
+      "tag": "INSERT OR IGNORE",
+      "pos": [450, 112],
+      "size": [184, 72],
+      "sources": [
+        { "path": "src-tauri/src/database/schema.rs", "line": 27, "label": "table" },
+        { "path": "src-tauri/src/database/usage_events.rs", "line": 12, "label": "insert" }
+      ]
+    },
+    {
+      "id": "checkpoints",
+      "type": "database",
+      "label": "file_checkpoints",
+      "sublabel": "offset; mtime; baselines",
+      "tag": "resume state",
+      "pos": [450, 240],
+      "size": [184, 72],
+      "sources": [
+        { "path": "src-tauri/src/database/schema.rs", "line": 45, "label": "table" },
+        { "path": "src-tauri/src/database/file_checkpoints.rs", "line": 14, "label": "upsert" }
+      ]
+    },
+    {
+      "id": "sessions",
+      "type": "database",
+      "label": "sessions",
+      "sublabel": "provider + opaque session key",
+      "tag": "min start / max activity",
+      "pos": [450, 368],
+      "size": [184, 72],
+      "sources": [
+        { "path": "src-tauri/src/database/schema.rs", "line": 19, "label": "table" },
+        { "path": "src-tauri/src/database/sessions.rs", "line": 7, "label": "upsert" }
+      ]
+    },
+    {
+      "id": "health",
+      "type": "database",
+      "label": "sources + diagnostics",
+      "sublabel": "health state; category counts",
+      "tag": "sanitized only",
+      "pos": [450, 496],
+      "size": [184, 72],
+      "sources": [
+        { "path": "src-tauri/src/database/schema.rs", "line": 10, "label": "sources" },
+        { "path": "src-tauri/src/database/schema.rs", "line": 66, "label": "diagnostics" }
+      ]
+    },
+    {
+      "id": "summary",
+      "type": "backend",
+      "label": "Summary calculation",
+      "sublabel": "day + sessions + activity",
+      "tag": "Rust-only aggregation",
+      "pos": [680, 304],
+      "size": [184, 72],
+      "sources": [
+        { "path": "src-tauri/src/collection/mod.rs", "line": 418, "label": "compute_summary" },
+        { "path": "src-tauri/src/usage/session_summary.rs", "line": 29, "label": "session totals" }
+      ]
+    },
+    {
+      "id": "wire",
+      "type": "messagebus",
+      "label": "Tauri summary wire",
+      "sublabel": "command + event",
+      "tag": "safe fields only",
+      "pos": [900, 304],
+      "size": [184, 72],
+      "sources": [
+        { "path": "src-tauri/src/commands/usage_summary.rs", "line": 34, "label": "wire" }
+      ]
+    },
+    {
+      "id": "widget",
+      "type": "frontend",
+      "label": "Widget surface",
+      "sublabel": "provider rows + Total",
+      "tag": "React",
+      "pos": [1120, 304],
+      "size": [184, 72],
+      "sources": [
+        { "path": "src/lib/widget-view-model.ts", "line": 76, "label": "view model" }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "IndexStore transaction boundary",
+      "wraps": ["store", "events", "checkpoints", "sessions", "health"]
+    },
+    {
+      "kind": "security-group",
+      "label": "Aggregate-only presentation boundary",
+      "wraps": ["summary", "wire", "widget"]
+    }
+  ],
+  "connections": [
+    { "id": "coordinator-to-store", "from": "coordinator", "to": "store", "label": "apply_batch", "variant": "emphasis", "route": "straight", "labelDy": 60 },
+    { "id": "store-to-events", "from": "store", "to": "events", "label": "insert normalized event", "variant": "emphasis", "fromSide": "top", "toSide": "top", "via": [[328, 80], [542, 80]], "labelDy": -24 },
+    { "id": "store-to-checkpoints", "from": "store", "to": "checkpoints", "label": "upsert read position", "fromSide": "top", "toSide": "top", "via": [[328, 208], [542, 208]], "labelAt": [435, 208] },
+    { "id": "store-to-sessions", "from": "store", "to": "sessions", "fromSide": "right", "toSide": "left", "via": [[430, 340], [430, 404]] },
+    { "id": "store-to-health", "from": "store", "to": "health", "label": "health + diagnostics", "fromSide": "bottom", "toSide": "bottom", "via": [[328, 608], [542, 608]], "labelDy": 40 },
+    { "id": "store-to-summary", "from": "store", "to": "summary", "label": "query events through now", "variant": "default", "route": "straight", "labelDy": 124 },
+    { "id": "summary-to-wire", "from": "summary", "to": "wire", "label": "UsageSummary", "variant": "emphasis", "route": "straight", "labelDy": 60 },
+    { "id": "wire-to-widget", "from": "wire", "to": "widget", "label": "event / command", "variant": "emphasis", "route": "straight", "labelDy": 60 }
+  ]
+}

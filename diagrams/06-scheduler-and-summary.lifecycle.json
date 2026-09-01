@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Collection and Frontend State Lifecycle",
+    "subtitle": "Startup, live collection, activity expiry, stale fallback, and recovery",
+    "output": "06-scheduler-and-summary.html",
+    "animation": "none",
+    "visual_preset": "editorial",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 695],
+    "views": [
+      {
+        "id": "healthy-loop",
+        "label": "Healthy collection loop",
+        "focus": ["startup", "scan", "commit", "watch", "active", "idle"],
+        "note": "A committed scan enters the watcher loop; activity is derived from the newest valid event."
+      },
+      {
+        "id": "failure-recovery",
+        "label": "Failure recovery",
+        "focus": ["scan", "stale", "retry", "unavailable"],
+        "note": "A failed attempt preserves prior values as stale and waits for exponential backoff."
+      },
+      {
+        "id": "activity-window",
+        "label": "Activity window",
+        "focus": ["active", "idle", "watch"],
+        "note": "Active means a session has a valid latest event within 120 seconds; idle retains totals."
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "main", "label": "Collection phases" },
+    { "id": "events", "label": "Activity + recovery" },
+    { "id": "terminal", "label": "Frontend outcomes" }
+  ],
+  "states": [
+    { "id": "startup", "type": "start", "label": "Startup", "sublabel": "DB + settings", "lane": "main", "col": 0, "step": "01", "tag": "initial" },
+    { "id": "scan", "type": "active", "label": "Collecting", "sublabel": "discover + parse", "lane": "main", "col": 1, "step": "02", "tag": "running" },
+    { "id": "commit", "type": "success", "label": "Committed", "sublabel": "durable", "lane": "main", "col": 2, "step": "03", "tag": "post-commit" },
+    { "id": "watch", "type": "waiting", "label": "Watching", "sublabel": "event / 30 s", "lane": "main", "col": 3, "step": "04", "tag": "waiting" },
+    { "id": "active", "type": "active", "label": "Active", "sublabel": "latest ≤120 s", "lane": "main", "col": 4, "step": "05", "tag": "widget state" },
+    { "id": "stale", "type": "failure", "label": "Stale", "sublabel": "prior summary", "lane": "events", "col": 0, "tag": "retry pending" },
+    { "id": "retry", "type": "waiting", "label": "Retry", "sublabel": "1→2→4…30s", "lane": "events", "col": 1, "tag": "bounded" },
+    { "id": "idle", "type": "neutral", "label": "Idle", "sublabel": "totals; no event", "lane": "events", "col": 2, "tag": "widget state" },
+    { "id": "unavailable", "type": "failure", "label": "Unavailable", "sublabel": "no usable source", "lane": "terminal", "col": 0, "tag": "fallback" }
+  ],
+  "transitions": [
+    { "id": "boot-to-scan", "from": "startup", "to": "scan", "label": "initial collect", "variant": "emphasis", "route": "straight", "labelDy": 55 },
+    { "id": "scan-to-commit", "from": "scan", "to": "commit", "label": "batch commit", "variant": "emphasis", "route": "straight", "labelDy": 55 },
+    { "id": "commit-to-watch", "from": "commit", "to": "watch", "label": "start watcher", "variant": "default", "route": "straight", "labelDy": 55 },
+    { "id": "watch-to-scan", "from": "watch", "to": "scan", "variant": "dashed", "route": "top-channel", "channelY": 84 },
+    { "id": "watch-to-active", "from": "watch", "to": "active", "label": "fresh event", "variant": "emphasis", "route": "straight", "labelDy": 55 },
+    { "id": "active-to-idle", "from": "active", "to": "idle", "label": "120 s expires", "variant": "dashed", "route": "drop" },
+    { "id": "idle-to-active", "from": "idle", "to": "active", "label": "new event", "variant": "emphasis", "fromSide": "right", "toSide": "right", "route": "right-channel", "channelX": 790, "labelDx": -165 },
+    { "id": "watch-to-unavailable", "from": "watch", "to": "unavailable", "variant": "security", "fromSide": "top", "toSide": "top", "via": [[556, 84], [820, 84], [820, 410], [402, 410]] },
+    { "id": "scan-to-stale", "from": "scan", "to": "stale", "variant": "security", "fromSide": "bottom", "toSide": "top", "via": [[248, 220], [402, 220]] },
+    { "id": "stale-to-retry", "from": "stale", "to": "retry", "variant": "dashed", "fromSide": "top", "toSide": "top", "via": [[402, 224], [556, 224]] },
+    { "id": "unavailable-to-retry", "from": "unavailable", "to": "retry", "variant": "dashed", "fromSide": "left", "toSide": "top", "via": [[300, 479], [300, 360], [556, 360]] },
+    { "id": "retry-to-scan", "from": "retry", "to": "scan", "variant": "emphasis", "fromSide": "top", "toSide": "bottom", "via": [[556, 220], [248, 220]] }
+  ]
+}
