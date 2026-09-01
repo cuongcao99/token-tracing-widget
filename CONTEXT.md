@@ -72,6 +72,17 @@ _Avoid_: App status, connection status
 The privacy-safe aggregate presented to the overlay: activity state, optional Provider, current-session total, Today's Total, last update, and Source Health.
 _Avoid_: Dashboard data, raw usage
 
+**Trace Signal**:
+An allow-listed, ephemeral lifecycle hint projected from a trusted provider
+hook; it may trigger collection or presentation activity but is never a Usage
+Event and never changes token totals.
+_Avoid_: Token event, transcript event
+
+**Hook Configuration**:
+An explicitly consented user-scope provider command-hook entry owned by Token
+Tracing; configuration state does not prove provider trust or hook delivery.
+_Avoid_: Token source, accounting source
+
 **Provider Registry**:
 The canonical set of supported Provider identities and their safe display/adapter metadata.
 _Avoid_: Plugin marketplace, arbitrary provider
@@ -99,9 +110,10 @@ Tauri bridge calls; plain CSS owns the visual system.
   summaries, and select the Active Provider.
 - `src-tauri/src/database/` persists normalized usage events, sessions,
   checkpoints, source configuration, and widget settings in SQLite.
-- `src-tauri/src/commands/` exposes typed usage-summary, source-settings, and
-  widget-settings commands. `src-tauri/src/types/` defines the contracts
-  crossing the Rust/React boundary.
+- `src-tauri/src/commands/` exposes typed usage-summary, source-settings,
+  widget-settings, and optional trace-hook commands. `src-tauri/src/types/`
+  defines the contracts crossing the Rust/React boundary; trace-hook status is
+  path-free and lifecycle signals remain Rust-internal.
 
 The privacy-preserving flow is:
 
