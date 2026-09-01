@@ -1,0 +1,72 @@
+{
+  "regions": [
+    {
+      "id": "widget-surface",
+      "kind": "chrome",
+      "grid": "A0:J9",
+      "note": "Dark utility tile background and rounded border drawn in CSS; no raster asset.",
+      "codeDrawn": true,
+      "container": true
+    },
+    {
+      "id": "header-divider",
+      "kind": "chrome",
+      "grid": "A2:J2",
+      "note": "Thin hairline separating the draggable header from the metric body."
+    },
+    {
+      "id": "footer-divider",
+      "kind": "chrome",
+      "grid": "A7:J7",
+      "note": "Thin hairline separating the hero metric from the footer summary."
+    },
+    {
+      "id": "provider-name",
+      "kind": "text",
+      "grid": "A0:B2",
+      "note": "Header provider label: Codex."
+    },
+    {
+      "id": "status-indicator",
+      "kind": "control",
+      "grid": "H0:I2",
+      "note": "Small blue active status mark; state indicator, not an actionable control."
+    },
+    {
+      "id": "status-label",
+      "kind": "text",
+      "grid": "I0:J2",
+      "note": "Header status label: Active."
+    },
+    {
+      "id": "session-label",
+      "kind": "text",
+      "grid": "A2:C4",
+      "note": "Primary metric label: Current session."
+    },
+    {
+      "id": "session-value",
+      "kind": "text",
+      "grid": "A3:E7",
+      "note": "Primary metric value: 12,480."
+    },
+    {
+      "id": "today-label",
+      "kind": "text",
+      "grid": "A8:B9",
+      "note": "Footer secondary metric label: Today."
+    },
+    {
+      "id": "today-value",
+      "kind": "text",
+      "grid": "B8:C9",
+      "note": "Footer secondary metric value: 48,920."
+    },
+    {
+      "id": "updated-label",
+      "kind": "text",
+      "grid": "H8:J9",
+      "note": "Footer freshness label: Updated just now."
+    }
+  ]
+}

@@ -1,0 +1,756 @@
+{
+  "tool": "comp-spec",
+  "version": 1,
+  "createdAt": "2026-08-30T14:13:12.070Z",
+  "comp": ".impeccable\\mocks\\overlay-dark-focus-tile.png",
+  "warnings": [
+    "region widget-surface: \"codeDrawn\": true set in the regions file (the painted-material refusal is overridden: code draws this region)",
+    "region widget-surface: \"container\": true set in the regions file (the region-size refusal is overridden: one undivided element)"
+  ],
+  "uncoveredInkCells": [],
+  "compSize": {
+    "width": 2048,
+    "height": 768
+  },
+  "aspect": 2.6667,
+  "orientation": "landscape",
+  "palette": [
+    {
+      "hex": "#181818",
+      "coverage": 0.9257
+    },
+    {
+      "hex": "#363636",
+      "coverage": 0.0356
+    },
+    {
+      "hex": "#f8f8f8",
+      "coverage": 0.0326
+    },
+    {
+      "hex": "#999999",
+      "coverage": 0.0033
+    },
+    {
+      "hex": "#cecece",
+      "coverage": 0.0028
+    }
+  ],
+  "bands": [
+    {
+      "y": 0.4583,
+      "strength": 0.4127
+    },
+    {
+      "y": 0.7083,
+      "strength": 0.318
+    },
+    {
+      "y": 0.9167,
+      "strength": 0.2102
+    }
+  ],
+  "regions": [
+    {
+      "id": "widget-surface",
+      "kind": "chrome",
+      "note": "Dark utility tile background and rounded border drawn in CSS; no raster asset.",
+      "grid": "A0:J9",
+      "codeDrawn": true,
+      "container": true,
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1
+      },
+      "px": {
+        "x": 0,
+        "y": 0,
+        "w": 2048,
+        "h": 768
+      },
+      "aspect": 2.6667,
+      "palette": [
+        {
+          "hex": "#181818",
+          "coverage": 0.9257
+        },
+        {
+          "hex": "#363636",
+          "coverage": 0.0356
+        },
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.0326
+        },
+        {
+          "hex": "#999999",
+          "coverage": 0.0033
+        },
+        {
+          "hex": "#cecece",
+          "coverage": 0.0028
+        }
+      ],
+      "detail": {
+        "energy": 17.9626
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "header-divider",
+      "kind": "chrome",
+      "note": "Thin hairline separating the draggable header from the metric body.",
+      "grid": "A2:J2",
+      "box": {
+        "x": 0,
+        "y": 0.2,
+        "w": 1,
+        "h": 0.1
+      },
+      "px": {
+        "x": 0,
+        "y": 154,
+        "w": 2048,
+        "h": 77
+      },
+      "aspect": 26.5974,
+      "palette": [
+        {
+          "hex": "#181818",
+          "coverage": 0.9576
+        },
+        {
+          "hex": "#39393a",
+          "coverage": 0.0424
+        }
+      ],
+      "detail": {
+        "energy": 3.4106
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "footer-divider",
+      "kind": "chrome",
+      "note": "Thin hairline separating the hero metric from the footer summary.",
+      "grid": "A7:J7",
+      "box": {
+        "x": 0,
+        "y": 0.7,
+        "w": 1,
+        "h": 0.1
+      },
+      "px": {
+        "x": 0,
+        "y": 538,
+        "w": 2048,
+        "h": 77
+      },
+      "aspect": 26.5974,
+      "palette": [
+        {
+          "hex": "#181818",
+          "coverage": 0.9551
+        },
+        {
+          "hex": "#393a41",
+          "coverage": 0.0399
+        },
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.005
+        }
+      ],
+      "detail": {
+        "energy": 5.5969
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "provider-name",
+      "kind": "text",
+      "note": "Header provider label: Codex.",
+      "grid": "A0:B2",
+      "coverBox": {
+        "x": 0,
+        "y": 0,
+        "w": 0.2,
+        "h": 0.3
+      },
+      "box": {
+        "x": 0.0381,
+        "y": 0.0781,
+        "w": 0.0967,
+        "h": 0.0859
+      },
+      "px": {
+        "x": 78,
+        "y": 60,
+        "w": 198,
+        "h": 66
+      },
+      "aspect": 3,
+      "palette": [
+        {
+          "hex": "#191a1b",
+          "coverage": 0.7462
+        },
+        {
+          "hex": "#f5f5f5",
+          "coverage": 0.18
+        },
+        {
+          "hex": "#8b8b8d",
+          "coverage": 0.0283
+        },
+        {
+          "hex": "#505052",
+          "coverage": 0.0276
+        },
+        {
+          "hex": "#b7b7b8",
+          "coverage": 0.0179
+        }
+      ],
+      "detail": {
+        "energy": 33.7613
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 5,
+          "capHeightPx": 45.5,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.703,
+          "advTall": 0.8018,
+          "advX": 0.681,
+          "gap": 0.0989,
+          "xRatio": 0.7164,
+          "stemW": 0.1486,
+          "contrast": 1.0953,
+          "serif": null,
+          "densTall": 0.4024,
+          "densX": 0.4787,
+          "weight": 0.4024
+        },
+        "widthClass": "normal",
+        "weightClass": "regular"
+      }
+    },
+    {
+      "id": "status-indicator",
+      "kind": "control",
+      "note": "Small blue active status mark; state indicator, not an actionable control.",
+      "grid": "H0:I2",
+      "coverBox": {
+        "x": 0.7,
+        "y": 0,
+        "w": 0.2,
+        "h": 0.3
+      },
+      "box": {
+        "x": 0.8467,
+        "y": 0.0781,
+        "w": 0.0293,
+        "h": 0.0781
+      },
+      "px": {
+        "x": 1734,
+        "y": 60,
+        "w": 60,
+        "h": 60
+      },
+      "aspect": 1,
+      "palette": [
+        {
+          "hex": "#18191a",
+          "coverage": 0.6
+        },
+        {
+          "hex": "#3788f8",
+          "coverage": 0.3775
+        },
+        {
+          "hex": "#203864",
+          "coverage": 0.01
+        },
+        {
+          "hex": "#284388",
+          "coverage": 0.0075
+        },
+        {
+          "hex": "#3868c0",
+          "coverage": 0.005
+        }
+      ],
+      "detail": {
+        "energy": 2.7864
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "status-label",
+      "kind": "text",
+      "note": "Header status label: Active.",
+      "grid": "I0:J2",
+      "coverBox": {
+        "x": 0.8,
+        "y": 0,
+        "w": 0.2,
+        "h": 0.3
+      },
+      "box": {
+        "x": 0.8848,
+        "y": 0.0859,
+        "w": 0.082,
+        "h": 0.0703
+      },
+      "px": {
+        "x": 1812,
+        "y": 66,
+        "w": 168,
+        "h": 54
+      },
+      "aspect": 3.1111,
+      "palette": [
+        {
+          "hex": "#191a1c",
+          "coverage": 0.754
+        },
+        {
+          "hex": "#3586f1",
+          "coverage": 0.1744
+        },
+        {
+          "hex": "#2b569f",
+          "coverage": 0.0313
+        },
+        {
+          "hex": "#1b2840",
+          "coverage": 0.0252
+        },
+        {
+          "hex": "#253e6e",
+          "coverage": 0.0151
+        }
+      ],
+      "detail": {
+        "energy": 15.4491
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 6,
+          "capHeightPx": 39.8,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.6408,
+          "advTall": 0.3769,
+          "advX": 0.6533,
+          "gap": 0.0754,
+          "xRatio": 0.7194,
+          "stemW": 0.1282,
+          "contrast": 1.0143,
+          "serif": null,
+          "densTall": 0.4544,
+          "densX": 0.4301,
+          "weight": 0.4544
+        },
+        "widthClass": "normal",
+        "weightClass": "regular"
+      }
+    },
+    {
+      "id": "session-label",
+      "kind": "text",
+      "note": "Primary metric label: Current session.",
+      "grid": "A2:C4",
+      "coverBox": {
+        "x": 0,
+        "y": 0.2,
+        "w": 0.3,
+        "h": 0.3
+      },
+      "box": {
+        "x": 0.1553,
+        "y": 0.2943,
+        "w": 0.1084,
+        "h": 0.0859
+      },
+      "px": {
+        "x": 318,
+        "y": 226,
+        "w": 222,
+        "h": 66
+      },
+      "aspect": 3.3636,
+      "palette": [
+        {
+          "hex": "#1a1a1b",
+          "coverage": 0.7555
+        },
+        {
+          "hex": "#cbcccf",
+          "coverage": 0.1665
+        },
+        {
+          "hex": "#818285",
+          "coverage": 0.0418
+        },
+        {
+          "hex": "#444547",
+          "coverage": 0.0338
+        },
+        {
+          "hex": "#b4b0c0",
+          "coverage": 0.0025
+        }
+      ],
+      "detail": {
+        "energy": 31.3888
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 8,
+          "capHeightPx": 32.8,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.7938,
+          "advTall": 0.7938,
+          "advX": null,
+          "gap": 0.1832,
+          "xRatio": 0.8358,
+          "stemW": 0.1788,
+          "contrast": 1.1113,
+          "serif": null,
+          "densTall": 0.491,
+          "densX": null,
+          "weight": 0.491
+        },
+        "widthClass": "wide",
+        "weightClass": "medium"
+      }
+    },
+    {
+      "id": "session-value",
+      "kind": "text",
+      "note": "Primary metric value: 12,480.",
+      "grid": "A3:E7",
+      "coverBox": {
+        "x": 0,
+        "y": 0.3,
+        "w": 0.5,
+        "h": 0.5
+      },
+      "box": {
+        "x": 0.2314,
+        "y": 0.4349,
+        "w": 0.2451,
+        "h": 0.2891
+      },
+      "px": {
+        "x": 474,
+        "y": 334,
+        "w": 502,
+        "h": 222
+      },
+      "aspect": 2.2613,
+      "palette": [
+        {
+          "hex": "#181819",
+          "coverage": 0.6979
+        },
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.2831
+        },
+        {
+          "hex": "#9d9d9d",
+          "coverage": 0.0097
+        },
+        {
+          "hex": "#4f4f4f",
+          "coverage": 0.0076
+        },
+        {
+          "hex": "#c8c8c8",
+          "coverage": 0.0017
+        }
+      ],
+      "detail": {
+        "energy": 29.8731
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 3,
+          "capHeightPx": 188.3,
+          "inkIsDark": false,
+          "allCaps": true,
+          "advance": 0.7382,
+          "advTall": 0.7382,
+          "advX": null,
+          "gap": 0.1673,
+          "xRatio": null,
+          "stemW": 0.1313,
+          "contrast": 1.0349,
+          "serif": null,
+          "densTall": 0.3944,
+          "densX": null,
+          "weight": 0.3944
+        },
+        "widthClass": "normal",
+        "weightClass": "regular",
+        "chosen": {
+          "family": "Instrument Sans",
+          "weight": 400,
+          "fontSizePx": 269,
+          "source": "catalog",
+          "estimatedSize": true,
+          "stamp": "5e1713729a74"
+        }
+      }
+    },
+    {
+      "id": "today-label",
+      "kind": "text",
+      "note": "Footer secondary metric label: Today.",
+      "grid": "A8:B9",
+      "coverBox": {
+        "x": 0,
+        "y": 0.8,
+        "w": 0.2,
+        "h": 0.2
+      },
+      "box": {
+        "x": 0.0352,
+        "y": 0.8542,
+        "w": 0.0791,
+        "h": 0.0859
+      },
+      "px": {
+        "x": 72,
+        "y": 656,
+        "w": 162,
+        "h": 66
+      },
+      "aspect": 2.4545,
+      "palette": [
+        {
+          "hex": "#1a1a1b",
+          "coverage": 0.8056
+        },
+        {
+          "hex": "#9fa0a4",
+          "coverage": 0.133
+        },
+        {
+          "hex": "#797a80",
+          "coverage": 0.0311
+        },
+        {
+          "hex": "#464648",
+          "coverage": 0.0303
+        }
+      ],
+      "detail": {
+        "energy": 15.8426
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 5,
+          "capHeightPx": 39,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.641,
+          "advTall": 0.6923,
+          "advX": 0.5897,
+          "gap": 0.141,
+          "xRatio": 0.7031,
+          "stemW": 0.1311,
+          "contrast": 1.0782,
+          "serif": null,
+          "densTall": 0.4196,
+          "densX": 0.5628,
+          "weight": 0.4196
+        },
+        "widthClass": "normal",
+        "weightClass": "regular"
+      }
+    },
+    {
+      "id": "today-value",
+      "kind": "text",
+      "note": "Footer secondary metric value: 48,920.",
+      "grid": "B8:C9",
+      "coverBox": {
+        "x": 0.1,
+        "y": 0.8,
+        "w": 0.2,
+        "h": 0.2
+      },
+      "box": {
+        "x": 0.1353,
+        "y": 0.8542,
+        "w": 0.0967,
+        "h": 0.0781
+      },
+      "px": {
+        "x": 277,
+        "y": 656,
+        "w": 198,
+        "h": 60
+      },
+      "aspect": 3.3,
+      "palette": [
+        {
+          "hex": "#1a1b1c",
+          "coverage": 0.7612
+        },
+        {
+          "hex": "#f4f4f4",
+          "coverage": 0.1605
+        },
+        {
+          "hex": "#4b4c4c",
+          "coverage": 0.0365
+        },
+        {
+          "hex": "#9f9f9f",
+          "coverage": 0.0342
+        },
+        {
+          "hex": "#cbcbcd",
+          "coverage": 0.0076
+        }
+      ],
+      "detail": {
+        "energy": 37.3675
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 5,
+          "capHeightPx": 38.2,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.7594,
+          "advTall": 0.7594,
+          "advX": null,
+          "gap": 0.1571,
+          "xRatio": 0.8211,
+          "stemW": 0.1383,
+          "contrast": 1.0492,
+          "serif": null,
+          "densTall": 0.3913,
+          "densX": null,
+          "weight": 0.3913
+        },
+        "widthClass": "normal",
+        "weightClass": "regular"
+      }
+    },
+    {
+      "id": "updated-label",
+      "kind": "text",
+      "note": "Footer freshness label: Updated just now.",
+      "grid": "H8:J9",
+      "coverBox": {
+        "x": 0.7,
+        "y": 0.8,
+        "w": 0.3,
+        "h": 0.2
+      },
+      "box": {
+        "x": 0.7676,
+        "y": 0.8542,
+        "w": 0.1992,
+        "h": 0.0781
+      },
+      "px": {
+        "x": 1572,
+        "y": 656,
+        "w": 408,
+        "h": 60
+      },
+      "aspect": 6.8,
+      "palette": [
+        {
+          "hex": "#1a1a1b",
+          "coverage": 0.8034
+        },
+        {
+          "hex": "#8e8f93",
+          "coverage": 0.1491
+        },
+        {
+          "hex": "#525356",
+          "coverage": 0.0457
+        },
+        {
+          "hex": "#323842",
+          "coverage": 0.0018
+        }
+      ],
+      "detail": {
+        "energy": 36.0369
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null,
+      "type": {
+        "comp": {
+          "lines": 1,
+          "glyphs": 13,
+          "capHeightPx": 33.9,
+          "inkIsDark": false,
+          "allCaps": false,
+          "advance": 0.6494,
+          "advTall": 0.679,
+          "advX": 0.6199,
+          "gap": 0.1476,
+          "xRatio": 0.7305,
+          "stemW": 0.1305,
+          "contrast": 1.0732,
+          "serif": 1.0064,
+          "densTall": 0.431,
+          "densX": 0.4768,
+          "weight": 0.431
+        },
+        "widthClass": "normal",
+        "weightClass": "regular"
+      }
+    }
+  ]
+}

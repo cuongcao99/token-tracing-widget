@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Scaffold reference: overlay-dark-focus-tile.png</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400&display=swap">
+  <link rel="stylesheet" href="layout.css">
+  <style>html,body{margin:0}body{background:#181818}.region{box-sizing:border-box}.region.text p{white-space:pre-wrap}</style>
+</head>
+<body>
+<!-- Reference only. Every region sits at its measured box inside a comp-aspect frame. Take the boxes (layout.css), keep your own semantic structure. -->
+<main class="comp-frame" style="max-width:2048px">
+  <div class="r-widget-surface region chrome" data-region="widget-surface"><!-- Dark utility tile background and rounded border drawn in CSS; no raster asset. --></div>
+  <div class="r-header-divider region chrome" data-region="header-divider"><!-- Thin hairline separating the draggable header from the metric body. --></div>
+  <div class="r-footer-divider region chrome" data-region="footer-divider"><!-- Thin hairline separating the hero metric from the footer summary. --></div>
+  <div class="r-provider-name region text" data-region="provider-name"><!-- Header provider label: Codex. --><p style="font-size:var(--r-provider-name-font);line-height:1.05;margin:0">provider-name</p></div>
+  <div class="r-status-indicator region control" data-region="status-indicator"><!-- Small blue active status mark; state indicator, not an actionable control.: rebuild the control's chrome from the crop (comp-spec.mjs --crop status-indicator); its ink box, border, fill, radius, and label size are the comp's --></div>
+  <div class="r-status-label region text" data-region="status-label"><!-- Header status label: Active. --><p style="font-size:var(--r-status-label-font);line-height:1.05;margin:0">status-label</p></div>
+  <div class="r-session-label region text" data-region="session-label"><!-- Primary metric label: Current session. --><p style="font-size:var(--r-session-label-font);line-height:1.05;margin:0">session-label</p></div>
+  <div class="r-session-value region text" data-region="session-value"><!-- Primary metric value: 12,480. --><p style="font-size:var(--r-session-value-font);font-family:var(--r-session-value-family),sans-serif;font-weight:var(--r-session-value-weight);line-height:1.05;margin:0">session-value</p></div>
+  <div class="r-today-label region text" data-region="today-label"><!-- Footer secondary metric label: Today. --><p style="font-size:var(--r-today-label-font);line-height:1.05;margin:0">today-label</p></div>
+  <div class="r-today-value region text" data-region="today-value"><!-- Footer secondary metric value: 48,920. --><p style="font-size:var(--r-today-value-font);line-height:1.05;margin:0">today-value</p></div>
+  <div class="r-updated-label region text" data-region="updated-label"><!-- Footer freshness label: Updated just now. --><p style="font-size:var(--r-updated-label-font);line-height:1.05;margin:0">updated-label</p></div>
+</main>
+</body>
+</html>
