@@ -44,11 +44,11 @@ describe("provider branding", () => {
   it("renders Claude as the concise display name", () => {
     const { container } = render(<ProviderName provider="claude" />);
 
-    expect(screen.getByText("Claude")).toHaveClass(
-      "provider-name",
-      "provider-name--claude",
-      "provider-name--font-display",
+    expect(screen.getByText("Claude")).toHaveAttribute(
+      "data-logo-variant",
+      "warm-mark",
     );
+    expect(screen.getByText("Claude")).toHaveAttribute("data-font-role", "display");
     expect(container).not.toHaveTextContent("Claude Code");
   });
 });

@@ -1,0 +1,55 @@
+[data-theme="claude"][data-color-mode="light"] {
+  --color-canvas: #faf9f5;
+  --color-card: #efe9de;
+  --color-ink: #141413;
+  --color-body: #3d3d3a;
+  --color-muted: #6c6a64;
+  --color-muted-soft: #8e8b82;
+  --color-line: #e6dfd8;
+  --color-line-soft: #ebe6df;
+  --color-accent: #cc785c;
+  --color-accent-active: #a9583e;
+  --color-accent-soft: rgba(204, 120, 92, 0.28);
+  --color-positive: #5db8a6;
+  --color-on-dark: #faf9f5;
+  --color-on-dark-soft: #a09d96;
+  --color-switch-off: #d7cfc6;
+  --color-switch-knob: #fff;
+  --focus-ring: rgba(204, 120, 92, 0.28);
+  --provider-name-display-weight: 600;
+  --provider-name-display-tracking: -0.15px;
+  --provider-monochrome-filter: brightness(0);
+  --window-grip-ink: var(--color-muted);
+  --window-grip-line: var(--color-line);
+  --window-grip-surface: var(--color-card);
+  --elevation-settings: var(--elevation-settings-light);
+  --elevation-picker: var(--elevation-picker-shadow);
+}
+
+[data-theme="claude"][data-color-mode="dark"] {
+  --color-canvas: #181715;
+  --color-card: #252320;
+  --color-ink: #faf9f5;
+  --color-body: #d0cbc2;
+  --color-muted: #a09d96;
+  --color-muted-soft: #8f8b83;
+  --color-line: #3a3630;
+  --color-line-soft: #37332d;
+  --color-accent: #cc785c;
+  --color-accent-active: #a9583e;
+  --color-accent-soft: rgba(204, 120, 92, 0.28);
+  --color-positive: #5db8a6;
+  --color-on-dark: #faf9f5;
+  --color-on-dark-soft: #a09d96;
+  --color-switch-off: #4b4740;
+  --color-switch-knob: #faf9f5;
+  --focus-ring: rgba(204, 120, 92, 0.28);
+  --provider-name-display-weight: 600;
+  --provider-name-display-tracking: -0.15px;
+  --provider-monochrome-filter: none;
+  --window-grip-ink: var(--color-muted);
+  --window-grip-line: var(--color-line);
+  --window-grip-surface: var(--color-card);
+  --elevation-settings: var(--elevation-settings-dark);
+  --elevation-picker: var(--elevation-picker-shadow);
+}

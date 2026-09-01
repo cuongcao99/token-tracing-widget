@@ -95,15 +95,21 @@ describe("TokenTracingWidget", () => {
 
     expect(screen.getByRole("heading", { name: "Token Tracing" })).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(screen.getByRole("banner")).toHaveClass("widget-header");
+    expect(screen.getByRole("banner").className).toMatch(/header/);
     expect(screen.getByRole("banner")).not.toHaveAttribute("data-tauri-drag-region");
     expect(screen.getByRole("button", { name: "Move widget window" })).toBeInTheDocument();
     expect(screen.getAllByTestId("window-grip-dot")).toHaveLength(6);
     expect(screen.getAllByRole("button", { name: /Resize widget from/ })).toHaveLength(8);
     expect(screen.getByRole("heading", { name: "Claude" })).toBeInTheDocument();
     expect(screen.getByText("Codex")).toBeInTheDocument();
-    expect(screen.getByRole("main").querySelector(".provider-dot--codex")).not.toBeNull();
-    expect(screen.getByRole("main").querySelector(".provider-name--claude")).not.toBeNull();
+    expect(
+      screen
+        .getByRole("main")
+        .querySelector('[data-logo-variant="monochrome-mark"]'),
+    ).not.toBeNull();
+    expect(
+      screen.getByRole("main").querySelector('[data-logo-variant="warm-mark"]'),
+    ).not.toBeNull();
     expect(screen.getAllByText("Session", { selector: "span" })).toHaveLength(2);
     expect(screen.getAllByText("Today", { selector: "span" })).toHaveLength(2);
     expect(screen.getByText("Total", { selector: "span" })).toBeInTheDocument();
@@ -140,7 +146,7 @@ describe("TokenTracingWidget", () => {
 
     expect(screen.getAllByRole("heading", { name: "Claude" })).toHaveLength(1);
     expect(screen.queryByText("Codex")).not.toBeInTheDocument();
-    expect(screen.getByRole("main")).toHaveClass("widget--light");
+    expect(screen.getByRole("main")).toHaveAttribute("data-color-mode", "light");
     expect(screen.getByText("173,816,684", { selector: "strong" })).toBeInTheDocument();
     expect(syncWidgetWindowHeight).toHaveBeenCalledWith(1);
   });

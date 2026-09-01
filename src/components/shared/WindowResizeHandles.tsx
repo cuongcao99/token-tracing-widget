@@ -3,6 +3,7 @@ import {
   startCurrentWindowResize,
   type WindowResizeDirection,
 } from "../../lib/window-actions";
+import styles from "../../styles/shared/window-controls.module.css";
 
 interface WindowResizeHandlesProps {
   windowName: "widget" | "settings";
@@ -35,10 +36,13 @@ function handleResizeStart(
 
 export default function WindowResizeHandles({ windowName }: WindowResizeHandlesProps) {
   return (
-    <div className="window-resize-handles" aria-label={`${windowName} resize handles`}>
+    <div
+      className={`${styles.resizeHandles} window-resize-handles`}
+      aria-label={`${windowName} resize handles`}
+    >
       {resizeHandles.map(({ direction, edge, label }) => (
         <button
-          className={`window-resize-handle window-resize-handle--${edge}`}
+          className={`${styles.resizeHandle} ${styles[`resizeHandle${edge.toUpperCase()}` as keyof typeof styles]} window-resize-handle window-resize-handle--${edge}`}
           key={direction}
           type="button"
           aria-label={`Resize ${windowName} from ${label}`}

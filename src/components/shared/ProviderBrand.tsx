@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { providerMeta, type ProviderId, type ProviderIdentity } from "../../lib/provider";
+import styles from "../../styles/shared/branding.module.css";
 
 export interface ProviderBrandProps {
   identity: ProviderIdentity;
@@ -20,19 +21,23 @@ export function providerBrandStyle(identity: ProviderIdentity): CSSProperties {
   return { "--provider-accent": identity.accent } as CSSProperties;
 }
 
+function joinClassNames(...classNames: Array<string | undefined>): string {
+  return classNames.filter(Boolean).join(" ");
+}
+
 export function ProviderBrandDot({
   identity,
   className = "provider-dot",
 }: ProviderBrandPartProps) {
   return (
     <span
-      className={className}
+      className={joinClassNames(styles.mark, className)}
       style={providerBrandStyle(identity)}
       data-logo-variant={identity.logoVariant}
       data-font-role={identity.fontRole}
       aria-hidden="true"
     >
-      <img src={identity.logoSrc} alt="" />
+      <img className={styles.image} src={identity.logoSrc} alt="" />
     </span>
   );
 }
@@ -45,7 +50,8 @@ export function ProviderBrandName({
     className ?? `provider-name provider-name--font-${identity.fontRole}`;
   return (
     <span
-      className={resolvedClassName}
+      className={joinClassNames(styles.name, resolvedClassName)}
+      style={providerBrandStyle(identity)}
       data-logo-variant={identity.logoVariant}
       data-font-role={identity.fontRole}
     >
@@ -61,15 +67,10 @@ export default function ProviderBrand({
 }: ProviderBrandProps) {
   return (
     <span
-      className="provider-brand"
+      className={joinClassNames(styles.brand, "provider-brand")}
       data-logo-variant={identity.logoVariant}
       data-font-role={identity.fontRole}
-      style={{
-        ...providerBrandStyle(identity),
-        display: "inline-flex",
-        alignItems: "center",
-        minWidth: 0,
-      }}
+      style={providerBrandStyle(identity)}
     >
       <ProviderBrandDot identity={identity} className={markClassName} />
       <ProviderBrandName identity={identity} className={nameClassName} />

@@ -17,13 +17,16 @@ const stylesheetBlock = (css, selector) => {
   return match[1];
 };
 
-const widgetCss = readStylesheet("../../styles/widget.css");
+const surfaceCss = readStylesheet("../../styles/widget/surface.module.css");
+const providerCss = readStylesheet("../../styles/widget/provider.module.css");
+const totalCss = readStylesheet("../../styles/widget/total.module.css");
+const tokenCss = readStylesheet("../../styles/globals/tokens.css");
 const layoutSource = readStylesheet("../../lib/widget-layout.ts");
 
 describe("widget vertical rhythm", () => {
   it("uses one bounded container-relative spacing token", () => {
-    expect(widgetCss).toContain("container-type: size;");
-    expect(widgetCss).toContain(
+    expect(surfaceCss).toContain("container-type: size;");
+    expect(tokenCss).toContain(
       "--widget-rhythm: clamp(10px, 4cqh, 20px);",
     );
     expect(layoutSource).toContain("WIDGET_MIN_HEIGHT = 192");
@@ -31,19 +34,19 @@ describe("widget vertical rhythm", () => {
   });
 
   it("uses the same rhythm after every horizontal boundary", () => {
-    expect(stylesheetBlock(widgetCss, ".widget-header")).toContain(
+    expect(stylesheetBlock(surfaceCss, ".header")).toContain(
       "padding-bottom: var(--widget-rhythm);",
     );
-    expect(stylesheetBlock(widgetCss, ".widget-provider-list")).toContain(
+    expect(stylesheetBlock(surfaceCss, ".providerList")).toContain(
       "padding-top: var(--widget-rhythm);",
     );
-    expect(stylesheetBlock(widgetCss, ".widget-provider")).toContain(
+    expect(stylesheetBlock(providerCss, ".section")).toContain(
       "padding: 0 0 var(--widget-rhythm);",
     );
-    expect(
-      stylesheetBlock(widgetCss, ".widget-provider + .widget-provider"),
-    ).toContain("padding-top: var(--widget-rhythm);");
-    expect(stylesheetBlock(widgetCss, ".widget-total")).toContain(
+    expect(stylesheetBlock(providerCss, ".section + .section")).toContain(
+      "padding-top: var(--widget-rhythm);",
+    );
+    expect(stylesheetBlock(totalCss, ".root")).toContain(
       "padding-top: var(--widget-rhythm);",
     );
   });

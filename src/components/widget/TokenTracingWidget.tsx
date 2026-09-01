@@ -3,6 +3,7 @@ import { useUsageSummary } from "../../hooks/useUsageSummary";
 import { useWidgetSettings } from "../../hooks/useWidgetSettings";
 import { createWidgetViewModel } from "../../lib/widget-view-model";
 import { syncWidgetWindowHeight } from "../../lib/window-sizing";
+import styles from "../../styles/widget/surface.module.css";
 import WindowGrip from "../shared/WindowGrip";
 import WindowResizeHandles from "../shared/WindowResizeHandles";
 import WidgetHeader from "./WidgetHeader";
@@ -28,14 +29,14 @@ export default function TokenTracingWidget() {
 
   return (
     <main
-      className={`widget theme--${settings.theme} widget--${settings.darkMode ? "dark" : "light"}`}
+      className={styles.root}
       data-theme={viewModel.theme}
       data-color-mode={viewModel.colorMode}
       aria-label="Token usage summary"
     >
       <WindowGrip windowName="widget" />
       <WidgetHeader />
-      <section className="widget-provider-list" aria-label="Provider usage">
+      <section className={styles.providerList} aria-label="Provider usage">
         {viewModel.providers.map((provider) => (
           <ProviderUsageRow key={provider.provider} usage={provider} />
         ))}

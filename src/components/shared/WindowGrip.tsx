@@ -1,5 +1,6 @@
 import type { KeyboardEvent, MouseEvent } from "react";
 import { startCurrentWindowDrag } from "../../lib/window-actions";
+import styles from "../../styles/shared/window-controls.module.css";
 
 interface WindowGripProps {
   windowName: "widget" | "settings";
@@ -22,7 +23,7 @@ function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
 export default function WindowGrip({ windowName }: WindowGripProps) {
   return (
     <button
-      className="window-grip"
+      className={`${styles.grip} window-grip`}
       data-testid="window-grip"
       type="button"
       aria-label={`Move ${windowName} window`}
@@ -31,7 +32,7 @@ export default function WindowGrip({ windowName }: WindowGripProps) {
     >
       {Array.from({ length: 6 }, (_, index) => (
         <span
-          className="window-grip__dot"
+          className={`${styles.gripDot} window-grip__dot`}
           data-testid="window-grip-dot"
           aria-hidden="true"
           key={index}

@@ -36,9 +36,6 @@ export const ProviderUsageRow = memo(function ProviderUsageRow({
     <ProviderSection
       identity={usage.identity}
       status={usage.status}
-      className={`widget-provider widget-provider--${usage.provider}`}
-      markClassName={`provider-dot provider-dot--${usage.provider}`}
-      nameClassName={`provider-name provider-name--${usage.provider} provider-name--font-${usage.identity.fontRole}`}
     >
       <UsageMetrics
         metrics={[

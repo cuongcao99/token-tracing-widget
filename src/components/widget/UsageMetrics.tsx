@@ -1,4 +1,5 @@
 import type { UsageMetric } from "./widget-types";
+import styles from "../../styles/widget/metrics.module.css";
 
 export interface UsageMetricsProps {
   metrics: readonly UsageMetric[];
@@ -10,14 +11,16 @@ export default function UsageMetrics({
   updatedLabel,
 }: UsageMetricsProps) {
   return (
-    <div className="widget-provider__metrics">
+    <div className={styles.metrics}>
       {metrics.map((metric, index) => (
-        <div className="widget-metric" key={`${metric.label}-${index}`}>
-          <span>{metric.label}</span>
-          <strong aria-label={metric.ariaLabel}>{metric.value}</strong>
+        <div className={styles.metric} key={`${metric.label}-${index}`}>
+          <span className={styles.label}>{metric.label}</span>
+          <strong className={styles.value} aria-label={metric.ariaLabel}>
+            {metric.value}
+          </strong>
         </div>
       ))}
-      <span className="widget-provider__updated">{updatedLabel}</span>
+      <span className={styles.updated}>{updatedLabel}</span>
     </div>
   );
 }
