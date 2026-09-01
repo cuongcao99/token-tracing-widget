@@ -35,7 +35,7 @@ export default function TokenTracingWidget() {
       aria-label="Token usage summary"
     >
       <WindowGrip windowName="widget" />
-      <WidgetHeader />
+      <WidgetHeader activityState={summary.state} />
       <section className={styles.providerList} aria-label="Provider usage">
         {viewModel.providers.map((provider) => (
           <ProviderUsageRow key={provider.provider} usage={provider} />
