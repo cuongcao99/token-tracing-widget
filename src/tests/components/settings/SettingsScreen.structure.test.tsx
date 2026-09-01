@@ -6,6 +6,7 @@ import surfaceStyles from "../../../styles/settings/surface.module.css";
 const {
   controller,
   activity,
+  traceHooks,
   startDragging,
   startResizeDragging,
   closeWindow,
@@ -51,9 +52,20 @@ const {
       { provider: "codex", state: "active", updated: "No updates yet" },
     ],
   };
+  const traceHooks = {
+    statuses: [
+      { provider: "claude", state: "not_installed", requiresTrust: false },
+      { provider: "codex", state: "not_installed", requiresTrust: false },
+    ],
+    loading: false,
+    error: null,
+    updatingProvider: null,
+    toggle: vi.fn(),
+  };
   return {
     controller,
     activity,
+    traceHooks,
     startDragging,
     startResizeDragging,
     closeWindow,
@@ -67,6 +79,9 @@ vi.mock("../../../hooks/useSettingsController", () => ({
 vi.mock("../../../hooks/useSettingsActivity", () => ({
   default: vi.fn(() => activity),
   useSettingsActivity: vi.fn(() => activity),
+}));
+vi.mock("../../../hooks/useTraceHooks", () => ({
+  default: vi.fn(() => traceHooks),
 }));
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: vi.fn(() => ({

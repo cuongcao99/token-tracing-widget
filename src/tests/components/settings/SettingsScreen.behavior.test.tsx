@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
     updateWidgetSettings: vi.fn(),
     getUsageSummary: vi.fn(),
     listenForUsageSummary: vi.fn(),
+    useTraceHooks: vi.fn(),
     getCurrentWindow: vi.fn(() => ({ startDragging, startResizeDragging, close: closeWindow })),
     startDragging,
     startResizeDragging,
@@ -38,6 +39,9 @@ vi.mock("../../../lib/usage-summary", async () => ({
   ...(await vi.importActual<typeof import("../../../lib/usage-summary")>("../../../lib/usage-summary")),
   getUsageSummary: mocks.getUsageSummary,
   listenForUsageSummary: mocks.listenForUsageSummary,
+}));
+vi.mock("../../../hooks/useTraceHooks", () => ({
+  default: mocks.useTraceHooks,
 }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: mocks.getCurrentWindow }));
 
@@ -86,6 +90,16 @@ beforeEach(() => {
   mocks.emitPreview.mockResolvedValue(undefined);
   mocks.getUsageSummary.mockResolvedValue(summary);
   mocks.listenForUsageSummary.mockResolvedValue(vi.fn());
+  mocks.useTraceHooks.mockReturnValue({
+    statuses: [
+      { provider: "claude", state: "not_installed", requiresTrust: false },
+      { provider: "codex", state: "not_installed", requiresTrust: false },
+    ],
+    loading: false,
+    error: null,
+    updatingProvider: null,
+    toggle: vi.fn(),
+  });
   mocks.useWidgetSettings.mockReturnValue({ settings: widgetSettings, persistedSettings: widgetSettings });
 });
 

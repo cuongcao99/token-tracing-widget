@@ -85,6 +85,18 @@ export function errorMessage(error: unknown): string {
   if (code === "source_root_unavailable") {
     return NATIVE_SETTINGS_COPY.sourceRootUnavailable;
   }
+  if (code === "hook_config_read" || code === "hook_status_unavailable") {
+    return NATIVE_SETTINGS_COPY.traceHookReadFailed;
+  }
+  if (code === "hook_config_write") {
+    return NATIVE_SETTINGS_COPY.traceHookWriteFailed;
+  }
+  if (code === "hook_config_invalid") {
+    return NATIVE_SETTINGS_COPY.traceHookInvalid;
+  }
+  if (code === "hook_command_unavailable") {
+    return NATIVE_SETTINGS_COPY.traceHookUnavailable;
+  }
   if (code === "invalid_source_settings" || code === "invalid_widget_settings") {
     return NATIVE_SETTINGS_COPY.invalidSettings;
   }

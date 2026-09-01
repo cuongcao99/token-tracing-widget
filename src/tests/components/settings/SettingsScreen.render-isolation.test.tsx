@@ -20,6 +20,18 @@ vi.mock("../../../components/settings/AppearanceSection", () => ({
 vi.mock("../../../hooks/useSettingsController", () => ({
   default: state.useSettingsController,
 }));
+vi.mock("../../../hooks/useTraceHooks", () => ({
+  default: vi.fn(() => ({
+    statuses: [
+      { provider: "claude", state: "not_installed", requiresTrust: false },
+      { provider: "codex", state: "not_installed", requiresTrust: false },
+    ],
+    loading: false,
+    error: null,
+    updatingProvider: null,
+    toggle: vi.fn(),
+  })),
+}));
 vi.mock("../../../lib/usage-summary", async () => ({
   ...(await vi.importActual<typeof import("../../../lib/usage-summary")>("../../../lib/usage-summary")),
   getUsageSummary: state.getUsageSummary,
