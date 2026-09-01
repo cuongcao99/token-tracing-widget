@@ -115,7 +115,8 @@ describe("TokenTracingWidget", () => {
     expect(screen.getByText("Total", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText("173,816,684", { selector: "strong" })).toBeInTheDocument();
     expect(screen.queryByText("Total today")).not.toBeInTheDocument();
-    expect(screen.queryByText("T")).not.toBeInTheDocument();
+    expect(screen.getByRole("banner").querySelector('[data-state="active"]'))
+      .toHaveAttribute("data-phrase");
     expect(syncWidgetWindowHeight).toHaveBeenCalledWith(2);
     expect(screen.getByRole("main")).toHaveAttribute("data-theme", "claude");
     expect(screen.getByRole("main")).toHaveAttribute("data-color-mode", "dark");
