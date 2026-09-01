@@ -8,9 +8,6 @@ interface ProviderNameProps {
 export default function ProviderName({ provider }: ProviderNameProps) {
   const identity = getProviderIdentity(provider);
   return (
-    <ProviderBrandName
-      identity={identity}
-      className={`provider-name provider-name--${provider} provider-name--font-${identity.fontRole}`}
-    />
+    <ProviderBrandName identity={identity} />
   );
 }

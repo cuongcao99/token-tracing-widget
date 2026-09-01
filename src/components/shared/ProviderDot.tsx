@@ -7,9 +7,6 @@ interface ProviderDotProps {
 
 export default function ProviderDot({ provider }: ProviderDotProps) {
   return (
-    <ProviderBrandDot
-      identity={getProviderIdentity(provider)}
-      className={`provider-dot provider-dot--${provider}`}
-    />
+    <ProviderBrandDot identity={getProviderIdentity(provider)} />
   );
 }
