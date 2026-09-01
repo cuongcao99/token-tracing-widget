@@ -128,10 +128,10 @@ Raw provider records and conversational content stay inside the Rust boundary.
 - `src/tests/` mirrors the frontend responsibility folders. Rust integration
   and contract tests remain under `src-tauri/tests/`.
 
-`design-preview.html` with `src/design-preview.css` and
-`src/design-preview.js` is a static visual review surface for the approved
-Apple/Claude directions. Runtime UI changes must still be implemented in the
-React components and their production styles.
+The former static `design-preview.html` surface and its preview-only sources
+were retired during frontend modularity work. Runtime UI changes are reviewed
+through the React/Tauri surfaces and must still be implemented in the React
+components and their production styles.
 
 ## Current product state
 

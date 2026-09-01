@@ -55,8 +55,8 @@
   belong in `src/lib/`; visual tokens and layout belong in `src/styles/`.
 - `src/tests/` contains frontend tests separated from implementation folders;
   `src-tauri/tests/` contains Rust integration and contract tests.
-- `design-preview.html` and `src/design-preview.{css,js}` are the static visual
-  review surface. They do not replace the runtime React/Tauri surfaces.
+- The former static `design-preview.html` surface was retired; visual review
+  uses the runtime React/Tauri surfaces and maintained references instead.
 - `PRODUCT.md` contains product scope and brand commitments. `design/` contains
   the maintained visual references. Dated implementation specs and plans live
   under `docs/superpowers/`.
