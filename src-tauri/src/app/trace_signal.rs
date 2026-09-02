@@ -213,6 +213,12 @@ mod windows_pipe {
     use std::time::Duration;
 
     use super::{TraceSignal, MAX_HOOK_INPUT_BYTES, TRACE_PIPE_NAME};
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{LocalFree, HLOCAL};
+    use windows::Win32::Security::Authorization::{
+        ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
+    };
+    use windows::Win32::Security::{PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES};
 
     type Handle = *mut c_void;
 
@@ -229,6 +235,7 @@ mod windows_pipe {
     const PIPE_WAIT: u32 = 0x0000_0000;
     const PIPE_REJECT_REMOTE_CLIENTS: u32 = 0x0000_0008;
     const PIPE_UNLIMITED_INSTANCES: u32 = 255;
+    pub(super) const PIPE_SECURITY_DESCRIPTOR: &str = "D:(A;;GA;;;AU)S:(ML;;NW;;;LW)";
     const SEND_ATTEMPTS: usize = 3;
     const SEND_RETRY_DELAY: Duration = Duration::from_millis(10);
 
@@ -304,6 +311,51 @@ mod windows_pipe {
         }
     }
 
+    struct SecurityDescriptor(*mut c_void);
+
+    impl SecurityDescriptor {
+        fn new() -> Option<Self> {
+            let descriptor_text: Vec<u16> = OsStr::new(PIPE_SECURITY_DESCRIPTOR)
+                .encode_wide()
+                .chain(Some(0))
+                .collect();
+            let mut descriptor = PSECURITY_DESCRIPTOR::default();
+            unsafe {
+                ConvertStringSecurityDescriptorToSecurityDescriptorW(
+                    PCWSTR(descriptor_text.as_ptr()),
+                    SDDL_REVISION_1,
+                    &mut descriptor,
+                    None,
+                )
+                .ok()?;
+            }
+            Some(Self(descriptor.0))
+        }
+    }
+
+    impl Drop for SecurityDescriptor {
+        fn drop(&mut self) {
+            unsafe {
+                let _ = LocalFree(Some(HLOCAL(self.0)));
+            }
+        }
+    }
+
+    fn security_attributes() -> Option<(SecurityDescriptor, SECURITY_ATTRIBUTES)> {
+        let descriptor = SecurityDescriptor::new()?;
+        let attributes = SECURITY_ATTRIBUTES {
+            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+            lpSecurityDescriptor: descriptor.0,
+            bInheritHandle: false.into(),
+        };
+        Some((descriptor, attributes))
+    }
+
+    #[cfg(test)]
+    pub(super) fn security_policy_is_valid() -> bool {
+        SecurityDescriptor::new().is_some()
+    }
+
     pub(super) struct ServerPipe {
         handle: OwnedHandle,
     }
@@ -311,6 +363,7 @@ mod windows_pipe {
     impl ServerPipe {
         pub(super) fn create() -> Option<Self> {
             let name = pipe_name();
+            let (_descriptor, security_attributes) = security_attributes()?;
             let handle = unsafe {
                 CreateNamedPipeW(
                     name.as_ptr(),
@@ -323,7 +376,7 @@ mod windows_pipe {
                     MAX_HOOK_INPUT_BYTES as u32,
                     MAX_HOOK_INPUT_BYTES as u32,
                     0,
-                    ptr::null(),
+                    &security_attributes as *const SECURITY_ATTRIBUTES as *const c_void,
                 )
             };
             Some(Self {
@@ -539,5 +592,15 @@ mod tests {
             std::time::Duration::ZERO,
         ));
         assert_eq!(attempts.get(), 2);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn named_pipe_has_local_low_integrity_write_policy() {
+        assert_eq!(
+            super::windows_pipe::PIPE_SECURITY_DESCRIPTOR,
+            "D:(A;;GA;;;AU)S:(ML;;NW;;;LW)"
+        );
+        assert!(super::windows_pipe::security_policy_is_valid());
     }
 }
