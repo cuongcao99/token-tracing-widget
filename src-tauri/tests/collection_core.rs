@@ -377,6 +377,7 @@ impl ProviderAdapter for AlwaysFailReader {
         &self,
         _file: &Path,
         _start_offset: u64,
+        _max_source_bytes: u64,
     ) -> Result<ProviderReadResult, ProviderReadError> {
         Err(ProviderReadError::Io)
     }

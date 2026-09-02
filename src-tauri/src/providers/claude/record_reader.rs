@@ -20,7 +20,8 @@ impl ProviderAdapter for ClaudeReader {
         &self,
         file: &Path,
         start_offset: u64,
+        max_source_bytes: u64,
     ) -> Result<ProviderReadResult, ProviderReadError> {
-        read_json_lines(file, start_offset, parse_record)
+        read_json_lines(file, start_offset, max_source_bytes, parse_record)
     }
 }

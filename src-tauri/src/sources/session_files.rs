@@ -285,6 +285,11 @@ fn walk_root(root: &ProviderRoot, limits: DiscoveryLimits) -> DiscoveryResult {
         }
         if total_bytes.saturating_add(located.file.size_bytes()) > limits.max_total_bytes {
             limit_reached = true;
+            if selected.is_empty() && limits.max_total_bytes > 0 {
+                total_bytes = located.file.size_bytes();
+                selected.push(located);
+                break;
+            }
             continue;
         }
         total_bytes = total_bytes.saturating_add(located.file.size_bytes());

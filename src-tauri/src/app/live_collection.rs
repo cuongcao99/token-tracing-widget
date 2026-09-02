@@ -247,8 +247,12 @@ where
         let reason = self.scheduler.take_due(now)?;
         match self.backend.collect() {
             Ok(report) => {
+                let has_pending_reads = report.has_pending_reads;
                 let publish_error = self.publisher.publish(&report.summary).err();
                 self.scheduler.record_success();
+                if has_pending_reads && !self.active_providers.is_empty() {
+                    self.scheduler.mark_changed(now);
+                }
                 if publish_error.is_some() {
                     eprintln!("summary_event:emit");
                 }
@@ -660,6 +664,7 @@ mod tests {
             },
             accepted_event_count: 1,
             source_health: Vec::new(),
+            has_pending_reads: false,
         }
     }
 

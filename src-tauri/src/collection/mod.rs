@@ -3,7 +3,9 @@
 use std::fmt;
 
 use crate::database::connection::IndexStore;
-use crate::providers::provider_adapter::{ProviderAdapter, ProviderReadError};
+use crate::providers::provider_adapter::{
+    ProviderAdapter, ProviderReadError, MAX_SOURCE_BYTES_PER_ATTEMPT,
+};
 use crate::sources::session_files::{DiscoveryResult, DiscoveryStatus};
 use crate::sources::source_config::SourceConfig;
 use crate::types::file_checkpoint::FileCheckpoint;
@@ -198,6 +200,7 @@ pub struct CollectionReport {
     pub summary: UsageSummary,
     pub accepted_event_count: usize,
     pub source_health: Vec<SourceHealth>,
+    pub has_pending_reads: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -249,8 +252,9 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
 
         let mut batch = CollectionBatch::new(Vec::new(), Vec::new());
         let mut source_health = Vec::with_capacity(ordered.len());
+        let mut has_pending_reads = false;
         for source in ordered {
-            let (events, checkpoints, health, diagnostics) =
+            let (events, checkpoints, health, diagnostics, source_has_pending_reads) =
                 match self.collect_source(source, clock.now()) {
                     Ok(result) => result,
                     Err(error) => {
@@ -258,6 +262,7 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
                         return Err(error);
                     }
                 };
+            has_pending_reads |= source_has_pending_reads;
             batch.events.extend(events);
             batch.checkpoints.extend(checkpoints);
             batch.diagnostics.extend(diagnostics);
@@ -291,6 +296,7 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
             summary,
             accepted_event_count,
             source_health,
+            has_pending_reads,
         })
     }
 
@@ -308,6 +314,7 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
             Vec<FileCheckpoint>,
             SourceHealth,
             Vec<DiagnosticUpdate>,
+            bool,
         ),
         CollectionError,
     > {
@@ -327,13 +334,20 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
                 Vec::new(),
                 SourceHealth::new(provider, "disabled"),
                 diagnostics,
+                false,
             ));
         }
 
         let mut health_state = discovery_state(source.discovery.status()).to_owned();
         let mut events = Vec::new();
         let mut checkpoints = Vec::new();
+        let mut has_pending_reads = false;
+        let mut remaining_source_bytes = MAX_SOURCE_BYTES_PER_ATTEMPT;
         for file in source.discovery.files() {
+            if remaining_source_bytes == 0 {
+                has_pending_reads = true;
+                break;
+            }
             let identity = file.opaque_identity(provider);
             let checkpoint = self
                 .store
@@ -342,10 +356,11 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
                 .filter(|checkpoint| checkpoint_can_resume(checkpoint, file, provider))
                 .unwrap_or_else(|| FileCheckpoint::new(identity.clone(), provider));
 
-            let result = match source
-                .adapter
-                .read_observations(file.filesystem_path(), checkpoint.byte_offset)
-            {
+            let result = match source.adapter.read_observations(
+                file.filesystem_path(),
+                checkpoint.byte_offset,
+                remaining_source_bytes,
+            ) {
                 Ok(result) => result,
                 Err(error) => {
                     let state = reader_error_state(error);
@@ -359,6 +374,11 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
                     continue;
                 }
             };
+            remaining_source_bytes = remaining_source_bytes
+                .saturating_sub(result.next_offset.saturating_sub(checkpoint.byte_offset));
+            if result.pending_offset.is_none() && result.next_offset < file.size_bytes() {
+                has_pending_reads = true;
+            }
             if result.skipped_oversized_records > 0 {
                 health_state = "limited".to_owned();
                 diagnostics.push(DiagnosticUpdate {
@@ -407,6 +427,7 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
             checkpoints,
             SourceHealth::new(provider, health_state),
             diagnostics,
+            has_pending_reads,
         ))
     }
 }

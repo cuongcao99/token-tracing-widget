@@ -2,7 +2,7 @@
 
 use std::fmt;
 use std::fs::File;
-use std::io::{BufReader, Seek, SeekFrom};
+use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::Path;
 
 use crate::types::provider::Provider;
@@ -10,6 +10,7 @@ use crate::types::token_observation::TokenObservation;
 use crate::utils::bounded_io;
 
 pub const MAX_RECORD_BYTES: usize = 1_048_576;
+pub const MAX_SOURCE_BYTES_PER_ATTEMPT: u64 = 50 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProviderReadObservation {
@@ -65,12 +66,14 @@ pub trait ProviderAdapter: Send + Sync {
         &self,
         file: &Path,
         start_offset: u64,
+        max_source_bytes: u64,
     ) -> Result<ProviderReadResult, ProviderReadError>;
 }
 
 pub(crate) fn read_json_lines<F>(
     file_path: &Path,
     start_offset: u64,
+    max_source_bytes: u64,
     mut parse_record: F,
 ) -> Result<ProviderReadResult, ProviderReadError>
 where
@@ -88,10 +91,34 @@ where
     let mut skipped_oversized_records: usize = 0;
 
     loop {
-        let line = match bounded_io::read_line(&mut reader, MAX_RECORD_BYTES) {
+        let remaining_source_bytes =
+            max_source_bytes.saturating_sub(next_offset.saturating_sub(start_offset));
+        if remaining_source_bytes == 0 {
+            break;
+        }
+
+        let next_chunk_length = {
+            let available = reader.fill_buf().map_err(|_| ProviderReadError::Io)?;
+            if available.is_empty() {
+                break;
+            }
+            available
+                .iter()
+                .position(|byte| *byte == b'\n')
+                .map_or(available.len(), |position| position + 1)
+        };
+        if next_chunk_length as u64 > remaining_source_bytes {
+            break;
+        }
+
+        let line_limit = remaining_source_bytes.min(MAX_RECORD_BYTES as u64) as usize;
+        let line = match bounded_io::read_line(&mut reader, line_limit) {
             Ok(Some(line)) => line,
             Ok(None) => break,
             Err(error) if error.kind() == std::io::ErrorKind::InvalidData => {
+                if remaining_source_bytes < MAX_RECORD_BYTES as u64 {
+                    break;
+                }
                 if !bounded_io::discard_line(&mut reader).map_err(|_| ProviderReadError::Io)? {
                     return Err(ProviderReadError::RecordTooLarge);
                 }

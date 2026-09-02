@@ -196,10 +196,27 @@ fn discovery_applies_byte_limit_after_newest_sorting() {
 }
 
 #[test]
+fn newest_oversized_file_remains_discoverable_for_incremental_reading() {
+    let profile = tempdir().expect("synthetic profile should be created");
+    let root = synthetic_provider_root(profile.path(), Provider::Codex);
+    create_file(&root.join("a-old.jsonl"), b"old");
+    std::thread::sleep(Duration::from_millis(50));
+    create_file(&root.join("z-new.jsonl"), b"newest");
+
+    let result = discover_provider(profile.path(), Provider::Codex, limits(10, 4));
+
+    assert_eq!(result.files().len(), 1);
+    assert_eq!(result.files()[0].size_bytes(), 6);
+    assert_eq!(result.total_bytes(), 6);
+    assert_eq!(result.status(), DiscoveryStatus::LimitReached);
+}
+
+#[test]
 fn discovery_skips_a_file_that_would_exceed_the_byte_limit() {
     let profile = tempdir().expect("synthetic profile should be created");
     let root = synthetic_provider_root(profile.path(), Provider::Codex);
     create_file(&root.join("too-large.jsonl"), b"1234567");
+    std::thread::sleep(Duration::from_millis(50));
     create_file(&root.join("small.jsonl"), b"12");
 
     let result = discover_provider(profile.path(), Provider::Codex, limits(10, 4));

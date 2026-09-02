@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 use token_tracing_widget_lib::providers::claude::ClaudeReader;
 use token_tracing_widget_lib::providers::codex::CodexReader;
-use token_tracing_widget_lib::providers::provider_adapter::{ProviderAdapter, ProviderReadError};
+use token_tracing_widget_lib::providers::provider_adapter::{
+    ProviderAdapter, ProviderReadError, MAX_SOURCE_BYTES_PER_ATTEMPT,
+};
 use token_tracing_widget_lib::types::provider::Provider;
 use token_tracing_widget_lib::types::token_observation::{CounterKind, TokenObservation};
 
@@ -32,7 +34,7 @@ fn first_observation(
 fn claude_reader_returns_safe_incremental_observations() {
     let file = fixture_path("claude");
     let result = ClaudeReader::default()
-        .read_observations(&file, 0)
+        .read_observations(&file, 0, MAX_SOURCE_BYTES_PER_ATTEMPT)
         .expect("Claude fixture should be readable");
     let first = first_observation(&result.observations);
 
@@ -59,7 +61,7 @@ fn claude_reader_returns_safe_incremental_observations() {
 fn codex_reader_returns_safe_cumulative_observations() {
     let file = fixture_path("codex");
     let result = CodexReader::default()
-        .read_observations(&file, 0)
+        .read_observations(&file, 0, MAX_SOURCE_BYTES_PER_ATTEMPT)
         .expect("Codex fixture should be readable");
     let first = first_observation(&result.observations);
 
@@ -87,7 +89,7 @@ fn readers_ignore_unknown_record_kinds() {
     .unwrap();
 
     let result = ClaudeReader::default()
-        .read_observations(file.path(), 0)
+        .read_observations(file.path(), 0, MAX_SOURCE_BYTES_PER_ATTEMPT)
         .expect("unknown records should be ignored");
 
     assert_eq!(result.observations.len(), 1);
@@ -103,7 +105,7 @@ fn readers_reject_negative_token_counts_without_exposing_record_data() {
     .unwrap();
 
     let error = ClaudeReader::default()
-        .read_observations(file.path(), 0)
+        .read_observations(file.path(), 0, MAX_SOURCE_BYTES_PER_ATTEMPT)
         .expect_err("negative counters should fail closed");
 
     assert_eq!(error, ProviderReadError::InvalidTokenCount);
@@ -117,7 +119,7 @@ fn readers_reject_oversized_records_before_parsing() {
     write!(file, r#"{{"type":"unknown","padding":"{padding}"}}"#).unwrap();
 
     let error = CodexReader::default()
-        .read_observations(file.path(), 0)
+        .read_observations(file.path(), 0, MAX_SOURCE_BYTES_PER_ATTEMPT)
         .expect_err("oversized records should fail closed");
 
     assert_eq!(error, ProviderReadError::RecordTooLarge);
@@ -135,7 +137,7 @@ fn readers_continue_after_oversized_non_token_records() {
     .unwrap();
 
     let result = CodexReader::default()
-        .read_observations(file.path(), 0)
+        .read_observations(file.path(), 0, MAX_SOURCE_BYTES_PER_ATTEMPT)
         .expect("oversized non-token records should not block later usage records");
 
     assert_eq!(result.observations.len(), 1);
@@ -154,7 +156,7 @@ fn reader_resumes_from_a_saved_byte_offset() {
         + 1;
 
     let result = ClaudeReader::default()
-        .read_observations(&file, first_line_end as u64)
+        .read_observations(&file, first_line_end as u64, MAX_SOURCE_BYTES_PER_ATTEMPT)
         .expect("reader should resume at a line boundary");
 
     assert_eq!(result.observations.len(), 29);
@@ -170,6 +172,25 @@ fn reader_resumes_from_a_saved_byte_offset() {
 }
 
 #[test]
+fn reader_stops_at_source_byte_budget_on_a_record_boundary() {
+    let file = fixture_path("codex");
+    let contents = fs::read(&file).unwrap();
+    let first_line_end = contents
+        .iter()
+        .position(|byte| *byte == b'\n')
+        .expect("fixture should contain a newline")
+        + 1;
+
+    let result = CodexReader::default()
+        .read_observations(&file, 0, first_line_end as u64)
+        .expect("bounded read should succeed");
+
+    assert_eq!(result.next_offset, first_line_end as u64);
+    assert!(result.next_offset < contents.len() as u64);
+    assert!(result.pending_offset.is_none());
+}
+
+#[test]
 fn incomplete_final_line_stays_pending_until_completed() {
     let mut file = NamedTempFile::new().unwrap();
     write!(
@@ -179,7 +200,7 @@ fn incomplete_final_line_stays_pending_until_completed() {
     .unwrap();
 
     let first = ClaudeReader::default()
-        .read_observations(file.path(), 0)
+        .read_observations(file.path(), 0, MAX_SOURCE_BYTES_PER_ATTEMPT)
         .expect("complete records must be readable");
 
     assert_eq!(first.observations.len(), 1);
@@ -191,7 +212,7 @@ fn incomplete_final_line_stays_pending_until_completed() {
     )
     .unwrap();
     let second = ClaudeReader::default()
-        .read_observations(file.path(), first.next_offset)
+        .read_observations(file.path(), first.next_offset, MAX_SOURCE_BYTES_PER_ATTEMPT)
         .expect("completed record must be readable");
 
     assert_eq!(second.observations.len(), 1);
