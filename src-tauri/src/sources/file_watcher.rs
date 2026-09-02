@@ -511,6 +511,62 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
+    fn observer_starts_only_after_provider_activation() {
+        let root = tempfile::tempdir().expect("watch root should be created");
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut observer = SourceObserver::new(sender);
+
+        std::fs::write(root.path().join("before-start.jsonl"), b"metadata-only\n")
+            .expect("pre-activation file should be written");
+        assert!(receiver
+            .recv_timeout(std::time::Duration::from_millis(50))
+            .is_err());
+
+        observer.start_provider(WatchRoot::new(Provider::Claude, root.path().to_path_buf()));
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::fs::write(root.path().join("after-start.jsonl"), b"metadata-only\n")
+            .expect("post-activation file should be written");
+
+        assert_eq!(
+            receiver
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .expect("activated observer should report the change"),
+            WatchSignal::Changed(Provider::Claude)
+        );
+        observer.shutdown();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn stopping_one_provider_does_not_stop_the_other() {
+        let claude_root = tempfile::tempdir().expect("Claude root should be created");
+        let codex_root = tempfile::tempdir().expect("Codex root should be created");
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut observer = SourceObserver::new(sender);
+        observer.start_provider(WatchRoot::new(
+            Provider::Claude,
+            claude_root.path().to_path_buf(),
+        ));
+        observer.start_provider(WatchRoot::new(
+            Provider::Codex,
+            codex_root.path().to_path_buf(),
+        ));
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        observer.stop_provider(Provider::Codex);
+
+        std::fs::write(claude_root.path().join("session.jsonl"), b"metadata-only\n")
+            .expect("Claude file should be written");
+        assert_eq!(
+            receiver
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .expect("Claude observer should remain active"),
+            WatchSignal::Changed(Provider::Claude)
+        );
+        observer.shutdown();
+    }
+
+    #[cfg(windows)]
+    #[test]
     fn one_unusable_root_does_not_stop_a_usable_provider_watcher() {
         let root = tempfile::tempdir().expect("watch root should be created");
         let missing = root.path().join("missing");

@@ -985,5 +985,11 @@ mod tests {
             stopped.summary.last_updated_at.as_deref(),
             Some("2026-09-01T10:00:00Z")
         );
+
+        let flushed = state
+            .collect_once(&FixedClock::new("2026-09-01T10:00:02Z", "2026-09-01"))
+            .expect("final flush should complete");
+        assert_eq!(flushed.summary.state, UsageState::Idle);
+        assert_eq!(flushed.summary.today_tokens, 15);
     }
 }

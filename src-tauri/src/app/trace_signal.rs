@@ -219,7 +219,6 @@ mod windows_pipe {
     const INVALID_HANDLE_VALUE: Handle = -1isize as Handle;
     const ERROR_MORE_DATA: u32 = 234;
     const ERROR_PIPE_CONNECTED: u32 = 535;
-    const GENERIC_READ: u32 = 0x8000_0000;
     const GENERIC_WRITE: u32 = 0x4000_0000;
     const FILE_SHARE_READ: u32 = 0x0000_0001;
     const FILE_SHARE_WRITE: u32 = 0x0000_0002;
@@ -419,7 +418,7 @@ mod windows_pipe {
         let handle = unsafe {
             CreateFileW(
                 name.as_ptr(),
-                GENERIC_READ,
+                GENERIC_WRITE,
                 FILE_SHARE_READ | FILE_SHARE_WRITE,
                 ptr::null(),
                 OPEN_EXISTING,
