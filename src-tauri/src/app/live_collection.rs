@@ -403,8 +403,8 @@ where
         match signal {
             WatchSignal::Trace(signal) => {
                 if let Ok(result) = self.state.apply_trace_signal(&signal, now) {
+                    self.publish(&result.summary);
                     if !matches!(result.transition, TraceTransition::Ignored) {
-                        self.publish(&result.summary);
                         self.apply_transition(result.transition);
                     }
                 }
@@ -583,8 +583,8 @@ mod tests {
 
     use super::{
         update_source_config_and_refresh, CollectionBackend, CollectionCommand, CollectionReason,
-        LiveCollectionConfig, LiveCollectionHandle, LiveCollectionLoop, LiveScheduler,
-        SummaryPublisher,
+        HookListener, LiveCollectionConfig, LiveCollectionHandle, LiveCollectionLoop,
+        LiveScheduler, SummaryPublisher, TraceControlLoop,
     };
     use crate::app::runtime::{AppState, RuntimeError};
     use crate::collection::{CollectionError, CollectionReport, FixedClock};
@@ -595,6 +595,7 @@ mod tests {
     use crate::sources::source_config::SourceConfig;
     use crate::types::provider::Provider;
     use crate::types::provider_usage_summary::ProviderUsageSummary;
+    use crate::types::trace_signal::{ProviderEvent, TraceLifecycle, TraceSignal};
     use crate::types::usage_summary::UsageSummary;
     use crate::UsageState;
 
@@ -803,6 +804,61 @@ mod tests {
 
         update_source_config_and_refresh(&state, &handle, config).unwrap();
         handle.shutdown();
+    }
+
+    #[test]
+    fn ignored_session_end_still_publishes_idle_after_hook_claims_provider() {
+        let profile = write_profile_with_claude_record(20);
+        let database = tempfile::tempdir().unwrap();
+        let state = AppState::from_paths(
+            profile.path().to_path_buf(),
+            &database.path().join("index.sqlite"),
+            DiscoveryLimits::new(10, 10_000),
+        )
+        .unwrap();
+        let initial = state
+            .collect_once(&FixedClock::new("2026-01-01T00:00:30Z", "2026-01-01"))
+            .unwrap();
+        assert_eq!(initial.summary.state, UsageState::Active);
+
+        let (collection_sender, collection_receiver) = std::sync::mpsc::channel();
+        let collection_worker = std::thread::spawn(move || {
+            while collection_receiver.recv().unwrap() != CollectionCommand::Shutdown {}
+        });
+        let (observer_sender, _observer_receiver) = std::sync::mpsc::channel();
+        let (listener_sender, _listener_receiver) = std::sync::mpsc::channel();
+        let mut control = TraceControlLoop::new(
+            state,
+            RecordingPublisher {
+                summaries: Vec::new(),
+            },
+            crate::sources::file_watcher::SourceObserver::new(observer_sender),
+            collection_sender,
+            HookListener::start(listener_sender),
+            collection_worker,
+        );
+
+        assert!(control.on_signal(
+            WatchSignal::Trace(TraceSignal {
+                schema_version: crate::types::trace_signal::TRACE_SIGNAL_SCHEMA_VERSION,
+                provider: Provider::Claude,
+                lifecycle: TraceLifecycle::Stop,
+                provider_event: ProviderEvent::SessionEnd,
+                observed_at: "2026-01-01T00:00:31Z".to_owned(),
+                opaque_session_id: None,
+                opaque_turn_id: None,
+                sequence: None,
+            }),
+            Instant::now(),
+        ));
+
+        assert_eq!(control.publisher.summaries.len(), 1);
+        assert_eq!(control.publisher.summaries[0].state, UsageState::Idle);
+
+        control.listener.shutdown();
+        control.observer.shutdown();
+        let _ = control.collection_sender.send(CollectionCommand::Shutdown);
+        control.collection_worker.take().unwrap().join().unwrap();
     }
 
     #[test]
