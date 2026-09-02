@@ -6,6 +6,7 @@ const readSource = (path) => readFileSync(new URL(path, import.meta.url), "utf8"
 const widgetModulePaths = [
   "../../styles/widget/surface.module.css",
   "../../styles/widget/provider.module.css",
+  "../../styles/widget/limits.module.css",
   "../../styles/widget/metrics.module.css",
   "../../styles/widget/total.module.css",
   "../../styles/shared/branding.module.css",

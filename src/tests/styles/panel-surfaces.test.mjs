@@ -51,6 +51,36 @@ describe("panel surface CSS", () => {
     );
   });
 
+  it("keeps the widget scrollbar aligned with settings without reflow", () => {
+    const widgetProviderList = stylesheetBlock(
+      widgetSurfaceCss,
+      ".providerList",
+    );
+
+    expect(widgetProviderList).toContain("overflow-y: auto;");
+    expect(widgetProviderList).toContain(
+      "margin-right: calc(-1 * var(--widget-padding-inline));",
+    );
+    expect(widgetProviderList).toContain(
+      "padding-right: var(--widget-padding-inline);",
+    );
+    expect(widgetProviderList).toContain(
+      "scrollbar-color: var(--color-line) transparent;",
+    );
+    expect(widgetProviderList).toContain("scrollbar-gutter: stable;");
+    expect(widgetProviderList).toContain("scrollbar-width: thin;");
+
+    expect(widgetSurfaceCss).toContain(
+      ".providerList::-webkit-scrollbar {\n  width: var(--settings-scrollbar-gutter);\n}",
+    );
+    expect(widgetSurfaceCss).toMatch(
+      /\.providerList::-webkit-scrollbar-button\s*\{[^}]*display:\s*none[^}]*width:\s*0[^}]*height:\s*0/s,
+    );
+    expect(widgetSurfaceCss).toContain(
+      ".providerList::-webkit-scrollbar-thumb {\n  background: var(--color-line);\n  border: 2px solid transparent;\n  border-radius: var(--radius-pill);\n  background-clip: padding-box;\n}",
+    );
+  });
+
   it("keeps settings elevated while the widget surface stays shadow-free", () => {
     expect(settingsTokensCss).toContain("--elevation-widget: none;");
     expect(settingsTokensCss).toContain(

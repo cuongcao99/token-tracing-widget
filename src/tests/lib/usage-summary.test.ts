@@ -35,6 +35,10 @@ const providers = [
     todayTokens: 26_544_812,
     lastUpdatedAt: "2026-01-01T00:09:55Z",
     sessions: [],
+    rateLimits: [
+      { windowMinutes: 300, usedPercent: 12, resetsAt: 1_788_367_052 },
+      { windowMinutes: 10080, usedPercent: 38, resetsAt: 1_788_748_134 },
+    ],
   },
 ];
 
@@ -127,6 +131,41 @@ describe("usage summary bridge", () => {
             sessions: [sessions[0], { ...sessions[0], todayTokens: 4 }],
           },
           providers[1],
+        ],
+      }),
+    ).toBeNull();
+  });
+
+  it("accepts bounded provider rate limits and rejects unsafe values", () => {
+    expect(parseUsageSummary(validSummary)?.providers[1].rateLimits).toEqual(
+      validSummary.providers[1].rateLimits,
+    );
+
+    expect(
+      parseUsageSummary({
+        ...validSummary,
+        providers: [
+          providers[0],
+          {
+            ...providers[1],
+            rateLimits: [
+              { ...validSummary.providers[1].rateLimits![0], usedPercent: 101 },
+            ],
+          },
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      parseUsageSummary({
+        ...validSummary,
+        providers: [
+          providers[0],
+          {
+            ...providers[1],
+            rateLimits: [
+              { ...validSummary.providers[1].rateLimits![0], rawRecord: "secret" },
+            ],
+          },
         ],
       }),
     ).toBeNull();

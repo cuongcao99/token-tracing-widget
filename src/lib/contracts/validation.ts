@@ -29,6 +29,19 @@ export function isSafeTokenCount(value: unknown): value is number {
   );
 }
 
+export function isSafeRateLimitPercent(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= 0 &&
+    value <= 100
+  );
+}
+
+export function isSafeUnixTimestamp(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
 export function isSafeSessionLabel(value: unknown): value is string {
   return (
     typeof value === "string" &&

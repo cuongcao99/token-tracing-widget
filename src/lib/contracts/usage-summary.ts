@@ -2,8 +2,10 @@ import { isProviderId, providerOrder, type ProviderId } from "../provider";
 import {
   hasOnlyKeys,
   isRecord,
+  isSafeRateLimitPercent,
   isSafeSessionLabel,
   isSafeTokenCount,
+  isSafeUnixTimestamp,
   isValidDateString,
 } from "./validation";
 
@@ -15,6 +17,12 @@ export interface SessionUsageSummary {
   name?: string;
   state: SessionUsageState;
   todayTokens: number;
+}
+
+export interface RateLimitSummary {
+  windowMinutes: number;
+  usedPercent: number;
+  resetsAt: number;
 }
 
 export interface SourceHealth {
@@ -29,6 +37,7 @@ export interface ProviderUsageSummary {
   todayTokens: number;
   lastUpdatedAt?: string;
   sessions: SessionUsageSummary[];
+  rateLimits?: RateLimitSummary[];
 }
 
 export interface UsageSummary {
@@ -58,8 +67,11 @@ const providerSummaryKeys = [
   "todayTokens",
   "lastUpdatedAt",
   "sessions",
+  "rateLimits",
 ] as const;
 const sessionSummaryKeys = ["id", "name", "state", "todayTokens"] as const;
+const rateLimitKeys = ["windowMinutes", "usedPercent", "resetsAt"] as const;
+const supportedRateLimitWindows = new Set([300, 10_080]);
 const usageStates = new Set<UsageState>([
   "loading",
   "active",
@@ -109,6 +121,36 @@ function parseSessionSummaries(value: unknown): SessionUsageSummary[] | null {
   }
 
   return sessions;
+}
+
+function parseRateLimits(value: unknown): RateLimitSummary[] | null {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) return null;
+
+  const seenWindows = new Set<number>();
+  const limits: RateLimitSummary[] = [];
+  for (const entry of value) {
+    if (
+      !isRecord(entry) ||
+      !hasOnlyKeys(entry, rateLimitKeys) ||
+      typeof entry.windowMinutes !== "number" ||
+      !supportedRateLimitWindows.has(entry.windowMinutes) ||
+      seenWindows.has(entry.windowMinutes) ||
+      !isSafeRateLimitPercent(entry.usedPercent) ||
+      !isSafeUnixTimestamp(entry.resetsAt)
+    ) {
+      return null;
+    }
+
+    seenWindows.add(entry.windowMinutes);
+    limits.push({
+      windowMinutes: entry.windowMinutes,
+      usedPercent: entry.usedPercent,
+      resetsAt: entry.resetsAt,
+    });
+  }
+
+  return limits;
 }
 
 function optionalTokenFields(value: Record<string, unknown>): {
@@ -185,7 +227,15 @@ export function parseUsageSummary(value: unknown): UsageSummary | null {
     const tokens = optionalTokenFields(entry);
     const date = optionalDateFields(entry);
     const sessions = parseSessionSummaries(entry.sessions);
-    if (tokens === null || date === null || sessions === null) return null;
+    const rateLimits = parseRateLimits(entry.rateLimits);
+    if (
+      tokens === null ||
+      date === null ||
+      sessions === null ||
+      rateLimits === null
+    ) {
+      return null;
+    }
 
     seenProviders.add(entry.provider);
     providers.push({
@@ -195,6 +245,7 @@ export function parseUsageSummary(value: unknown): UsageSummary | null {
       todayTokens: entry.todayTokens,
       ...date,
       sessions,
+      ...(rateLimits.length > 0 ? { rateLimits } : {}),
     });
   }
 

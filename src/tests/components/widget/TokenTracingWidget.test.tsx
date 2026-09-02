@@ -73,9 +73,13 @@ const summary: UsageSummary = {
           todayTokens: 26_544_812,
         },
       ],
+      rateLimits: [
+        { windowMinutes: 300, usedPercent: 12, resetsAt: 1_788_367_052 },
+        { windowMinutes: 10080, usedPercent: 38, resetsAt: 1_788_748_134 },
+      ],
     },
   ],
-};
+} as UsageSummary;
 
 const settings: WidgetSettingsSnapshot = {
   darkMode: true,
@@ -126,6 +130,11 @@ describe("TokenTracingWidget", () => {
     expect(screen.getAllByText("1 sessions today")).toHaveLength(2);
     expect(screen.getByText("Codex run")).toBeInTheDocument();
     expect(screen.getByText("Idle · 1")).toBeInTheDocument();
+    expect(screen.getByText("5h limit")).toBeInTheDocument();
+    expect(screen.getByText("88%")).toBeInTheDocument();
+    expect(
+      screen.getByRole("progressbar", { name: "5h limit: 88% remaining" }),
+    ).toHaveAttribute("aria-valuenow", "88");
     expect(screen.getByText("Total", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText("173,816,684", { selector: "strong" })).toBeInTheDocument();
     expect(screen.queryByText("Total today")).not.toBeInTheDocument();
@@ -180,6 +189,24 @@ describe("TokenTracingWidget", () => {
     expect(screen.getAllByText("26,544,812", { selector: "strong" })).toHaveLength(3);
     expect(screen.getByRole("contentinfo")).toHaveTextContent("26,544,812");
     expect(screen.queryByText("173,816,684", { selector: "strong" })).not.toBeInTheDocument();
+  });
+
+  it("explains when a provider has no activity today", () => {
+    useUsageSummary.mockReturnValue({
+      summary: {
+        ...summary,
+        providers: summary.providers.map((usage) =>
+          usage.provider === "claude"
+            ? { ...usage, currentSessionTokens: 0, todayTokens: 0, sessions: [] }
+            : usage,
+        ),
+      },
+    });
+
+    render(<TokenTracingWidget />);
+
+    expect(screen.getByText("No activity yet today")).toBeInTheDocument();
+    expect(screen.getByText("0 sessions today")).toBeInTheDocument();
   });
 
   it("keeps an unchanged provider row memo-stable when only Codex changes", () => {

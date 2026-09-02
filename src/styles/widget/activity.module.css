@@ -24,6 +24,10 @@
   color: var(--color-accent-active);
 }
 
+.phrase[data-state="idle"] {
+  color: var(--color-hibernating);
+}
+
 .phrase[data-state="stale"],
 .phrase[data-state="unavailable"] {
   color: var(--color-muted-soft);

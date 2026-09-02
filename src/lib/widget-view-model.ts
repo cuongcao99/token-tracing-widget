@@ -1,5 +1,6 @@
 import {
   formatRelativeUpdate,
+  type RateLimitSummary,
   type ProviderUsageSummary,
   type SessionUsageState,
   type UsageState,
@@ -21,6 +22,7 @@ export interface WidgetProviderViewModel {
   status: { state: UsageState; label: string };
   sessions: WidgetSessionViewModel[];
   sessionCount: number;
+  rateLimits: RateLimitSummary[];
   metrics: {
     sessionTokens?: number;
     todayTokens: number;
@@ -88,6 +90,7 @@ function viewForProvider(
     status: { state, label: stateLabel(state) },
     sessions: usage.sessions.map(viewForSession),
     sessionCount: usage.sessions.length,
+    rateLimits: usage.rateLimits ?? [],
     metrics: {
       ...(usage.currentSessionTokens === undefined
         ? {}

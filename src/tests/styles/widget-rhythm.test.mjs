@@ -19,6 +19,7 @@ const stylesheetBlock = (css, selector) => {
 
 const surfaceCss = readStylesheet("../../styles/widget/surface.module.css");
 const providerCss = readStylesheet("../../styles/widget/provider.module.css");
+const metricsCss = readStylesheet("../../styles/widget/metrics.module.css");
 const totalCss = readStylesheet("../../styles/widget/total.module.css");
 const tokenCss = readStylesheet("../../styles/globals/tokens.css");
 const layoutSource = readStylesheet("../../lib/widget-layout.ts");
@@ -48,6 +49,21 @@ describe("widget vertical rhythm", () => {
     );
     expect(stylesheetBlock(totalCss, ".root")).toContain(
       "padding-top: var(--widget-rhythm);",
+    );
+  });
+
+  it("matches Session and Today value weight to Total", () => {
+    expect(stylesheetBlock(metricsCss, ".value")).toContain(
+      "font-weight: 500;",
+    );
+    expect(stylesheetBlock(totalCss, ".value")).toContain(
+      "font-weight: 500;",
+    );
+  });
+
+  it("gives updated timestamps room for descenders", () => {
+    expect(stylesheetBlock(metricsCss, ".updated")).toContain(
+      "line-height: 1.3;",
     );
   });
 });

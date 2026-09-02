@@ -11,6 +11,7 @@
   --color-accent-active: #a9583e;
   --color-accent-soft: rgba(204, 120, 92, 0.28);
   --color-positive: #5db8a6;
+  --color-hibernating: #586b9f;
   --color-on-dark: #faf9f5;
   --color-on-dark-soft: #a09d96;
   --color-switch-off: #d7cfc6;
@@ -33,6 +34,7 @@
   --type-widget-status: 11px;
   --type-widget-meta: 11px;
   --type-widget-value: 18px;
+  --type-widget-session-value: 15px;
   --type-widget-total-label: 13px;
   --type-widget-total: 20px;
   --provider-name-display-weight: 600;
@@ -64,7 +66,7 @@
   --widget-header-gap: 18px;
   --widget-title-gap: 10px;
   --widget-status-gap: 6px;
-  --widget-status-dot-size: 7px;
+  --widget-status-dot-size: 8px;
   --widget-provider-gap: 12px;
   --widget-metrics-gap: 24px;
   --widget-metrics-offset: 9px;

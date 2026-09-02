@@ -44,6 +44,15 @@
   line-height: 1.2;
 }
 
+.emptyState {
+  margin: var(--space-3) 0 0;
+  color: var(--color-muted-soft);
+  font-size: var(--type-widget-meta);
+  font-style: italic;
+  line-height: 1.2;
+  opacity: 0.8;
+}
+
 .status {
   display: inline-flex;
   align-items: center;
@@ -64,7 +73,7 @@
 }
 
 .statusActive {
-  color: var(--color-accent);
+  color: var(--color-positive);
 }
 
 .statusIdle,

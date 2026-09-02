@@ -1,6 +1,7 @@
 import { memo } from "react";
 import ProviderSection from "./ProviderSection";
 import SessionUsageList from "./SessionUsageList";
+import UsageLimits from "./UsageLimits";
 import UsageMetrics from "./UsageMetrics";
 import type { WidgetProviderRowProps } from "./widget-types";
 import { formatTokens } from "./widget-types";
@@ -15,7 +16,8 @@ export function areProviderUsageRowsEqual(
   if (
     previous.onSessionToggle !== next.onSessionToggle ||
     before.sessionCount !== after.sessionCount ||
-    before.sessions.length !== after.sessions.length
+    before.sessions.length !== after.sessions.length ||
+    before.rateLimits.length !== after.rateLimits.length
   ) {
     return false;
   }
@@ -28,6 +30,18 @@ export function areProviderUsageRowsEqual(
       beforeSession.label !== afterSession.label ||
       beforeSession.state !== afterSession.state ||
       beforeSession.todayTokens !== afterSession.todayTokens
+    ) {
+      return false;
+    }
+  }
+
+  for (let index = 0; index < before.rateLimits.length; index += 1) {
+    const beforeLimit = before.rateLimits[index];
+    const afterLimit = after.rateLimits[index];
+    if (
+      beforeLimit.windowMinutes !== afterLimit.windowMinutes ||
+      beforeLimit.usedPercent !== afterLimit.usedPercent ||
+      beforeLimit.resetsAt !== afterLimit.resetsAt
     ) {
       return false;
     }
@@ -64,6 +78,7 @@ export const ProviderUsageRow = memo(function ProviderUsageRow({
       <div className={styles.sessionCount}>
         {usage.sessionCount} sessions today
       </div>
+      <UsageLimits limits={usage.rateLimits} />
       <UsageMetrics
         metrics={[
           {
@@ -79,10 +94,14 @@ export const ProviderUsageRow = memo(function ProviderUsageRow({
         ]}
         updatedLabel={usage.metrics.updatedLabel}
       />
-      <SessionUsageList
-        sessions={usage.sessions}
-        onToggle={onSessionToggle}
-      />
+      {usage.sessionCount === 0 ? (
+        <p className={styles.emptyState}>No activity yet today</p>
+      ) : (
+        <SessionUsageList
+          sessions={usage.sessions}
+          onToggle={onSessionToggle}
+        />
+      )}
     </ProviderSection>
   );
 }, areProviderUsageRowsEqual);
