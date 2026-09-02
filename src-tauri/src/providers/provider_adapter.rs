@@ -32,6 +32,7 @@ pub struct ProviderReadResult {
     pub observations: Vec<ProviderReadObservation>,
     pub next_offset: u64,
     pub pending_offset: Option<u64>,
+    pub bytes_read: u64,
     pub skipped_oversized_records: usize,
 }
 
@@ -91,8 +92,11 @@ where
     let mut skipped_oversized_records: usize = 0;
 
     loop {
-        let remaining_source_bytes =
-            max_source_bytes.saturating_sub(next_offset.saturating_sub(start_offset));
+        let bytes_read = reader
+            .stream_position()
+            .map_err(|_| ProviderReadError::Io)?
+            .saturating_sub(start_offset);
+        let remaining_source_bytes = max_source_bytes.saturating_sub(bytes_read);
         if remaining_source_bytes == 0 {
             break;
         }
@@ -156,6 +160,10 @@ where
         observations,
         next_offset,
         pending_offset,
+        bytes_read: reader
+            .stream_position()
+            .map_err(|_| ProviderReadError::Io)?
+            .saturating_sub(start_offset),
         skipped_oversized_records,
     })
 }

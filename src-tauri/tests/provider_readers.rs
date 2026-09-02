@@ -186,6 +186,7 @@ fn reader_stops_at_source_byte_budget_on_a_record_boundary() {
         .expect("bounded read should succeed");
 
     assert_eq!(result.next_offset, first_line_end as u64);
+    assert_eq!(result.bytes_read, first_line_end as u64);
     assert!(result.next_offset < contents.len() as u64);
     assert!(result.pending_offset.is_none());
 }

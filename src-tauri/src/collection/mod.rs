@@ -374,8 +374,7 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
                     continue;
                 }
             };
-            remaining_source_bytes = remaining_source_bytes
-                .saturating_sub(result.next_offset.saturating_sub(checkpoint.byte_offset));
+            remaining_source_bytes = remaining_source_bytes.saturating_sub(result.bytes_read);
             if result.pending_offset.is_none() && result.next_offset < file.size_bytes() {
                 has_pending_reads = true;
             }
