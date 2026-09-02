@@ -64,6 +64,6 @@ fn default_provider_summaries(state: UsageState) -> Vec<ProviderUsageSummary> {
     Provider::all()
         .iter()
         .copied()
-        .map(|provider| ProviderUsageSummary::new(provider, state, None, 0, None))
+        .map(|provider| ProviderUsageSummary::new(provider, state, None, 0, None, Vec::new()))
         .collect()
 }

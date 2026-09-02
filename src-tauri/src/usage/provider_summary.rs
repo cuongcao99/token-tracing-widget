@@ -2,6 +2,9 @@
 
 use crate::types::provider::Provider;
 use crate::types::provider_usage_summary::ProviderUsageSummary;
+use crate::types::session_usage_summary::{
+    safe_session_id, SessionUsageState, SessionUsageSummary,
+};
 use crate::types::source_health::SourceHealth;
 use crate::types::usage_event::UsageEvent;
 use crate::usage::active_provider::{
@@ -31,12 +34,32 @@ pub fn compute_provider_summary(
         UsageState::Idle
     };
 
+    let sessions = crate::usage::session_summary::compute_session_aggregation(
+        &provider_events,
+        now,
+        Some(local_day),
+    )
+    .sessions
+    .into_iter()
+    .map(|session| SessionUsageSummary {
+        id: safe_session_id(&session.session_key),
+        name: session.name,
+        state: if session.active {
+            SessionUsageState::Active
+        } else {
+            SessionUsageState::Idle
+        },
+        today_tokens: session.current_day_tokens,
+    })
+    .collect();
+
     ProviderUsageSummary::new(
         provider,
         state,
         compute_current_session_tokens_for_local_day(&provider_events, now, local_day),
         compute_today_total(&provider_events, local_day),
         active.last_updated_at,
+        sessions,
     )
 }
 

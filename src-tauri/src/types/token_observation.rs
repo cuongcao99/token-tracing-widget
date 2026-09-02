@@ -12,6 +12,7 @@ pub enum CounterKind {
 pub struct TokenObservation {
     pub provider: Provider,
     pub source_session_key: Option<String>,
+    pub session_name: Option<String>,
     pub source_event_key: Option<String>,
     pub observed_at: String,
     pub counter_kind: CounterKind,

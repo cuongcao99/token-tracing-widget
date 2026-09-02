@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 use crate::types::provider::Provider;
+use crate::types::session_usage_summary::normalize_session_name;
 use crate::types::usage_event::UsageEvent;
 use crate::utils::windows_time::{parse_timestamp_seconds, timestamp_local_day};
 use crate::UsageState;
@@ -11,6 +12,8 @@ pub const ACTIVE_SESSION_WINDOW_SECONDS: i64 = 10;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionAggregate {
+    pub session_key: String,
+    pub name: Option<String>,
     pub active: bool,
     pub total_tokens: u64,
     pub current_day_tokens: u64,
@@ -50,19 +53,30 @@ pub fn compute_session_aggregation(
     }
 
     let mut sessions = Vec::with_capacity(grouped.len());
-    for session_events in grouped.into_values() {
+    for ((_, session_key), session_events) in grouped {
         let Some(latest) = latest_event(&session_events) else {
             continue;
         };
+        let current_day_events: Vec<_> = session_events
+            .iter()
+            .copied()
+            .filter(|event| {
+                local_day.is_none_or(|day| {
+                    timestamp_local_day(&event.observed_at).as_deref() == Some(day)
+                })
+            })
+            .collect();
+        if local_day.is_some() && current_day_events.is_empty() {
+            continue;
+        }
         let latest_seconds = parse_timestamp_seconds(&latest.observed_at).unwrap_or(now_seconds);
         let active = now_seconds.saturating_sub(latest_seconds) < ACTIVE_SESSION_WINDOW_SECONDS;
         let total_tokens = sum_tokens(&session_events, |_| true);
-        let current_day_tokens = sum_tokens(&session_events, |event| {
-            local_day
-                .is_none_or(|day| timestamp_local_day(&event.observed_at).as_deref() == Some(day))
-        });
+        let current_day_tokens = sum_tokens(&current_day_events, |_| true);
 
         sessions.push(SessionAggregate {
+            session_key,
+            name: latest_session_name(&session_events),
             active,
             total_tokens,
             current_day_tokens,
@@ -72,6 +86,14 @@ pub fn compute_session_aggregation(
             last_event_id: latest.event_id.clone(),
         });
     }
+
+    sessions.sort_by(|left, right| {
+        right
+            .active
+            .cmp(&left.active)
+            .then_with(|| right.last_updated_seconds.cmp(&left.last_updated_seconds))
+            .then_with(|| left.session_key.cmp(&right.session_key))
+    });
 
     let latest_session = sessions.iter().max_by(|left, right| {
         left.last_updated_seconds
@@ -110,6 +132,20 @@ fn latest_event<'a>(events: &[&'a UsageEvent]) -> Option<&'a UsageEvent> {
             .then_with(|| left.source_position.cmp(&right.source_position))
             .then_with(|| left.event_id.cmp(&right.event_id))
     })
+}
+
+fn latest_session_name(events: &[&UsageEvent]) -> Option<String> {
+    events
+        .iter()
+        .copied()
+        .filter(|event| normalize_session_name(event.session_name.as_deref()).is_some())
+        .max_by(|left, right| {
+            timestamp_order(left)
+                .cmp(&timestamp_order(right))
+                .then_with(|| left.source_position.cmp(&right.source_position))
+                .then_with(|| left.event_id.cmp(&right.event_id))
+        })
+        .and_then(|event| normalize_session_name(event.session_name.as_deref()))
 }
 
 fn timestamp_order(event: &UsageEvent) -> i64 {

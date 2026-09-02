@@ -56,6 +56,7 @@ mod tests {
                 Some(20),
                 20,
                 Some("2026-01-01T00:00:00Z".to_owned()),
+                Vec::new(),
             )],
         };
         let object = serde_json::to_value(summary)

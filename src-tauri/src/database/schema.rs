@@ -21,6 +21,8 @@ pub(crate) fn initialize(connection: &Connection) -> rusqlite::Result<()> {
             session_key TEXT NOT NULL,
             started_at TEXT NOT NULL,
             last_activity_at TEXT NOT NULL,
+            display_name TEXT,
+            display_name_updated_at TEXT,
             PRIMARY KEY (provider, session_key)
         );
 
@@ -71,5 +73,29 @@ pub(crate) fn initialize(connection: &Connection) -> rusqlite::Result<()> {
             PRIMARY KEY (provider, category)
         );
         "#,
-    )
+    )?;
+
+    let mut columns = connection.prepare("PRAGMA table_info(sessions)")?;
+    let existing_columns: Vec<String> = columns
+        .query_map([], |row| row.get(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+    drop(columns);
+
+    if !existing_columns
+        .iter()
+        .any(|column| column == "display_name")
+    {
+        connection.execute("ALTER TABLE sessions ADD COLUMN display_name TEXT", [])?;
+    }
+    if !existing_columns
+        .iter()
+        .any(|column| column == "display_name_updated_at")
+    {
+        connection.execute(
+            "ALTER TABLE sessions ADD COLUMN display_name_updated_at TEXT",
+            [],
+        )?;
+    }
+
+    Ok(())
 }

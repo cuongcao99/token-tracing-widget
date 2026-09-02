@@ -35,6 +35,7 @@ pub fn parse_record(record: &Value) -> Result<Option<TokenObservation>, Provider
     Ok(Some(TokenObservation {
         provider: Provider::Codex,
         source_session_key: None,
+        session_name: None,
         source_event_key: None,
         observed_at: required_string(record.get("timestamp"))?,
         counter_kind: CounterKind::Cumulative,

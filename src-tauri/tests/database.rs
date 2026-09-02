@@ -14,6 +14,7 @@ fn test_usage_event(event_id: &str, file_identity: &str) -> UsageEvent {
         provider: Provider::Claude,
         file_identity: file_identity.to_owned(),
         session_key: "session-a".to_owned(),
+        session_name: None,
         source_position: 0,
         observed_at: "2026-01-01T00:00:00Z".to_owned(),
         counter_kind: CounterKind::Incremental,
@@ -115,6 +116,134 @@ fn summary_query_and_schema_expose_only_normalized_metadata() {
             "schema contains {forbidden}"
         );
     }
+}
+
+#[test]
+fn summary_query_round_trips_only_the_session_display_name() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut database = IndexStore::open(&directory.path().join("index.sqlite")).unwrap();
+    let mut event = test_usage_event("event-named", "file-a");
+    event.session_name = Some("Run alpha".to_owned());
+
+    database
+        .apply_batch(&CollectionBatch::new(
+            vec![event],
+            vec![FileCheckpoint::with_position(
+                "file-a",
+                Provider::Claude,
+                42,
+                42,
+            )],
+        ))
+        .unwrap();
+
+    let rows = database
+        .query_events_for_summary("2026-01-01T00:00:00Z", "2026-01-01T00:00:01Z")
+        .unwrap();
+    assert_eq!(rows.events[0].session_name.as_deref(), Some("Run alpha"));
+}
+
+#[test]
+fn newer_session_name_wins_without_changing_identity_or_token_totals() {
+    let directory = tempfile::tempdir().unwrap();
+    let database_path = directory.path().join("index.sqlite");
+    let mut database = IndexStore::open(&database_path).unwrap();
+
+    let mut newer = test_usage_event("event-newer", "file-newer");
+    newer.session_name = Some("Renamed run".to_owned());
+    newer.observed_at = "2026-01-01T00:00:01Z".to_owned();
+    newer.source_position = 2;
+    database
+        .apply_batch(&CollectionBatch::new(
+            vec![newer],
+            vec![FileCheckpoint::with_position(
+                "file-newer",
+                Provider::Claude,
+                2,
+                2,
+            )],
+        ))
+        .unwrap();
+
+    let mut older = test_usage_event("event-older", "file-older");
+    older.session_name = Some("First run".to_owned());
+    older.source_position = 1;
+    database
+        .apply_batch(&CollectionBatch::new(
+            vec![older],
+            vec![FileCheckpoint::with_position(
+                "file-older",
+                Provider::Claude,
+                1,
+                1,
+            )],
+        ))
+        .unwrap();
+
+    let rows = database
+        .query_events_for_summary("2026-01-01T00:00:00Z", "2026-01-01T00:00:02Z")
+        .unwrap();
+    assert_eq!(rows.events.len(), 2);
+    assert!(rows
+        .events
+        .iter()
+        .all(|event| event.session_key == "session-a"));
+    assert!(rows
+        .events
+        .iter()
+        .all(|event| event.session_name.as_deref() == Some("Renamed run")));
+    assert_eq!(
+        rows.events
+            .iter()
+            .map(|event| event.total_tokens)
+            .sum::<u64>(),
+        40,
+    );
+}
+
+#[test]
+fn existing_sessions_gain_nullable_display_name_columns_without_data_loss() {
+    let directory = tempfile::tempdir().unwrap();
+    let database_path = directory.path().join("index.sqlite");
+    let connection = rusqlite::Connection::open(&database_path).unwrap();
+    connection
+        .execute_batch(
+            "CREATE TABLE sessions (
+                provider TEXT NOT NULL,
+                session_key TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                last_activity_at TEXT NOT NULL,
+                PRIMARY KEY (provider, session_key)
+            );
+             INSERT INTO sessions (provider, session_key, started_at, last_activity_at)
+             VALUES ('claude', 'legacy-session', '2026-01-01T00:00:00Z', '2026-01-01T00:00:01Z');",
+        )
+        .unwrap();
+    drop(connection);
+
+    let _database = IndexStore::open(&database_path).unwrap();
+    let connection = rusqlite::Connection::open(database_path).unwrap();
+    let columns: Vec<String> = connection
+        .prepare("PRAGMA table_info(sessions)")
+        .unwrap()
+        .query_map([], |row| row.get(1))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+
+    assert!(columns.iter().any(|column| column == "display_name"));
+    assert!(columns
+        .iter()
+        .any(|column| column == "display_name_updated_at"));
+    let legacy: (String, String) = connection
+        .query_row(
+            "SELECT started_at, last_activity_at FROM sessions WHERE session_key = 'legacy-session'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(legacy.0, "2026-01-01T00:00:00Z");
+    assert_eq!(legacy.1, "2026-01-01T00:00:01Z");
 }
 
 #[test]

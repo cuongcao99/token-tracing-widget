@@ -1,4 +1,5 @@
 use token_tracing_widget_lib::types::provider::Provider;
+use token_tracing_widget_lib::types::session_usage_summary::SessionUsageState;
 use token_tracing_widget_lib::types::source_health::SourceHealth;
 use token_tracing_widget_lib::types::usage_event::UsageEvent;
 use token_tracing_widget_lib::usage::provider_summary::compute_provider_summary;
@@ -33,6 +34,13 @@ fn computes_session_and_today_totals_per_provider() {
     assert_eq!(result.current_session_tokens, Some(42));
     assert_eq!(result.today_tokens, 42);
     assert_eq!(result.state, UsageState::Active);
+    assert_eq!(result.sessions.len(), 1);
+    assert_eq!(result.sessions[0].id, "claude-session");
+    assert_eq!(result.sessions[0].today_tokens, 42);
+    assert!(matches!(
+        result.sessions[0].state,
+        SessionUsageState::Active
+    ));
 }
 
 #[test]
@@ -63,6 +71,15 @@ fn provider_summary_sums_concurrent_current_day_sessions() {
     assert_eq!(result.current_session_tokens, Some(42));
     assert_eq!(result.today_tokens, 42);
     assert_eq!(result.state, UsageState::Active);
+    assert_eq!(
+        result
+            .sessions
+            .iter()
+            .map(|session| session.today_tokens)
+            .sum::<u64>(),
+        result.today_tokens,
+    );
+    assert_eq!(result.sessions.len(), 2);
 }
 
 #[test]
@@ -85,6 +102,7 @@ fn resets_current_session_when_latest_event_is_from_a_previous_local_day() {
     assert_eq!(result.current_session_tokens, Some(0));
     assert_eq!(result.today_tokens, 0);
     assert_eq!(result.state, UsageState::Idle);
+    assert!(result.sessions.is_empty());
     assert_eq!(
         result.last_updated_at.as_deref(),
         Some("2026-01-01T00:00:00Z")
@@ -109,6 +127,8 @@ fn preserves_idle_provider_totals_and_marks_missing_source_unavailable() {
     );
     assert_eq!(idle.state, UsageState::Idle);
     assert_eq!(idle.current_session_tokens, Some(42));
+    assert_eq!(idle.sessions[0].today_tokens, 42);
+    assert!(matches!(idle.sessions[0].state, SessionUsageState::Idle));
 
     let unavailable = compute_provider_summary(
         Provider::Codex,
@@ -119,4 +139,5 @@ fn preserves_idle_provider_totals_and_marks_missing_source_unavailable() {
     );
     assert_eq!(unavailable.state, UsageState::Unavailable);
     assert_eq!(unavailable.today_tokens, 0);
+    assert!(unavailable.sessions.is_empty());
 }

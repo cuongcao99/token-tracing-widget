@@ -28,6 +28,7 @@ pub fn parse_record(record: &Value) -> Result<Option<TokenObservation>, Provider
     Ok(Some(TokenObservation {
         provider: Provider::Claude,
         source_session_key: first_string(record, &["sessionId", "session_id"]),
+        session_name: None,
         source_event_key: first_string_from_map(message, &["id"])
             .or_else(|| first_string(record, &["uuid"])),
         observed_at: required_string(record.get("timestamp"))?,

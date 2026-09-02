@@ -50,21 +50,25 @@ pub(crate) fn query_between(
     let mut statement = connection.prepare(
         r#"
         SELECT
-            event_id,
-            provider,
-            file_identity,
-            session_key,
-            source_position,
-            observed_at,
-            counter_kind,
-            monotonic_segment,
-            input_tokens,
-            cached_input_tokens,
-            output_tokens,
-            total_tokens
+            usage_events.event_id,
+            usage_events.provider,
+            usage_events.file_identity,
+            usage_events.session_key,
+            usage_events.source_position,
+            usage_events.observed_at,
+            usage_events.counter_kind,
+            usage_events.monotonic_segment,
+            usage_events.input_tokens,
+            usage_events.cached_input_tokens,
+            usage_events.output_tokens,
+            usage_events.total_tokens,
+            sessions.display_name
         FROM usage_events
-        WHERE observed_at >= ?1 AND observed_at <= ?2
-        ORDER BY observed_at ASC, source_position ASC, event_id ASC
+        LEFT JOIN sessions
+            ON sessions.provider = usage_events.provider
+            AND sessions.session_key = usage_events.session_key
+        WHERE usage_events.observed_at >= ?1 AND usage_events.observed_at <= ?2
+        ORDER BY usage_events.observed_at ASC, usage_events.source_position ASC, usage_events.event_id ASC
         "#,
     )?;
     let rows = statement.query_map(params![day_start, now], |row| {
@@ -95,6 +99,7 @@ pub(crate) fn query_between(
                 .map(from_sql_i64)
                 .transpose()?,
             total_tokens: from_sql_i64(row.get(11)?)?,
+            session_name: row.get(12)?,
         })
     })?;
     rows.collect()

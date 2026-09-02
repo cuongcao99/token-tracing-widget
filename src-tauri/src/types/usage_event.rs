@@ -1,6 +1,7 @@
 //! A deduplicated token usage event accepted by the totals pipeline.
 
 use super::provider::Provider;
+use super::session_usage_summary::normalize_session_name;
 use super::token_observation::{CounterKind, TokenObservation};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -9,6 +10,7 @@ pub struct UsageEvent {
     pub provider: Provider,
     pub file_identity: String,
     pub session_key: String,
+    pub session_name: Option<String>,
     pub source_position: u64,
     pub observed_at: String,
     pub counter_kind: CounterKind,
@@ -37,6 +39,7 @@ impl UsageEvent {
             provider: observation.provider,
             file_identity,
             session_key,
+            session_name: normalize_session_name(observation.session_name.as_deref()),
             source_position,
             observed_at: observation.observed_at.clone(),
             counter_kind: observation.counter_kind,
@@ -60,6 +63,7 @@ impl UsageEvent {
             provider,
             file_identity: session_key.to_owned(),
             session_key: session_key.to_owned(),
+            session_name: None,
             source_position: 0,
             observed_at: observed_at.to_owned(),
             counter_kind: CounterKind::Incremental,

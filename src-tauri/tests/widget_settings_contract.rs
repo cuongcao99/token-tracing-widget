@@ -1,6 +1,9 @@
 use token_tracing_widget_lib::commands::widget_settings::WidgetSettingsInput;
 use token_tracing_widget_lib::types::provider::Provider;
 use token_tracing_widget_lib::types::provider_usage_summary::ProviderUsageSummary;
+use token_tracing_widget_lib::types::session_usage_summary::{
+    SessionUsageState, SessionUsageSummary,
+};
 use token_tracing_widget_lib::types::widget_settings::WidgetSettingsSnapshot;
 use token_tracing_widget_lib::UsageState;
 
@@ -12,6 +15,7 @@ fn provider_summary_serializes_only_normalized_fields() {
         Some(20),
         40,
         Some("2026-01-01T00:00:00Z".to_owned()),
+        Vec::new(),
     );
     let object = serde_json::to_value(summary).unwrap();
 
@@ -26,11 +30,35 @@ fn provider_summary_serializes_only_normalized_fields() {
             "currentSessionTokens",
             "lastUpdatedAt",
             "provider",
+            "sessions",
             "state",
             "todayTokens"
         ]
     );
     assert!(!object.to_string().contains("rawRecord"));
+}
+
+#[test]
+fn session_summary_serializes_only_approved_metadata() {
+    let summary = SessionUsageSummary {
+        id: "session-a".to_owned(),
+        name: Some("Run alpha".to_owned()),
+        state: SessionUsageState::Active,
+        today_tokens: 40,
+    };
+    let object = serde_json::to_value(summary).unwrap();
+
+    assert_eq!(
+        object
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        vec!["id", "name", "state", "todayTokens"]
+    );
+    assert!(!object.to_string().contains("rawRecord"));
+    assert!(!object.to_string().contains("file"));
 }
 
 #[test]

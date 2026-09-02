@@ -29,6 +29,7 @@ fn codex_observation(timestamp: &str, total: u64) -> TokenObservation {
     TokenObservation {
         provider: Provider::Codex,
         source_session_key: None,
+        session_name: None,
         source_event_key: None,
         observed_at: timestamp.to_owned(),
         counter_kind: CounterKind::Cumulative,
@@ -134,6 +135,7 @@ fn duplicate_stable_event_key_is_accepted_once() {
     let observation = TokenObservation {
         provider: Provider::Claude,
         source_session_key: Some("session-a".to_owned()),
+        session_name: None,
         source_event_key: Some("event-1".to_owned()),
         observed_at: "2026-01-01T00:00:00Z".to_owned(),
         counter_kind: CounterKind::Incremental,
@@ -156,6 +158,7 @@ fn duplicate_stable_event_key_is_rejected_even_at_a_new_source_position() {
     let observation = TokenObservation {
         provider: Provider::Claude,
         source_session_key: Some("session-a".to_owned()),
+        session_name: None,
         source_event_key: Some("event-1".to_owned()),
         observed_at: "2026-01-01T00:00:00Z".to_owned(),
         counter_kind: CounterKind::Incremental,
@@ -189,6 +192,7 @@ fn incremental_observation(
     TokenObservation {
         provider: Provider::Claude,
         source_session_key: Some("session-a".to_owned()),
+        session_name: None,
         source_event_key: event_key.map(str::to_owned),
         observed_at: timestamp.to_owned(),
         counter_kind: CounterKind::Incremental,

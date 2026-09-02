@@ -596,6 +596,7 @@ mod tests {
                     Some(today_tokens),
                     today_tokens,
                     Some("2026-01-01T00:00:00Z".to_owned()),
+                    Vec::new(),
                 )],
             },
             accepted_event_count: 1,
