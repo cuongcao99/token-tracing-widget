@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 
 use crate::types::provider::Provider;
-use crate::types::trace_signal::TraceSignal;
 
 #[derive(Debug, Clone)]
 pub(crate) struct WatchRoot {
@@ -33,7 +32,6 @@ pub(crate) enum WatchSignal {
     Changed(Provider),
     WatchUnavailable(Provider),
     ConfigurationChanged,
-    Trace(TraceSignal),
     Shutdown,
 }
 
@@ -95,40 +93,6 @@ impl SourceObserver {
         }
         #[cfg(not(windows))]
         let _ = provider;
-    }
-
-    pub(crate) fn is_active(&self, provider: Provider) -> bool {
-        #[cfg(windows)]
-        {
-            self.workers
-                .get(&provider)
-                .is_some_and(|worker| !worker.worker.is_finished())
-        }
-        #[cfg(not(windows))]
-        {
-            let _ = provider;
-            false
-        }
-    }
-
-    pub(crate) fn replace_roots(&mut self, roots: Vec<WatchRoot>) {
-        #[cfg(windows)]
-        {
-            let roots = roots
-                .into_iter()
-                .map(|root| (root.provider(), root))
-                .collect::<BTreeMap<_, _>>();
-            let active_providers = self.workers.keys().copied().collect::<Vec<_>>();
-            for provider in active_providers {
-                if let Some(root) = roots.get(&provider).cloned() {
-                    self.start_provider(root);
-                } else {
-                    self.stop_provider(provider);
-                }
-            }
-        }
-        #[cfg(not(windows))]
-        let _ = roots;
     }
 
     pub(crate) fn shutdown(&mut self) {

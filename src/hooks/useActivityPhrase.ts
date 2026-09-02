@@ -6,6 +6,8 @@ import {
 
 const DEFAULT_MIN_INTERVAL_MS = 3_200;
 const DEFAULT_MAX_INTERVAL_MS = 5_600;
+const ACTIVE_MIN_INTERVAL_MS = 15_000;
+const ACTIVE_MAX_INTERVAL_MS = 15_000;
 
 export interface UseActivityPhraseOptions {
   minIntervalMs?: number;
@@ -53,13 +55,17 @@ export function useActivityPhrase(
   options: UseActivityPhraseOptions = {},
 ): ActivityPhraseResult {
   const random = options.random ?? Math.random;
+  const defaultMinIntervalMs =
+    state === "active" ? ACTIVE_MIN_INTERVAL_MS : DEFAULT_MIN_INTERVAL_MS;
+  const defaultMaxIntervalMs =
+    state === "active" ? ACTIVE_MAX_INTERVAL_MS : DEFAULT_MAX_INTERVAL_MS;
   const minIntervalMs = clampDuration(
     options.minIntervalMs,
-    DEFAULT_MIN_INTERVAL_MS,
+    defaultMinIntervalMs,
   );
   const maxIntervalMs = clampDuration(
     options.maxIntervalMs,
-    DEFAULT_MAX_INTERVAL_MS,
+    defaultMaxIntervalMs,
   );
   const [reducedMotion, setReducedMotion] = useState(
     () => options.reducedMotion ?? prefersReducedMotion(),

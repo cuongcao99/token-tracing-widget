@@ -481,7 +481,7 @@ fn summary_is_not_recomputed_when_sqlite_commit_fails() {
 }
 
 #[test]
-fn active_provider_expires_after_two_minutes_but_last_update_remains() {
+fn active_provider_expires_after_ten_seconds_but_last_update_remains() {
     let events = vec![UsageEvent::for_test(
         Provider::Claude,
         "session-a",
@@ -493,7 +493,7 @@ fn active_provider_expires_after_two_minutes_but_last_update_remains() {
         &SummaryRows { events },
         &source_health,
         &[Provider::Claude],
-        &FixedClock::new("2026-01-01T10:02:01Z", "2026-01-01"),
+        &FixedClock::new("2026-01-01T10:00:11Z", "2026-01-01"),
     );
 
     assert_eq!(summary.state, token_tracing_widget_lib::UsageState::Idle);

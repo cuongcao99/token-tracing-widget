@@ -17,9 +17,7 @@ other applications.
 Token Tracing derives privacy-safe token-usage totals from supported local
 coding-agent session data and presents the latest provider, current-session
 total, today's total, and last update in a small desktop overlay. Success means
-the user can understand current usage without opening session files. Optional
-lifecycle hooks are installed only after explicit consent and never replace
-session-file accounting.
+the user can understand current usage without opening session files.
 
 ## Positioning
 
@@ -43,8 +41,8 @@ it can remain visible while the user works elsewhere.
   summaries and settings payloads only.
 - Claude Code and Codex sources can be enabled independently, with independent
   source health and restart-safe totals.
-- Claude Code and Codex lifecycle signals can be enabled independently through
-  explicit user-scope hook configuration; Codex trust remains provider-owned.
+- Enabled source roots are observed by the native file observer while the app
+  is open; Active expires after 10 seconds without a newer valid token event.
 - The runtime uses Tauri commands and events, plain CSS, SQLite, and no network
   client, telemetry, sidecar, background service, frontend state library, CSS
   framework, ORM, or WSL auto-discovery.

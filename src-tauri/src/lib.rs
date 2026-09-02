@@ -5,7 +5,6 @@ mod app;
 pub mod collection;
 pub mod commands;
 pub mod database;
-mod hooks_config;
 pub mod providers;
 pub mod sources;
 pub mod types;
@@ -28,7 +27,11 @@ pub enum UsageState {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    if app::trace_signal::run_hook_mode() {
+    // Keep stale provider hook commands harmless after hook support removal.
+    if std::env::args_os()
+        .skip(1)
+        .any(|argument| argument == "--hook")
+    {
         return;
     }
 
@@ -57,8 +60,6 @@ pub fn run() {
             commands::source_settings::get_source_settings,
             commands::source_settings::pick_source_root,
             commands::source_settings::update_source_settings,
-            commands::trace_hooks::get_trace_hook_status,
-            commands::trace_hooks::update_trace_hook,
             commands::usage_summary::get_usage_summary,
             commands::widget_settings::get_widget_settings,
             commands::widget_settings::update_widget_settings

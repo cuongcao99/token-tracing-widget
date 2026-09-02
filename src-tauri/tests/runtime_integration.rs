@@ -50,7 +50,7 @@ fn runtime_collects_native_sources_and_returns_post_commit_summary() {
     .expect("runtime should open");
 
     let report = state
-        .collect_once(&FixedClock::new("2026-01-01T00:00:30Z", "2026-01-01"))
+        .collect_once(&FixedClock::new("2026-01-01T00:00:05Z", "2026-01-01"))
         .expect("initial collection should commit");
 
     assert_eq!(report.summary.today_tokens, 40);

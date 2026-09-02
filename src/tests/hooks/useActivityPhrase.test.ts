@@ -7,6 +7,24 @@ afterEach(() => {
 });
 
 describe("useActivityPhrase", () => {
+  it("keeps an active phrase for about fifteen seconds by default", () => {
+    vi.useFakeTimers();
+    const random = vi.fn(() => 0);
+
+    const { result } = renderHook(() => useActivityPhrase("active", { random }));
+    const firstPhrase = result.current.phrase;
+
+    act(() => {
+      vi.advanceTimersByTime(14_999);
+    });
+    expect(result.current.phrase).toBe(firstPhrase);
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(result.current.phrase).not.toBe(firstPhrase);
+  });
+
   it("rotates to another phrase after the configured delay", () => {
     vi.useFakeTimers();
     const randomValues = [0, 0.9];

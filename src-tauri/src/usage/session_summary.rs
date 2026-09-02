@@ -7,7 +7,7 @@ use crate::types::usage_event::UsageEvent;
 use crate::utils::windows_time::{parse_timestamp_seconds, timestamp_local_day};
 use crate::UsageState;
 
-pub const ACTIVE_SESSION_WINDOW_SECONDS: i64 = 120;
+pub const ACTIVE_SESSION_WINDOW_SECONDS: i64 = 10;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionAggregate {
@@ -55,7 +55,7 @@ pub fn compute_session_aggregation(
             continue;
         };
         let latest_seconds = parse_timestamp_seconds(&latest.observed_at).unwrap_or(now_seconds);
-        let active = now_seconds.saturating_sub(latest_seconds) <= ACTIVE_SESSION_WINDOW_SECONDS;
+        let active = now_seconds.saturating_sub(latest_seconds) < ACTIVE_SESSION_WINDOW_SECONDS;
         let total_tokens = sum_tokens(&session_events, |_| true);
         let current_day_tokens = sum_tokens(&session_events, |event| {
             local_day

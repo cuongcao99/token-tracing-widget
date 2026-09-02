@@ -1,5 +1,8 @@
 # Event-driven agent observer Implementation Plan
 
+> **Superseded:** This hook-driven plan is retained as history. The implemented
+> direction is `docs/superpowers/specs/2026-09-02-file-observer-design-update.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make agent lifecycle hooks start and stop provider observation without blocking hook delivery behind filesystem collection, while preserving restart-safe metadata-only token accounting.

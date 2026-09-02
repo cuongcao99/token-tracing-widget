@@ -1,7 +1,7 @@
 # Agent lifecycle hooks design update
 
 **Date:** 2026-09-02  
-**Status:** Approved implementation direction  
+**Status:** Superseded by `docs/superpowers/specs/2026-09-02-file-observer-design-update.md`
 **Supersedes:** The hook-installation non-goal in the 2026-08-29 design for
 the optional tracing path only.
 
@@ -97,4 +97,3 @@ then resumes live updates.
 - `src-tauri/src/types/trace_hooks.rs`: frontend-safe hook status contract.
 - `src-tauri/src/database/`: unchanged for lifecycle signals; no raw hook
   payload or hook identity is persisted.
-

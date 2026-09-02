@@ -6,8 +6,6 @@ pub mod provider_usage_summary;
 pub mod source_health;
 pub mod theme;
 pub mod token_observation;
-pub mod trace_hooks;
-pub mod trace_signal;
 pub mod usage_event;
 pub mod usage_summary;
 pub mod widget_settings;

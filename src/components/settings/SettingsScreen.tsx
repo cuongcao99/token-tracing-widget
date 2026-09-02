@@ -4,13 +4,10 @@ import SettingsCloseButton from "./SettingsCloseButton";
 import WindowGrip from "../shared/WindowGrip";
 import WindowResizeHandles from "../shared/WindowResizeHandles";
 import useSettingsController from "../../hooks/useSettingsController";
-import useTraceHooks from "../../hooks/useTraceHooks";
-import TraceHooksSection from "./TraceHooksSection";
 import surfaceStyles from "../../styles/settings/surface.module.css";
 import formStyles from "../../styles/settings/forms.module.css";
 
 export default function SettingsScreen() {
-  const traceHooks = useTraceHooks();
   const {
     closeSettings,
     darkMode,
@@ -70,13 +67,6 @@ export default function SettingsScreen() {
               sources={sources}
               onSourceToggle={onSourceToggle}
               onSourceRootChoose={onSourceRootChoose}
-            />
-            <TraceHooksSection
-              statuses={traceHooks.statuses}
-              loading={traceHooks.loading}
-              error={traceHooks.error}
-              updatingProvider={traceHooks.updatingProvider}
-              onToggle={traceHooks.toggle}
             />
             <AppearanceSection
               theme={theme}

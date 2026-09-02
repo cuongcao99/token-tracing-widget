@@ -25,7 +25,7 @@ The stable opaque identity used to group Usage Events belonging to one Session.
 _Avoid_: Session name, conversation ID
 
 **Active Session**:
-A Session whose newest valid Usage Event is inside the 120-second activity window.
+A Session whose newest valid Usage Event is inside the 10-second activity window.
 _Avoid_: Current conversation, selected session
 
 **Observation**:
@@ -72,17 +72,6 @@ _Avoid_: App status, connection status
 The privacy-safe aggregate presented to the overlay: activity state, optional Provider, current-session total, Today's Total, last update, and Source Health.
 _Avoid_: Dashboard data, raw usage
 
-**Trace Signal**:
-An allow-listed, ephemeral lifecycle hint projected from a trusted provider
-hook; it may trigger collection or presentation activity but is never a Usage
-Event and never changes token totals.
-_Avoid_: Token event, transcript event
-
-**Hook Configuration**:
-An explicitly consented user-scope provider command-hook entry owned by Token
-Tracing; configuration state does not prove provider trust or hook delivery.
-_Avoid_: Token source, accounting source
-
 **Provider Registry**:
 The canonical set of supported Provider identities and their safe display/adapter metadata.
 _Avoid_: Plugin marketplace, arbitrary provider
@@ -110,10 +99,9 @@ Tauri bridge calls; plain CSS owns the visual system.
   summaries, and select the Active Provider.
 - `src-tauri/src/database/` persists normalized usage events, sessions,
   checkpoints, source configuration, and widget settings in SQLite.
-- `src-tauri/src/commands/` exposes typed usage-summary, source-settings,
-  widget-settings, and optional trace-hook commands. `src-tauri/src/types/`
-  defines the contracts crossing the Rust/React boundary; trace-hook status is
-  path-free and lifecycle signals remain Rust-internal.
+- `src-tauri/src/commands/` exposes typed usage-summary, source-settings, and
+  widget-settings commands. `src-tauri/src/types/` defines the contracts
+  crossing the Rust/React boundary.
 
 The privacy-preserving flow is:
 
@@ -152,7 +140,9 @@ Providers independently while keeping both visible when configured, including
 when a Provider is idle. Multiple sessions for one Provider can contribute to
 its Active current-session total. The widget presents each visible Provider's
 current-session and Today's totals plus one combined `Total`; it does not
-expose raw source data.
+expose raw source data. Enabled provider roots are observed continuously while
+the app is open; activity is derived only from the newest valid token event and
+expires after 10 seconds without a newer event.
 
 Settings currently control:
 

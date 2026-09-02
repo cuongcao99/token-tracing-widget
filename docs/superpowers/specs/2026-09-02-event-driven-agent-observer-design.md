@@ -1,7 +1,7 @@
 # Event-driven agent observer design
 
 **Date:** 2026-09-02  
-**Status:** Approved for implementation  
+**Status:** Superseded by `docs/superpowers/specs/2026-09-02-file-observer-design-update.md`
 **Supersedes:** The live-trigger and transient-trace portions of
 `docs/superpowers/specs/2026-09-02-agent-hooks-design-update.md`.
 

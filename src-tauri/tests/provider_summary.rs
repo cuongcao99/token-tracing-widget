@@ -41,13 +41,13 @@ fn provider_summary_sums_concurrent_current_day_sessions() {
         UsageEvent::for_test(
             Provider::Claude,
             "claude-session-a",
-            "2026-01-01T00:01:00Z",
+            "2026-01-01T00:01:50Z",
             20,
         ),
         UsageEvent::for_test(
             Provider::Claude,
             "claude-session-b",
-            "2026-01-01T00:01:30Z",
+            "2026-01-01T00:01:55Z",
             22,
         ),
     ];
@@ -56,7 +56,7 @@ fn provider_summary_sums_concurrent_current_day_sessions() {
         Provider::Claude,
         &events,
         Some(&SourceHealth::detected(Provider::Claude)),
-        "2026-01-01T00:02:00Z",
+        "2026-01-01T00:01:59Z",
         "2026-01-01",
     );
 
