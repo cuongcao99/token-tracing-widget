@@ -10,8 +10,11 @@ const WINDOW_ORDER = [300, 10_080] as const;
 
 export function limitColor(remainingPercent: number): string {
   const percent = Math.min(100, Math.max(0, remainingPercent));
-  const hue = Math.round(percent * 1.2);
-  return `hsl(${hue} 48% 58%)`;
+  const ratio = percent / 100;
+  const hue = Math.round(ratio * 134);
+  const saturation = Math.round(65 - ratio * 26);
+  const lightness = Math.round(50 + ratio * 4);
+  return `hsl(${hue} ${saturation}% ${lightness}%)`;
 }
 
 export function formatLimitReset(resetsAt: number, nowMs = Date.now()): string {

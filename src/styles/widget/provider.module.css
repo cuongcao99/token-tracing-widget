@@ -37,20 +37,11 @@
   line-height: 1.2;
 }
 
-.sessionCount {
-  margin-top: var(--space-2);
+.emptyState {
+  margin: var(--space-2) 0 0;
   color: var(--color-muted);
   font-size: var(--type-widget-meta);
   line-height: 1.2;
-}
-
-.emptyState {
-  margin: var(--space-3) 0 0;
-  color: var(--color-muted-soft);
-  font-size: var(--type-widget-meta);
-  font-style: italic;
-  line-height: 1.2;
-  opacity: 0.8;
 }
 
 .status {

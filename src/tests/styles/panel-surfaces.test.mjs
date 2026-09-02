@@ -25,6 +25,7 @@ const settingsSurfaceCss = readStylesheet(
 );
 const settingsTokensCss = readStylesheet("../../styles/globals/tokens.css");
 const settingsFormsCss = readStylesheet("../../styles/settings/forms.module.css");
+const themesCss = readStylesheet("../../styles/globals/themes.css");
 const themePickerCss = readStylesheet(
   "../../styles/settings/theme-picker.module.css",
 );
@@ -65,19 +66,19 @@ describe("panel surface CSS", () => {
       "padding-right: var(--widget-padding-inline);",
     );
     expect(widgetProviderList).toContain(
-      "scrollbar-color: var(--color-line) transparent;",
+      "scrollbar-color: var(--color-muted-soft) transparent;",
     );
     expect(widgetProviderList).toContain("scrollbar-gutter: stable;");
     expect(widgetProviderList).toContain("scrollbar-width: thin;");
 
     expect(widgetSurfaceCss).toContain(
-      ".providerList::-webkit-scrollbar {\n  width: var(--settings-scrollbar-gutter);\n}",
+      ".providerList::-webkit-scrollbar {\n  width: var(--widget-scrollbar-width);\n}",
     );
     expect(widgetSurfaceCss).toMatch(
       /\.providerList::-webkit-scrollbar-button\s*\{[^}]*display:\s*none[^}]*width:\s*0[^}]*height:\s*0/s,
     );
     expect(widgetSurfaceCss).toContain(
-      ".providerList::-webkit-scrollbar-thumb {\n  background: var(--color-line);\n  border: 2px solid transparent;\n  border-radius: var(--radius-pill);\n  background-clip: padding-box;\n}",
+      ".providerList::-webkit-scrollbar-thumb {\n  background: var(--color-muted-soft);\n  border: 2px solid transparent;\n  border-radius: var(--radius-pill);\n  background-clip: padding-box;\n}",
     );
   });
 
@@ -112,8 +113,18 @@ describe("panel surface CSS", () => {
     expect(themePickerCss).toContain(".button");
     expect(themePickerCss).toContain(".menu");
     expect(themePickerCss).toContain(".option");
-    expect(themePickerCss).toContain("font-family: var(--font-display);");
+    expect(themePickerCss).toContain("font-family: var(--font-ui);");
     expect(settingsFormsCss).toContain("font-size: var(--type-settings-meta);");
+    expect(settingsFormsCss).toContain('.sourceHealth[data-health-state="detected"]');
+    expect(settingsFormsCss).toContain('.sourceHealth[data-health-state="limited"]');
+    expect(settingsFormsCss).toContain('.sourceHealth[data-health-state="permission_denied"]');
+    expect(settingsFormsCss).toContain("background: currentColor;");
+    expect(themesCss).toContain('[data-theme="claude"][data-color-mode="dark"]');
+    expect(themesCss).toContain("--color-positive: #5db872;");
+    expect(themesCss).toContain("--color-warning:");
+    expect(themesCss).toContain("--color-error:");
+    expect(themesCss).toContain("--color-muted-soft:");
+    expect(settingsTokensCss).toContain("--settings-row-min-height: 54px;");
     expect(settingsSurfaceCss).toContain(
       "--provider-name-display-size: calc(var(--type-settings-meta) + 4px);",
     );

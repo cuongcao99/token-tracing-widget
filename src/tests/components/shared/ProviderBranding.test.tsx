@@ -32,7 +32,7 @@ describe("provider branding", () => {
 
     const brand = document.querySelector<HTMLElement>(".provider-brand")!;
     expect(brand).toHaveAttribute("data-logo-variant", "warm-mark");
-    expect(brand).toHaveAttribute("data-font-role", "display");
+    expect(brand).toHaveAttribute("data-font-role", "ui");
     expect(brand).toHaveStyle({ "--provider-accent": "#cc785c" });
     expect(brand.querySelector("img")).toHaveAttribute(
       "src",
@@ -48,7 +48,7 @@ describe("provider branding", () => {
       "data-logo-variant",
       "warm-mark",
     );
-    expect(screen.getByText("Claude")).toHaveAttribute("data-font-role", "display");
+    expect(screen.getByText("Claude")).toHaveAttribute("data-font-role", "ui");
     expect(container).not.toHaveTextContent("Claude Code");
   });
 });

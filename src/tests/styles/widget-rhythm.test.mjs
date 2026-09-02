@@ -21,6 +21,9 @@ const surfaceCss = readStylesheet("../../styles/widget/surface.module.css");
 const providerCss = readStylesheet("../../styles/widget/provider.module.css");
 const metricsCss = readStylesheet("../../styles/widget/metrics.module.css");
 const totalCss = readStylesheet("../../styles/widget/total.module.css");
+const limitsCss = readStylesheet("../../styles/widget/limits.module.css");
+const activityCss = readStylesheet("../../styles/widget/activity.module.css");
+const sessionsCss = readStylesheet("../../styles/widget/sessions.module.css");
 const tokenCss = readStylesheet("../../styles/globals/tokens.css");
 const layoutSource = readStylesheet("../../lib/widget-layout.ts");
 
@@ -52,12 +55,63 @@ describe("widget vertical rhythm", () => {
     );
   });
 
-  it("matches Session and Today value weight to Total", () => {
+  it("makes quota the hero and keeps token totals supportive", () => {
+    expect(stylesheetBlock(limitsCss, ".value")).toContain(
+      "font-family: var(--font-display);",
+    );
+    expect(stylesheetBlock(limitsCss, ".value")).toContain(
+      "font-size: var(--type-widget-limit-value);",
+    );
     expect(stylesheetBlock(metricsCss, ".value")).toContain(
-      "font-weight: 500;",
+      "font-family: var(--font-ui);",
+    );
+    expect(stylesheetBlock(metricsCss, ".value")).toContain(
+      "color: var(--color-muted);",
     );
     expect(stylesheetBlock(totalCss, ".value")).toContain(
-      "font-weight: 500;",
+      "color: var(--color-muted-soft);",
+    );
+    expect(tokenCss).toContain("--type-widget-limit-value: 16px;");
+    expect(tokenCss).toContain("--type-widget-total: 16px;");
+  });
+
+  it("keeps the activity phrase neutral and empty state readable", () => {
+    expect(activityCss).not.toContain('.phrase[data-state="active"]');
+    expect(activityCss).not.toContain('.phrase[data-state="idle"]');
+    expect(stylesheetBlock(providerCss, ".emptyState")).toContain(
+      "color: var(--color-muted);",
+    );
+    expect(stylesheetBlock(providerCss, ".emptyState")).not.toContain(
+      "font-style: italic;",
+    );
+    expect(stylesheetBlock(providerCss, ".emptyState")).not.toContain(
+      "opacity:",
+    );
+  });
+
+  it("keeps active sessions distinct and long labels beside a fixed token column", () => {
+    expect(stylesheetBlock(sessionsCss, ".labelGroup")).toContain("min-width: 0;");
+    expect(stylesheetBlock(sessionsCss, ".currentLabel")).toContain(
+      "color: var(--color-positive);",
+    );
+    expect(stylesheetBlock(sessionsCss, ".row")).toContain(
+      "grid-template-columns: minmax(0, 1fr) max-content;",
+    );
+    expect(stylesheetBlock(sessionsCss, ".label")).toContain(
+      "text-overflow: ellipsis;",
+    );
+  });
+
+  it("keeps the widget scrollbar visible without introducing a brand color", () => {
+    expect(tokenCss).toContain("--widget-scrollbar-width: 10px;");
+    expect(stylesheetBlock(surfaceCss, ".providerList")).toContain(
+      "scrollbar-color: var(--color-muted-soft) transparent;",
+    );
+    expect(stylesheetBlock(surfaceCss, ".providerList::-webkit-scrollbar")).toContain(
+      "width: var(--widget-scrollbar-width);",
+    );
+    expect(stylesheetBlock(surfaceCss, ".providerList::-webkit-scrollbar-thumb")).toContain(
+      "background: var(--color-muted-soft);",
     );
   });
 

@@ -21,6 +21,10 @@ function SessionRow({ session }: {
   session: WidgetSessionViewModel;
 }) {
   const tokens = formatTokens(session.todayTokens);
+  const accessibleLabel =
+    session.state === "active"
+      ? `Current session, ${session.label}: ${tokens} tokens`
+      : `${session.label}: ${tokens} tokens`;
   const isFallbackId = session.label === session.id;
   const label = isFallbackId ? shortenSessionId(session.id) : session.label;
   const sessionLabel = isFallbackId ? (
@@ -52,9 +56,14 @@ function SessionRow({ session }: {
     <div
       className={styles.row}
       role="group"
-      aria-label={`${session.label}: ${tokens} tokens`}
+      aria-label={accessibleLabel}
     >
-      {sessionLabel}
+      <div className={styles.labelGroup}>
+        {session.state === "active" ? (
+          <span className={styles.currentLabel}>Current</span>
+        ) : null}
+        {sessionLabel}
+      </div>
       <strong className={styles.tokens}>{tokens}</strong>
     </div>
   );

@@ -17,7 +17,7 @@ describe("provider registry", () => {
     expect(providerMeta.claude.displayName).toBe("Claude");
     expect(providerMeta.claude.logoSrc).toMatch(/^data:image\/svg\+xml/);
     expect(providerMeta.claude.logoVariant).toBe("warm-mark");
-    expect(providerMeta.claude.fontRole).toBe("display");
+    expect(providerMeta.claude.fontRole).toBe("ui");
     expect(providerMeta.codex.automaticRoot).toBe(".codex/sessions");
     expect(providerMeta.codex.logoSrc).toMatch(/^data:image\/svg\+xml/);
     expect(providerMeta.codex.logoVariant).toBe("monochrome-mark");

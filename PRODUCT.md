@@ -42,7 +42,7 @@ it can remain visible while the user works elsewhere.
 - Claude Code and Codex sources can be enabled independently, with independent
   source health and restart-safe totals.
 - Enabled source roots are observed by the native file observer while the app
-  is open; Active expires after 10 seconds without a newer valid token event.
+  is open; Active expires after 15 seconds without a newer valid token event.
 - The runtime uses Tauri commands and events, plain CSS, SQLite, and no network
   client, telemetry, sidecar, background service, frontend state library, CSS
   framework, ORM, or WSL auto-discovery.

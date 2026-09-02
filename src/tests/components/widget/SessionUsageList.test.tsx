@@ -14,6 +14,7 @@ describe("SessionUsageList", () => {
     );
 
     expect(screen.getByText("Active run")).toBeInTheDocument();
+    expect(screen.getByText("Current")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
     const disclosure = screen.getByText("Idle · 1").closest("details");
     expect(disclosure).not.toBeNull();
@@ -70,11 +71,11 @@ describe("SessionUsageList", () => {
       />,
     );
 
-    expect(screen.getByRole("group", { name: "Largest: 100 tokens" })).not.toHaveAttribute(
-      "style",
-    );
-    expect(screen.getByRole("group", { name: "Small: 25 tokens" })).not.toHaveAttribute(
-      "style",
-    );
+    expect(
+      screen.getByRole("group", { name: "Current session, Largest: 100 tokens" }),
+    ).not.toHaveAttribute("style");
+    expect(
+      screen.getByRole("group", { name: "Current session, Small: 25 tokens" }),
+    ).not.toHaveAttribute("style");
   });
 });

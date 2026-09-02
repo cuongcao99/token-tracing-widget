@@ -67,24 +67,22 @@ export const ProviderUsageRow = memo(function ProviderUsageRow({
   usage,
   onSessionToggle,
 }: WidgetProviderRowProps) {
-  const session = formatTokens(usage.metrics.sessionTokens);
+  const sessionCount = usage.sessionCount.toLocaleString("en-US");
   const today = formatTokens(usage.metrics.todayTokens);
+  const sessionCountLabel = `${sessionCount} ${usage.sessionCount === 1 ? "session" : "sessions"} today`;
 
   return (
     <ProviderSection
       identity={usage.identity}
       status={usage.status}
     >
-      <div className={styles.sessionCount}>
-        {usage.sessionCount} sessions today
-      </div>
       <UsageLimits limits={usage.rateLimits} />
       <UsageMetrics
         metrics={[
           {
             label: "Session",
-            value: session,
-            ariaLabel: `Session: ${session} tokens`,
+            value: sessionCount,
+            ariaLabel: `Session count: ${sessionCountLabel}`,
           },
           {
             label: "Today",

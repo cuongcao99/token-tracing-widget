@@ -488,7 +488,7 @@ fn summary_is_not_recomputed_when_sqlite_commit_fails() {
 }
 
 #[test]
-fn active_provider_expires_after_ten_seconds_but_last_update_remains() {
+fn active_provider_expires_after_fifteen_seconds_but_last_update_remains() {
     let events = vec![UsageEvent::for_test(
         Provider::Claude,
         "session-a",
@@ -503,7 +503,7 @@ fn active_provider_expires_after_ten_seconds_but_last_update_remains() {
         },
         &source_health,
         &[Provider::Claude],
-        &FixedClock::new("2026-01-01T10:00:11Z", "2026-01-01"),
+        &FixedClock::new("2026-01-01T10:00:16Z", "2026-01-01"),
     );
 
     assert_eq!(summary.state, token_tracing_widget_lib::UsageState::Idle);
@@ -514,6 +514,26 @@ fn active_provider_expires_after_ten_seconds_but_last_update_remains() {
         Some("2026-01-01T10:00:00Z")
     );
     assert_eq!(summary.today_tokens, 20);
+}
+
+#[test]
+fn active_provider_stays_active_until_the_fifteen_second_fallback() {
+    let summary = compute_summary(
+        &SummaryRows {
+            events: vec![UsageEvent::for_test(
+                Provider::Claude,
+                "session-a",
+                "2026-01-01T10:00:00Z",
+                20,
+            )],
+            rate_limits: Vec::new(),
+        },
+        &[SourceHealth::detected(Provider::Claude)],
+        &[Provider::Claude],
+        &FixedClock::new("2026-01-01T10:00:14Z", "2026-01-01"),
+    );
+
+    assert_eq!(summary.state, token_tracing_widget_lib::UsageState::Active);
 }
 
 #[test]

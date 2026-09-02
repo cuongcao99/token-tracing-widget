@@ -45,6 +45,12 @@
   transform: scale(0.97);
 }
 
+.switch:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
 .sourceRow {
   min-width: 0;
 }
@@ -68,10 +74,23 @@
   display: inline-flex;
   align-items: center;
   gap: var(--settings-health-gap);
-  color: var(--color-positive);
+  color: var(--color-muted);
   font-size: var(--type-settings-meta);
   line-height: 1.2;
   white-space: nowrap;
+}
+
+.sourceHealth[data-health-state="detected"] {
+  color: var(--color-positive);
+}
+
+.sourceHealth[data-health-state="limited"] {
+  color: var(--color-warning);
+}
+
+.sourceHealth[data-health-state="malformed"],
+.sourceHealth[data-health-state="permission_denied"] {
+  color: var(--color-error);
 }
 
 .sourceHealthDot {
@@ -79,7 +98,7 @@
   width: var(--settings-health-dot-size);
   height: var(--settings-health-dot-size);
   border-radius: 50%;
-  background: var(--color-positive);
+  background: currentColor;
 }
 
 .sourcePath {
@@ -110,7 +129,7 @@
 }
 
 .sourcePath:focus-visible {
-  outline: var(--focus-width) solid var(--color-accent);
+  outline: var(--focus-width) solid var(--focus-color);
   outline-offset: var(--focus-offset);
   border-radius: var(--settings-path-focus-radius);
 }

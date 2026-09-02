@@ -20,19 +20,6 @@
   animation: character-hop 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.phrase[data-state="active"] {
-  color: var(--color-accent-active);
-}
-
-.phrase[data-state="idle"] {
-  color: var(--color-hibernating);
-}
-
-.phrase[data-state="stale"],
-.phrase[data-state="unavailable"] {
-  color: var(--color-muted-soft);
-}
-
 .phrase[data-motion="reduced"] {
   animation: none;
 }

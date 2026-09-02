@@ -4,8 +4,8 @@ import {
   type ActivityPhraseState,
 } from "../lib/activity-phrases";
 
-const DEFAULT_MIN_INTERVAL_MS = 3_200;
-const DEFAULT_MAX_INTERVAL_MS = 5_600;
+const DEFAULT_MIN_INTERVAL_MS = 8_000;
+const DEFAULT_MAX_INTERVAL_MS = 12_000;
 const ACTIVE_MIN_INTERVAL_MS = 15_000;
 const ACTIVE_MAX_INTERVAL_MS = 15_000;
 

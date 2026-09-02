@@ -8,10 +8,14 @@ import UsageLimits, {
 describe("UsageLimits", () => {
   afterEach(() => cleanup());
 
-  it("uses red at zero remaining and green at full remaining", () => {
-    expect(limitColor(0)).toBe("hsl(0 48% 58%)");
-    expect(limitColor(50)).toBe("hsl(60 48% 58%)");
-    expect(limitColor(100)).toBe("hsl(120 48% 58%)");
+  it("interpolates one Claude-toned quota color continuously", () => {
+    expect(limitColor(-10)).toBe("hsl(0 65% 50%)");
+    expect(limitColor(0)).toBe("hsl(0 65% 50%)");
+    expect(limitColor(25)).toBe("hsl(34 59% 51%)");
+    expect(limitColor(50)).toBe("hsl(67 52% 52%)");
+    expect(limitColor(75)).toBe("hsl(101 46% 53%)");
+    expect(limitColor(100)).toBe("hsl(134 39% 54%)");
+    expect(limitColor(110)).toBe("hsl(134 39% 54%)");
   });
 
   it("shows remaining capacity instead of provider usage consumed", () => {

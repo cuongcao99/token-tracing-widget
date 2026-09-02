@@ -116,6 +116,12 @@
   background: var(--color-card);
 }
 
+.closeButton:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
 .closeIcon {
   width: var(--settings-close-icon-size);
   height: var(--settings-close-icon-size);
@@ -155,6 +161,13 @@
   font-weight: 400;
   letter-spacing: -0.25px;
   line-height: 1.2;
+}
+
+.sectionHint {
+  margin: 3px 0 0;
+  color: var(--color-muted);
+  font-size: var(--type-settings-meta);
+  line-height: 1.25;
 }
 
 .card {

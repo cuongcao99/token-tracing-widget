@@ -28,8 +28,8 @@
   display: block;
   min-width: 0;
   overflow: hidden;
-  color: var(--color-ink);
-  font-family: var(--font-display);
+  color: var(--color-muted);
+  font-family: var(--font-ui);
   font-size: var(--type-widget-value);
   font-variant-numeric: tabular-nums;
   font-weight: 500;

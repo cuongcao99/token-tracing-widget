@@ -694,7 +694,7 @@ mod tests {
     fn activity_expiry_schedules_a_summary_refresh() {
         let start = Instant::now();
         let mut scheduler = LiveScheduler::new(start, test_config());
-        let expiry = start + Duration::from_secs(10);
+        let expiry = start + Duration::from_secs(15);
 
         scheduler.arm_activity_expiry(expiry);
 

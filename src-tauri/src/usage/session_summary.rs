@@ -8,7 +8,7 @@ use crate::types::usage_event::UsageEvent;
 use crate::utils::windows_time::{parse_timestamp_seconds, timestamp_local_day};
 use crate::UsageState;
 
-pub const ACTIVE_SESSION_WINDOW_SECONDS: i64 = 10;
+pub const ACTIVE_SESSION_WINDOW_SECONDS: i64 = 15;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionAggregate {

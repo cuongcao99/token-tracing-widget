@@ -50,7 +50,7 @@ export default function TokenTracingWidget() {
             measuredContentHeight,
           );
     void request.catch(() => undefined);
-  }, [layoutRevision, viewModel]);
+  }, [layoutRevision]);
 
   return (
     <main
@@ -75,7 +75,9 @@ export default function TokenTracingWidget() {
           />
         ))}
       </section>
-      <WidgetTotal tokens={viewModel.totalTokens} />
+      {viewModel.visibleProviderCount > 1 ? (
+        <WidgetTotal tokens={viewModel.totalTokens} />
+      ) : null}
       <WindowResizeHandles windowName="widget" />
     </main>
   );

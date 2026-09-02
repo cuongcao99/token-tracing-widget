@@ -7,6 +7,7 @@ import {
   WIDGET_MAX_WIDTH,
   WIDGET_MIN_WIDTH,
   widgetHeightForContent,
+  widgetHeightForVisibleProviders,
 } from "../widget-layout";
 
 export type WindowResizeDirection =
@@ -59,6 +60,7 @@ export function syncWidgetWindowHeight(
       visibleProviderCount,
       measuredContentHeight,
     );
+    const minimumHeight = widgetHeightForVisibleProviders(visibleProviderCount);
     const logicalWidth = clamp(
       Math.round(physicalSize.width / factor),
       WIDGET_MIN_WIDTH,
@@ -67,7 +69,7 @@ export function syncWidgetWindowHeight(
 
     await window.setSizeConstraints({
       minWidth: WIDGET_MIN_WIDTH,
-      minHeight: targetHeight,
+      minHeight: minimumHeight,
       maxWidth: WIDGET_MAX_WIDTH,
       maxHeight: WIDGET_MAX_HEIGHT,
     });

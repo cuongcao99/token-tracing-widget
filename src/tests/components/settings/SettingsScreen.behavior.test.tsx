@@ -143,11 +143,11 @@ describe("SettingsScreen behavior", () => {
     render(<SettingsScreen />);
     await screen.findByRole("heading", { name: "Settings" });
     fireEvent.click(screen.getByRole("switch", { name: "Show Codex in widget" }));
-    fireEvent.click(screen.getByRole("switch", { name: "Collect Codex source" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Collect data from Codex" }));
     fireEvent.click(screen.getByRole("switch", { name: "Dark mode" }));
 
     expect(screen.getByRole("switch", { name: "Show Codex in widget" })).not.toBeChecked();
-    expect(screen.getByRole("switch", { name: "Collect Codex source" })).not.toBeChecked();
+    expect(screen.getByRole("switch", { name: "Collect data from Codex" })).not.toBeChecked();
     expect(screen.getByRole("main")).toHaveAttribute("data-color-mode", "light");
     expect(mocks.emitPreview).toHaveBeenLastCalledWith({
       theme: "claude",

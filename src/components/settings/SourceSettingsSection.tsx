@@ -24,12 +24,18 @@ export default function SourceSettingsSection({
   return (
     <section className={surfaceStyles.section}>
       <div className={surfaceStyles.sectionHeading}>
-        <h2 className={surfaceStyles.sectionTitle}>Sources</h2>
+        <div>
+          <h2 className={surfaceStyles.sectionTitle}>Sources</h2>
+          <p className={surfaceStyles.sectionHint}>Collect data from</p>
+        </div>
       </div>
       <div className={surfaceStyles.card}>
         {providerRegistry.map(({ id: provider }) => {
           const source = sources[provider];
           const root = source.rootOverride || providerMeta[provider].displayRoot;
+          const healthState =
+            health.find((entry) => entry.provider === provider)?.state ??
+            "unavailable";
           return (
             <div className={formStyles.sourceRow} key={provider}>
               <div className={`${surfaceStyles.row} ${formStyles.sourceMain}`}>
@@ -49,12 +55,15 @@ export default function SourceSettingsSection({
                   </div>
                 </div>
                 <div className={formStyles.sourceActions}>
-                  <span className={formStyles.sourceHealth}>
+                  <span
+                    className={formStyles.sourceHealth}
+                    data-health-state={source.enabled ? healthState : "disabled"}
+                  >
                     <span className={formStyles.sourceHealthDot} aria-hidden="true" />
                     {sourceHealthLabel(provider, health, source.enabled)}
                   </span>
                   <SettingsSwitch
-                    label={`Collect ${providerMeta[provider].displayName} source`}
+                    label={`Collect data from ${providerMeta[provider].displayName}`}
                     checked={source.enabled}
                     onChange={(next) => onToggle(provider, next)}
                   />

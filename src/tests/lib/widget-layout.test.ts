@@ -22,10 +22,10 @@ describe("widget layout", () => {
     expect(widgetHeightForVisibleProviders(Number.NaN)).toBe(WIDGET_MIN_HEIGHT);
   });
 
-  it("clamps measured content between the provider baseline and maximum height", () => {
+  it("leaves a 17px breathing gap after measured content before clamping", () => {
     expect(widgetHeightForContent(1)).toBe(244);
     expect(widgetHeightForContent(1, 200)).toBe(244);
-    expect(widgetHeightForContent(1, 400)).toBe(400);
+    expect(widgetHeightForContent(1, 400)).toBe(417);
     expect(widgetHeightForContent(1, 999)).toBe(WIDGET_MAX_HEIGHT);
   });
 

@@ -19,7 +19,7 @@ const providerDefinitions = [
     displayName: "Claude",
     logoSrc: claudeLogo,
     logoVariant: "warm-mark",
-    fontRole: "display",
+    fontRole: "ui",
     accent: "#cc785c",
     automaticRoot: ".claude/projects",
     displayRoot: "~/.claude/projects",

@@ -17,8 +17,8 @@
 .value {
   min-width: 0;
   overflow: hidden;
-  color: var(--color-ink);
-  font-family: var(--font-display);
+  color: var(--color-muted-soft);
+  font-family: var(--font-ui);
   font-size: var(--type-widget-total);
   font-variant-numeric: tabular-nums;
   font-weight: 500;

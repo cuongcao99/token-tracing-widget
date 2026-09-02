@@ -74,13 +74,25 @@ describe("widget window sizing", () => {
     );
   });
 
-  it("uses measured content height while retaining the provider baseline", async () => {
+  it("adds a 17px anchor gap after measured content", async () => {
     await syncWidgetWindowHeight(1, 400);
 
-    expect(setSize).toHaveBeenCalledWith(expect.objectContaining({ height: 400 }));
+    expect(setSize).toHaveBeenCalledWith(expect.objectContaining({ height: 417 }));
     expect(setSizeConstraints).toHaveBeenCalledWith({
       minWidth: 360,
-      minHeight: 400,
+      minHeight: 244,
+      maxWidth: 720,
+      maxHeight: 520,
+    });
+  });
+
+  it("keeps the vertical resize range open when content reaches the maximum", async () => {
+    await syncWidgetWindowHeight(1, 999);
+
+    expect(setSize).toHaveBeenCalledWith(expect.objectContaining({ height: 520 }));
+    expect(setSizeConstraints).toHaveBeenCalledWith({
+      minWidth: 360,
+      minHeight: 244,
       maxWidth: 720,
       maxHeight: 520,
     });

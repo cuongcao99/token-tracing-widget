@@ -19,7 +19,10 @@ export default function ProviderVisibilitySection({
   return (
     <section className={surfaceStyles.section}>
       <div className={surfaceStyles.sectionHeading}>
-        <h2 className={surfaceStyles.sectionTitle}>Visible providers</h2>
+        <div>
+          <h2 className={surfaceStyles.sectionTitle}>Visible providers</h2>
+          <p className={surfaceStyles.sectionHint}>Show in widget</p>
+        </div>
       </div>
       <div className={surfaceStyles.card}>
         {providerRegistry.map(({ id: provider }) => {

@@ -25,7 +25,7 @@ The stable opaque identity used to group Usage Events belonging to one Session.
 _Avoid_: Session name, conversation ID
 
 **Active Session**:
-A Session whose newest valid Usage Event is inside the 10-second activity window.
+A Session whose newest valid Usage Event is inside the 15-second activity window.
 _Avoid_: Current conversation, selected session
 
 **Observation**:
@@ -142,7 +142,7 @@ its Active current-session total. The widget presents each visible Provider's
 current-session and Today's totals plus one combined `Total`; it does not
 expose raw source data. Enabled provider roots are observed continuously while
 the app is open; activity is derived only from the newest valid token event and
-expires after 10 seconds without a newer event.
+expires after 15 seconds without a newer event.
 
 Settings currently control:
 

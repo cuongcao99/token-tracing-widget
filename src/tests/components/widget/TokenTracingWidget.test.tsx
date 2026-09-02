@@ -127,7 +127,8 @@ describe("TokenTracingWidget", () => {
     ).not.toBeNull();
     expect(screen.getAllByText("Session", { selector: "span" })).toHaveLength(2);
     expect(screen.getAllByText("Today", { selector: "span" })).toHaveLength(2);
-    expect(screen.getAllByText("1 sessions today")).toHaveLength(2);
+    expect(screen.getAllByLabelText("Session count: 1 session today")).toHaveLength(2);
+    expect(screen.queryByText("1 sessions today")).not.toBeInTheDocument();
     expect(screen.getByText("Codex run")).toBeInTheDocument();
     expect(screen.getByText("Idle · 1")).toBeInTheDocument();
     expect(screen.getByText("5h limit")).toBeInTheDocument();
@@ -171,7 +172,8 @@ describe("TokenTracingWidget", () => {
     expect(screen.getAllByRole("heading", { name: "Claude" })).toHaveLength(1);
     expect(screen.queryByText("Codex")).not.toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveAttribute("data-color-mode", "light");
-    expect(screen.getByText("173,816,684", { selector: "strong" })).toBeInTheDocument();
+    expect(screen.queryByText("Total", { selector: "span" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
     expect(syncWidgetWindowHeight).toHaveBeenCalledWith(1);
   });
 
@@ -191,6 +193,42 @@ describe("TokenTracingWidget", () => {
     expect(screen.queryByText("173,816,684", { selector: "strong" })).not.toBeInTheDocument();
   });
 
+  it("does not resize when a source toggle changes without changing widget content", () => {
+    const { rerender } = render(<TokenTracingWidget />);
+
+    expect(syncWidgetWindowHeight).toHaveBeenCalledTimes(1);
+
+    useWidgetSettings.mockReturnValue({
+      settings,
+      persistedSettings: settings,
+      previewSourceEnabled: { claude: false, codex: true },
+    });
+    rerender(<TokenTracingWidget />);
+
+    expect(syncWidgetWindowHeight).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not resize when visible providers change in Settings", () => {
+    const { rerender } = render(<TokenTracingWidget />);
+
+    expect(syncWidgetWindowHeight).toHaveBeenCalledTimes(1);
+
+    useWidgetSettings.mockReturnValue({
+      settings: {
+        ...settings,
+        visibleProviders: [
+          { provider: "claude", visible: false },
+          { provider: "codex", visible: true },
+        ],
+      },
+      persistedSettings: settings,
+      previewSourceEnabled: null,
+    });
+    rerender(<TokenTracingWidget />);
+
+    expect(syncWidgetWindowHeight).toHaveBeenCalledTimes(1);
+  });
+
   it("explains when a provider has no activity today", () => {
     useUsageSummary.mockReturnValue({
       summary: {
@@ -206,7 +244,8 @@ describe("TokenTracingWidget", () => {
     render(<TokenTracingWidget />);
 
     expect(screen.getByText("No activity yet today")).toBeInTheDocument();
-    expect(screen.getByText("0 sessions today")).toBeInTheDocument();
+    expect(screen.getByLabelText("Session count: 0 sessions today")).toBeInTheDocument();
+    expect(screen.queryByText("0 sessions today")).not.toBeInTheDocument();
   });
 
   it("keeps an unchanged provider row memo-stable when only Codex changes", () => {

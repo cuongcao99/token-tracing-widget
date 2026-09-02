@@ -43,8 +43,8 @@ privacy boundary, provider order, and summary event remain in place.
 
 The session list contains sessions with at least one accepted `UsageEvent`
 whose timestamp belongs to the injected Windows local day being summarized.
-The existing event validation, deduplication, delta conversion, and checkpoint
-rules remain authoritative.
+The existing event validation, deduplication, delta conversion, checkpoint, and
+15-second activity-window rules remain authoritative.
 
 Each session's `todayTokens` is the sum of its validated token deltas for that
 day. The provider `todayTokens` remains the aggregate of those same events, so
@@ -53,8 +53,8 @@ the session totals must add up to the provider total.
 ### Active and idle
 
 `active` means the session's newest valid event is strictly less than
-`ACTIVE_SESSION_WINDOW_SECONDS` old. The current constant remains 10 seconds;
-an event exactly 10 seconds old is idle.
+`ACTIVE_SESSION_WINDOW_SECONDS` old. The current constant remains 15 seconds;
+an event exactly 15 seconds old is idle.
 
 `idle` means the session belongs to the current day but does not meet the
 active rule. A session may become idle without receiving a new event; the next
@@ -197,7 +197,7 @@ Rust tests cover:
 
 - two active sessions for one provider, each with its own current-day total;
 - active-first ordering and deterministic newest-event ordering;
-- idle disclosure data and the exact-10-second boundary;
+- idle disclosure data and the exact-15-second boundary;
 - previous-day events excluded from the session list;
 - provider aggregate equals the sum of current-day session totals;
 - a persisted name appearing and being replaced while ID, tokens, and state

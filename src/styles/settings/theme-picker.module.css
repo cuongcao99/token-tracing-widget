@@ -19,9 +19,9 @@
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
   cursor: pointer;
-  font-family: var(--font-display);
+  font-family: var(--font-ui);
   font-size: var(--type-settings-label);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.1;
   transition:
     border-color var(--motion-duration) var(--motion-easing),
@@ -34,7 +34,7 @@
 }
 
 .button:focus-visible {
-  outline: var(--focus-width) solid var(--color-accent);
+  outline: var(--focus-width) solid var(--focus-color);
   outline-offset: var(--focus-offset);
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
@@ -74,9 +74,9 @@
   border: 0;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-family: var(--font-display);
+  font-family: var(--font-ui);
   font-size: var(--type-settings-label);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.1;
   text-align: left;
 }

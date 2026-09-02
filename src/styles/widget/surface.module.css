@@ -62,13 +62,13 @@
   padding-bottom: var(--space-1);
   padding-left: 0;
   align-content: start;
-  scrollbar-color: var(--color-line) transparent;
+  scrollbar-color: var(--color-muted-soft) transparent;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
 }
 
 .providerList::-webkit-scrollbar {
-  width: var(--settings-scrollbar-gutter);
+  width: var(--widget-scrollbar-width);
 }
 
 .providerList::-webkit-scrollbar-button {
@@ -82,7 +82,7 @@
 }
 
 .providerList::-webkit-scrollbar-thumb {
-  background: var(--color-line);
+  background: var(--color-muted-soft);
   border: 2px solid transparent;
   border-radius: var(--radius-pill);
   background-clip: padding-box;

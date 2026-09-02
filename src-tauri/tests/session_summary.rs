@@ -53,7 +53,7 @@ fn retains_latest_session_total_when_provider_is_idle() {
 }
 
 #[test]
-fn treats_a_session_as_idle_after_ten_seconds_without_a_new_event() {
+fn treats_a_session_as_idle_after_fifteen_seconds_without_a_new_event() {
     let events = vec![UsageEvent::for_test(
         Provider::Claude,
         "claude-session-a",
@@ -61,7 +61,7 @@ fn treats_a_session_as_idle_after_ten_seconds_without_a_new_event() {
         20,
     )];
 
-    let result = compute_session_aggregation(&events, "2026-01-01T00:00:10Z", Some("2026-01-01"));
+    let result = compute_session_aggregation(&events, "2026-01-01T00:00:15Z", Some("2026-01-01"));
 
     assert_eq!(result.state, UsageState::Idle);
     assert!(result.sessions.iter().all(|session| !session.active));

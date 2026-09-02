@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsActivityPanel from "../../../components/settings/SettingsActivityPanel";
 import type { UsageState, UsageSummary } from "../../../lib/usage-summary";
 import type { SourceFormValues } from "../../../components/settings/settings-model";
+import formStyles from "../../../styles/settings/forms.module.css";
 
 const state = vi.hoisted(() => ({
   usageListener: undefined as ((summary: UsageSummary) => void) | undefined,
@@ -67,6 +68,21 @@ function renderPanel() {
 }
 
 describe("SettingsActivityPanel", () => {
+  it("labels the two switch groups and exposes source health state", async () => {
+    renderPanel();
+    await waitFor(() => expect(state.usageListener).toBeDefined());
+
+    expect(screen.getByText("Show in widget")).toBeInTheDocument();
+    expect(screen.getByText("Collect data from")).toBeInTheDocument();
+
+    act(() => state.usageListener!(activitySummary("active", undefined, "limited")));
+    const limitedStates = screen
+      .getAllByText("Limited")
+      .filter((element) => element.classList.contains(formStyles.sourceHealth));
+    expect(limitedStates).toHaveLength(2);
+    expect(limitedStates[0]).toHaveAttribute("data-health-state", "limited");
+  });
+
   it("subscribes internally and preserves every activity status label", async () => {
     renderPanel();
     await waitFor(() => expect(state.usageListener).toBeDefined());
