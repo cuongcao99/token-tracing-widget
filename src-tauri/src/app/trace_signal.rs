@@ -374,12 +374,19 @@ mod windows_pipe {
             _ => return false,
         };
         let name = pipe_name();
-        for attempt in 0..SEND_ATTEMPTS {
-            if send_payload(&name, &payload) {
+        retry_send(|| send_payload(&name, &payload), SEND_RETRY_DELAY)
+    }
+
+    pub(super) fn retry_send<F>(mut attempt: F, retry_delay: Duration) -> bool
+    where
+        F: FnMut() -> bool,
+    {
+        for index in 0..SEND_ATTEMPTS {
+            if attempt() {
                 return true;
             }
-            if attempt + 1 < SEND_ATTEMPTS {
-                std::thread::sleep(SEND_RETRY_DELAY);
+            if index + 1 < SEND_ATTEMPTS {
+                std::thread::sleep(retry_delay);
             }
         }
         false
@@ -506,5 +513,31 @@ mod tests {
         .unwrap();
         assert!(signal.opaque_session_id.is_none());
         assert_eq!(signal.opaque_turn_id.as_deref(), Some("turn-1"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn pipe_retry_stops_at_the_bounded_attempt_limit() {
+        use std::cell::Cell;
+
+        let attempts = Cell::new(0);
+        assert!(!super::windows_pipe::retry_send(
+            || {
+                attempts.set(attempts.get() + 1);
+                false
+            },
+            std::time::Duration::ZERO,
+        ));
+        assert_eq!(attempts.get(), 3);
+
+        let attempts = Cell::new(0);
+        assert!(super::windows_pipe::retry_send(
+            || {
+                attempts.set(attempts.get() + 1);
+                attempts.get() == 2
+            },
+            std::time::Duration::ZERO,
+        ));
+        assert_eq!(attempts.get(), 2);
     }
 }
