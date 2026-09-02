@@ -726,6 +726,7 @@ mod tests {
         assert_eq!(active.summary.provider.as_deref(), Some("Claude Code"));
         assert_eq!(active.summary.today_tokens, 0);
         assert!(active.summary.current_session_tokens.is_none());
+        assert!(active.summary.last_updated_at.is_none());
         assert_eq!(
             active
                 .summary
@@ -903,6 +904,41 @@ mod tests {
 
         assert!(stale.transition.is_ignored());
         assert_eq!(stale.summary.state, UsageState::Active);
+    }
+
+    #[test]
+    fn lifecycle_signal_does_not_wait_for_collection_runtime_lock() {
+        let (state, _profile, _database) = state_with_native_roots();
+        let runtime_guard = state
+            .runtime
+            .lock()
+            .expect("runtime lock should be available");
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let signal_state = state.clone();
+        let worker = std::thread::spawn(move || {
+            let result = signal_state
+                .apply_trace_signal(
+                    &signal(
+                        Provider::Claude,
+                        TraceLifecycle::StartOrContinue,
+                        ProviderEvent::UserPromptSubmit,
+                    ),
+                    Instant::now(),
+                )
+                .expect("lifecycle signal should be accepted");
+            sender
+                .send(result.summary.state)
+                .expect("test receiver should remain connected");
+        });
+
+        assert_eq!(
+            receiver
+                .recv_timeout(Duration::from_millis(100))
+                .expect("lifecycle signal should not wait for collection"),
+            UsageState::Active
+        );
+        drop(runtime_guard);
+        worker.join().expect("lifecycle worker should finish");
     }
 
     #[test]
