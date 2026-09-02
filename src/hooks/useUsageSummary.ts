@@ -17,6 +17,7 @@ function fallbackSummary(state: UsageState): UsageSummary {
       provider,
       state,
       todayTokens: 0,
+      sessions: [],
     })),
   };
 }

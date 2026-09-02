@@ -34,8 +34,8 @@ function activitySummary(
       { provider: "codex", state: sourceState },
     ],
     providers: [
-      { provider: "claude", state: providerState, todayTokens: 5, lastUpdatedAt },
-      { provider: "codex", state: providerState, todayTokens: 5, lastUpdatedAt },
+      { provider: "claude", state: providerState, todayTokens: 5, lastUpdatedAt, sessions: [] },
+      { provider: "codex", state: providerState, todayTokens: 5, lastUpdatedAt, sessions: [] },
     ],
   };
 }

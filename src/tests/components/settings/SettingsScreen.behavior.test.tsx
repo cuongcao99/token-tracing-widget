@@ -63,8 +63,8 @@ const summary: UsageSummary = {
     { provider: "codex", state: "detected" },
   ],
   providers: [
-    { provider: "claude", state: "idle", todayTokens: 147_271_872 },
-    { provider: "codex", state: "active", todayTokens: 26_544_812 },
+    { provider: "claude", state: "idle", todayTokens: 147_271_872, sessions: [] },
+    { provider: "codex", state: "active", todayTokens: 26_544_812, sessions: [] },
   ],
 };
 

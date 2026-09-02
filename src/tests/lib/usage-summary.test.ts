@@ -18,6 +18,15 @@ const providers = [
     currentSessionTokens: 42_184,
     todayTokens: 147_271_872,
     lastUpdatedAt: "2026-01-01T00:07:00Z",
+    sessions: [
+      {
+        id: "claude-id",
+        name: "Claude run",
+        state: "active" as const,
+        todayTokens: 12,
+      },
+      { id: "claude-idle", state: "idle" as const, todayTokens: 8 },
+    ],
   },
   {
     provider: "codex" as const,
@@ -25,6 +34,7 @@ const providers = [
     currentSessionTokens: 183_256,
     todayTokens: 26_544_812,
     lastUpdatedAt: "2026-01-01T00:09:55Z",
+    sessions: [],
   },
 ];
 
@@ -65,6 +75,59 @@ describe("usage summary bridge", () => {
       parseUsageSummary({
         ...validSummary,
         rawRecord: "private text",
+      }),
+    ).toBeNull();
+  });
+
+  it("accepts session metadata and rejects unsafe or duplicate session records", () => {
+    expect(parseUsageSummary(validSummary)?.providers[0].sessions).toEqual(
+      validSummary.providers[0].sessions,
+    );
+
+    const sessions = validSummary.providers[0].sessions;
+    expect(
+      parseUsageSummary({
+        ...validSummary,
+        providers: [
+          { ...providers[0], sessions: [{ ...sessions[0], id: "" }] },
+          providers[1],
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      parseUsageSummary({
+        ...validSummary,
+        providers: [
+          {
+            ...providers[0],
+            sessions: [{ ...sessions[0], todayTokens: Number.MAX_SAFE_INTEGER + 1 }],
+          },
+          providers[1],
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      parseUsageSummary({
+        ...validSummary,
+        providers: [
+          {
+            ...providers[0],
+            sessions: [{ ...sessions[0], rawRecord: "secret" }],
+          },
+          providers[1],
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      parseUsageSummary({
+        ...validSummary,
+        providers: [
+          {
+            ...providers[0],
+            sessions: [sessions[0], { ...sessions[0], todayTokens: 4 }],
+          },
+          providers[1],
+        ],
       }),
     ).toBeNull();
   });

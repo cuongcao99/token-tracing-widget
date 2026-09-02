@@ -18,3 +18,17 @@ export function widgetHeightForVisibleProviders(visibleProviderCount: number): n
   );
   return WIDGET_HEIGHTS_BY_VISIBLE_PROVIDER_COUNT[index];
 }
+
+export function widgetHeightForContent(
+  visibleProviderCount: number,
+  measuredContentHeight?: number,
+): number {
+  const minimum = widgetHeightForVisibleProviders(visibleProviderCount);
+  if (measuredContentHeight === undefined || !Number.isFinite(measuredContentHeight)) {
+    return minimum;
+  }
+  return Math.max(
+    minimum,
+    Math.min(WIDGET_MAX_HEIGHT, Math.ceil(measuredContentHeight)),
+  );
+}

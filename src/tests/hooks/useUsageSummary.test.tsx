@@ -18,8 +18,8 @@ const summary: UsageSummary = {
   todayTokens: 20,
   sourceHealth: [],
   providers: [
-    { provider: "claude", state: "idle", todayTokens: 20 },
-    { provider: "codex", state: "unavailable", todayTokens: 0 },
+    { provider: "claude", state: "idle", todayTokens: 20, sessions: [] },
+    { provider: "codex", state: "unavailable", todayTokens: 0, sessions: [] },
   ],
 };
 

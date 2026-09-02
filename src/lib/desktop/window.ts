@@ -6,7 +6,7 @@ import {
   WIDGET_MAX_HEIGHT,
   WIDGET_MAX_WIDTH,
   WIDGET_MIN_WIDTH,
-  widgetHeightForVisibleProviders,
+  widgetHeightForContent,
 } from "../widget-layout";
 
 export type WindowResizeDirection =
@@ -42,6 +42,7 @@ let resizeQueue: Promise<void> = Promise.resolve();
 
 export function syncWidgetWindowHeight(
   visibleProviderCount: number,
+  measuredContentHeight?: number,
 ): Promise<void> {
   const requestId = ++latestRequest;
   const request = resizeQueue.catch(() => undefined).then(async () => {
@@ -54,7 +55,10 @@ export function syncWidgetWindowHeight(
     if (requestId !== latestRequest) return;
 
     const factor = Number.isFinite(scaleFactor) && scaleFactor > 0 ? scaleFactor : 1;
-    const targetHeight = widgetHeightForVisibleProviders(visibleProviderCount);
+    const targetHeight = widgetHeightForContent(
+      visibleProviderCount,
+      measuredContentHeight,
+    );
     const logicalWidth = clamp(
       Math.round(physicalSize.width / factor),
       WIDGET_MIN_WIDTH,

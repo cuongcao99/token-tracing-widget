@@ -24,6 +24,14 @@ const summary: UsageSummary = {
       currentSessionTokens: 20,
       todayTokens: 20,
       lastUpdatedAt: "2026-01-01T00:09:55Z",
+      sessions: [
+        {
+          id: "codex-id",
+          name: "Codex run",
+          state: "active",
+          todayTokens: 20,
+        },
+      ],
     },
     {
       provider: "claude",
@@ -31,6 +39,9 @@ const summary: UsageSummary = {
       currentSessionTokens: 10,
       todayTokens: 10,
       lastUpdatedAt: "2026-01-01T00:07:00Z",
+      sessions: [
+        { id: "claude-id", state: "idle", todayTokens: 10 },
+      ],
     },
   ],
 };
@@ -58,12 +69,24 @@ describe("createWidgetViewModel", () => {
       provider: "claude",
       identity: { displayName: "Claude" },
       status: { state: "idle", label: "Idle" },
+      sessionCount: 1,
+      sessions: [
+        { id: "claude-id", label: "claude-id", state: "idle", todayTokens: 10 },
+      ],
       metrics: {
         sessionTokens: 10,
         todayTokens: 10,
         updatedLabel: "3 min ago",
       },
     });
+    expect(model.providers[1].sessions).toEqual([
+      {
+        id: "codex-id",
+        label: "Codex run",
+        state: "active",
+        todayTokens: 20,
+      },
+    ]);
     expect(model.providers[1].metrics.updatedLabel).toBe("just now");
     expect(model.totalTokens).toBe(30);
     expect(model.visibleProviderCount).toBe(2);
@@ -87,6 +110,34 @@ describe("createWidgetViewModel", () => {
     expect(model.providers.map(({ provider }) => provider)).toEqual(["codex"]);
     expect(model.visibleProviderCount).toBe(1);
     expect(model.totalTokens).toBe(30);
+  });
+
+  it("updates a session label in place without changing its stable ID", () => {
+    const model = createWidgetViewModel({
+      summary: {
+        ...summary,
+        providers: summary.providers.map((usage) =>
+          usage.provider === "codex"
+            ? {
+                ...usage,
+                sessions: usage.sessions.map((session) => ({
+                  ...session,
+                  name: "Renamed run",
+                })),
+              }
+            : usage,
+        ),
+      },
+      settings,
+      previewSourceEnabled: null,
+    });
+
+    expect(model.providers[1].sessions[0]).toMatchObject({
+      id: "codex-id",
+      label: "Renamed run",
+      state: "active",
+      todayTokens: 20,
+    });
   });
 
   it("marks preview-disabled providers unavailable and excludes them from total", () => {

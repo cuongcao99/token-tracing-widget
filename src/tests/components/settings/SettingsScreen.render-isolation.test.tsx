@@ -41,8 +41,8 @@ const summary: UsageSummary = {
     { provider: "codex", state: "detected" },
   ],
   providers: [
-    { provider: "claude", state: "idle", todayTokens: 0, lastUpdatedAt: new Date().toISOString() },
-    { provider: "codex", state: "active", todayTokens: 0, lastUpdatedAt: new Date().toISOString() },
+    { provider: "claude", state: "idle", todayTokens: 0, lastUpdatedAt: new Date().toISOString(), sessions: [] },
+    { provider: "codex", state: "active", todayTokens: 0, lastUpdatedAt: new Date().toISOString(), sessions: [] },
   ],
 };
 

@@ -2,11 +2,20 @@ import { isProviderId, providerOrder, type ProviderId } from "../provider";
 import {
   hasOnlyKeys,
   isRecord,
+  isSafeSessionLabel,
   isSafeTokenCount,
   isValidDateString,
 } from "./validation";
 
 export type UsageState = "loading" | "active" | "idle" | "unavailable" | "stale";
+export type SessionUsageState = "active" | "idle";
+
+export interface SessionUsageSummary {
+  id: string;
+  name?: string;
+  state: SessionUsageState;
+  todayTokens: number;
+}
 
 export interface SourceHealth {
   provider: ProviderId;
@@ -19,6 +28,7 @@ export interface ProviderUsageSummary {
   currentSessionTokens?: number;
   todayTokens: number;
   lastUpdatedAt?: string;
+  sessions: SessionUsageSummary[];
 }
 
 export interface UsageSummary {
@@ -47,7 +57,9 @@ const providerSummaryKeys = [
   "currentSessionTokens",
   "todayTokens",
   "lastUpdatedAt",
+  "sessions",
 ] as const;
+const sessionSummaryKeys = ["id", "name", "state", "todayTokens"] as const;
 const usageStates = new Set<UsageState>([
   "loading",
   "active",
@@ -55,9 +67,48 @@ const usageStates = new Set<UsageState>([
   "unavailable",
   "stale",
 ]);
+const sessionUsageStates = new Set<SessionUsageState>(["active", "idle"]);
 
 function isUsageState(value: unknown): value is UsageState {
   return typeof value === "string" && usageStates.has(value as UsageState);
+}
+
+function isSessionUsageState(value: unknown): value is SessionUsageState {
+  return (
+    typeof value === "string" &&
+    sessionUsageStates.has(value as SessionUsageState)
+  );
+}
+
+function parseSessionSummaries(value: unknown): SessionUsageSummary[] | null {
+  if (!Array.isArray(value)) return null;
+
+  const seenIds = new Set<string>();
+  const sessions: SessionUsageSummary[] = [];
+  for (const entry of value) {
+    if (
+      !isRecord(entry) ||
+      !hasOnlyKeys(entry, sessionSummaryKeys) ||
+      !isSafeSessionLabel(entry.id) ||
+      seenIds.has(entry.id) ||
+      !isSessionUsageState(entry.state) ||
+      !isSafeTokenCount(entry.todayTokens)
+    ) {
+      return null;
+    }
+
+    if ("name" in entry && !isSafeSessionLabel(entry.name)) return null;
+
+    seenIds.add(entry.id);
+    sessions.push({
+      id: entry.id,
+      ...(typeof entry.name === "string" ? { name: entry.name } : {}),
+      state: entry.state,
+      todayTokens: entry.todayTokens,
+    });
+  }
+
+  return sessions;
 }
 
 function optionalTokenFields(value: Record<string, unknown>): {
@@ -133,7 +184,8 @@ export function parseUsageSummary(value: unknown): UsageSummary | null {
 
     const tokens = optionalTokenFields(entry);
     const date = optionalDateFields(entry);
-    if (tokens === null || date === null) return null;
+    const sessions = parseSessionSummaries(entry.sessions);
+    if (tokens === null || date === null || sessions === null) return null;
 
     seenProviders.add(entry.provider);
     providers.push({
@@ -142,6 +194,7 @@ export function parseUsageSummary(value: unknown): UsageSummary | null {
       ...tokens,
       todayTokens: entry.todayTokens,
       ...date,
+      sessions,
     });
   }
 

@@ -37,6 +37,13 @@
   line-height: 1.2;
 }
 
+.sessionCount {
+  margin-top: var(--space-2);
+  color: var(--color-muted);
+  font-size: var(--type-widget-meta);
+  line-height: 1.2;
+}
+
 .status {
   display: inline-flex;
   align-items: center;

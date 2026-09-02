@@ -73,4 +73,16 @@ describe("widget window sizing", () => {
       setSize.mock.invocationCallOrder[0],
     );
   });
+
+  it("uses measured content height while retaining the provider baseline", async () => {
+    await syncWidgetWindowHeight(1, 400);
+
+    expect(setSize).toHaveBeenCalledWith(expect.objectContaining({ height: 400 }));
+    expect(setSizeConstraints).toHaveBeenCalledWith({
+      minWidth: 360,
+      minHeight: 400,
+      maxWidth: 720,
+      maxHeight: 520,
+    });
+  });
 });

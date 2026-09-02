@@ -1,5 +1,7 @@
 export type UnknownRecord = Record<string, unknown>;
 
+export const MAX_SESSION_LABEL_LENGTH = 256;
+
 export function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -24,6 +26,15 @@ export function isSafeTokenCount(value: unknown): value is number {
     typeof value === "number" &&
     Number.isSafeInteger(value) &&
     value >= 0
+  );
+}
+
+export function isSafeSessionLabel(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= MAX_SESSION_LABEL_LENGTH &&
+    !/[\u0000-\u001f\u007f]/u.test(value)
   );
 }
 

@@ -67,8 +67,8 @@ const summary = {
     { provider: "codex" as const, state: "detected" },
   ],
   providers: [
-    { provider: "claude" as const, state: "idle" as const, todayTokens: 4 },
-    { provider: "codex" as const, state: "active" as const, todayTokens: 8 },
+    { provider: "claude" as const, state: "idle" as const, todayTokens: 4, sessions: [] },
+    { provider: "codex" as const, state: "active" as const, todayTokens: 8, sessions: [] },
   ],
 };
 

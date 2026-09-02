@@ -42,8 +42,8 @@ const {
         { provider: "codex", state: "detected" },
       ],
       providers: [
-        { provider: "claude", state: "idle", todayTokens: 0 },
-        { provider: "codex", state: "active", todayTokens: 0 },
+        { provider: "claude", state: "idle", todayTokens: 0, sessions: [] },
+        { provider: "codex", state: "active", todayTokens: 0, sessions: [] },
       ],
     },
     providerStatuses: [

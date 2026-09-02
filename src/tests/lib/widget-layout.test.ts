@@ -5,6 +5,7 @@ import {
   WIDGET_MAX_WIDTH,
   WIDGET_MIN_HEIGHT,
   WIDGET_MIN_WIDTH,
+  widgetHeightForContent,
   widgetHeightForVisibleProviders,
 } from "../../lib/widget-layout";
 
@@ -19,6 +20,13 @@ describe("widget layout", () => {
     expect(widgetHeightForVisibleProviders(-1)).toBe(WIDGET_MIN_HEIGHT);
     expect(widgetHeightForVisibleProviders(99)).toBe(316);
     expect(widgetHeightForVisibleProviders(Number.NaN)).toBe(WIDGET_MIN_HEIGHT);
+  });
+
+  it("clamps measured content between the provider baseline and maximum height", () => {
+    expect(widgetHeightForContent(1)).toBe(244);
+    expect(widgetHeightForContent(1, 200)).toBe(244);
+    expect(widgetHeightForContent(1, 400)).toBe(400);
+    expect(widgetHeightForContent(1, 999)).toBe(WIDGET_MAX_HEIGHT);
   });
 
   it("exposes the logical resize bounds used by the native shell", () => {

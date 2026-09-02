@@ -5,6 +5,7 @@ export { stateLabel } from "../../lib/widget-view-model";
 
 export interface WidgetProviderRowProps {
   usage: WidgetProviderViewModel;
+  onSessionToggle?: () => void;
 }
 
 export interface UsageMetric {

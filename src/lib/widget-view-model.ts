@@ -1,4 +1,10 @@
-import { formatRelativeUpdate, type ProviderUsageSummary, type UsageState, type UsageSummary } from "./usage-summary";
+import {
+  formatRelativeUpdate,
+  type ProviderUsageSummary,
+  type SessionUsageState,
+  type UsageState,
+  type UsageSummary,
+} from "./usage-summary";
 import { providerMeta, providerOrder, type ProviderId, type ProviderIdentity } from "./provider";
 import type { ThemeId } from "./theme";
 import type { WidgetSettingsSnapshot } from "./widget-settings";
@@ -13,11 +19,20 @@ export interface WidgetProviderViewModel {
   provider: ProviderId;
   identity: ProviderIdentity;
   status: { state: UsageState; label: string };
+  sessions: WidgetSessionViewModel[];
+  sessionCount: number;
   metrics: {
     sessionTokens?: number;
     todayTokens: number;
     updatedLabel: string;
   };
+}
+
+export interface WidgetSessionViewModel {
+  id: string;
+  label: string;
+  state: SessionUsageState;
+  todayTokens: number;
 }
 
 export interface WidgetViewModel {
@@ -46,6 +61,20 @@ function providerSummaryIndex(
   return new Map(summaries.map((usage) => [usage.provider, usage]));
 }
 
+function viewForSession({
+  id,
+  name,
+  state,
+  todayTokens,
+}: ProviderUsageSummary["sessions"][number]): WidgetSessionViewModel {
+  return {
+    id,
+    label: name ?? id,
+    state,
+    todayTokens,
+  };
+}
+
 function viewForProvider(
   provider: ProviderId,
   usage: ProviderUsageSummary,
@@ -57,6 +86,8 @@ function viewForProvider(
     provider,
     identity: providerMeta[provider],
     status: { state, label: stateLabel(state) },
+    sessions: usage.sessions.map(viewForSession),
+    sessionCount: usage.sessions.length,
     metrics: {
       ...(usage.currentSessionTokens === undefined
         ? {}

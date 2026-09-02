@@ -55,6 +55,9 @@ const summary: UsageSummary = {
       currentSessionTokens: 42_184,
       todayTokens: 147_271_872,
       lastUpdatedAt: "2026-01-01T00:07:00Z",
+      sessions: [
+        { id: "claude-run", state: "idle", todayTokens: 147_271_872 },
+      ],
     },
     {
       provider: "codex",
@@ -62,6 +65,14 @@ const summary: UsageSummary = {
       currentSessionTokens: 183_256,
       todayTokens: 26_544_812,
       lastUpdatedAt: "2026-01-01T00:09:55Z",
+      sessions: [
+        {
+          id: "codex-run",
+          name: "Codex run",
+          state: "active",
+          todayTokens: 26_544_812,
+        },
+      ],
     },
   ],
 };
@@ -112,6 +123,9 @@ describe("TokenTracingWidget", () => {
     ).not.toBeNull();
     expect(screen.getAllByText("Session", { selector: "span" })).toHaveLength(2);
     expect(screen.getAllByText("Today", { selector: "span" })).toHaveLength(2);
+    expect(screen.getAllByText("1 sessions today")).toHaveLength(2);
+    expect(screen.getByText("Codex run")).toBeInTheDocument();
+    expect(screen.getByText("Idle · 1")).toBeInTheDocument();
     expect(screen.getByText("Total", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText("173,816,684", { selector: "strong" })).toBeInTheDocument();
     expect(screen.queryByText("Total today")).not.toBeInTheDocument();
@@ -163,7 +177,7 @@ describe("TokenTracingWidget", () => {
 
     expect(screen.getByRole("heading", { name: "Claude" })).toBeInTheDocument();
     expect(screen.getByText("Unavailable")).toBeInTheDocument();
-    expect(screen.getAllByText("26,544,812", { selector: "strong" })).toHaveLength(2);
+    expect(screen.getAllByText("26,544,812", { selector: "strong" })).toHaveLength(3);
     expect(screen.getByRole("contentinfo")).toHaveTextContent("26,544,812");
     expect(screen.queryByText("173,816,684", { selector: "strong" })).not.toBeInTheDocument();
   });
