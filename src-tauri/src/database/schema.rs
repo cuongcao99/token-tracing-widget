@@ -72,6 +72,15 @@ pub(crate) fn initialize(connection: &Connection) -> rusqlite::Result<()> {
             last_occurred_at TEXT NOT NULL,
             PRIMARY KEY (provider, category)
         );
+
+        CREATE TABLE IF NOT EXISTS rate_limits (
+            provider TEXT NOT NULL,
+            window_minutes INTEGER NOT NULL CHECK (window_minutes IN (300, 10080)),
+            used_percent INTEGER NOT NULL CHECK (used_percent BETWEEN 0 AND 100),
+            resets_at INTEGER NOT NULL CHECK (resets_at >= 0),
+            observed_at TEXT NOT NULL,
+            PRIMARY KEY (provider, window_minutes)
+        );
         "#,
     )?;
 

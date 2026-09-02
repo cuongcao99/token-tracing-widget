@@ -42,6 +42,45 @@ pub(crate) fn insert(transaction: &Transaction<'_>, event: &UsageEvent) -> rusql
     Ok(())
 }
 
+pub(crate) fn rekey_file(
+    transaction: &Transaction<'_>,
+    provider: Provider,
+    file_identity: &str,
+    session_key: &str,
+) -> rusqlite::Result<Vec<String>> {
+    let old_keys = {
+        let mut statement = transaction.prepare(
+            r#"
+            SELECT DISTINCT session_key
+            FROM usage_events
+            WHERE provider = ?1
+              AND file_identity = ?2
+              AND session_key <> ?3
+            "#,
+        )?;
+        let old_keys = statement
+            .query_map(
+                params![provider.as_str(), file_identity, session_key],
+                |row| row.get(0),
+            )?
+            .collect::<Result<Vec<String>, _>>()?;
+        old_keys
+    };
+
+    transaction.execute(
+        r#"
+        UPDATE usage_events
+        SET session_key = ?3
+        WHERE provider = ?1
+          AND file_identity = ?2
+          AND session_key <> ?3
+        "#,
+        params![provider.as_str(), file_identity, session_key],
+    )?;
+
+    Ok(old_keys)
+}
+
 pub(crate) fn query_between(
     connection: &rusqlite::Connection,
     day_start: &str,

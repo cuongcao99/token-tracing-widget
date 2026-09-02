@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use token_tracing_widget_lib::collection::{CollectionBatch, DiagnosticUpdate, SourceUpdate};
+use token_tracing_widget_lib::collection::{
+    CollectionBatch, DiagnosticUpdate, SessionNameUpdate, SourceUpdate,
+};
 use token_tracing_widget_lib::database::connection::{IndexStore, StorageError};
 use token_tracing_widget_lib::sources::source_config::SourceConfig;
 use token_tracing_widget_lib::types::file_checkpoint::FileCheckpoint;
@@ -199,6 +201,42 @@ fn newer_session_name_wins_without_changing_identity_or_token_totals() {
             .sum::<u64>(),
         40,
     );
+}
+
+#[test]
+fn session_name_update_refreshes_a_persisted_session_without_new_tokens() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut database = IndexStore::open(&directory.path().join("index.sqlite")).unwrap();
+    database
+        .apply_batch(&CollectionBatch::new(
+            vec![test_usage_event("event-1", "file-a")],
+            vec![FileCheckpoint::with_position(
+                "file-a",
+                Provider::Claude,
+                42,
+                42,
+            )],
+        ))
+        .unwrap();
+
+    let mut batch = CollectionBatch::new(Vec::new(), Vec::new());
+    batch.session_name_updates.push(SessionNameUpdate {
+        provider: Provider::Claude,
+        session_key: "session-a".to_owned(),
+        name: "Renamed without tokens".to_owned(),
+        updated_at: "2026-01-01T00:00:01Z".to_owned(),
+    });
+    database.apply_batch(&batch).unwrap();
+
+    let rows = database
+        .query_events_for_summary("2026-01-01T00:00:00Z", "2026-01-01T00:00:02Z")
+        .unwrap();
+    assert_eq!(rows.events.len(), 1);
+    assert_eq!(
+        rows.events[0].session_name.as_deref(),
+        Some("Renamed without tokens")
+    );
+    assert_eq!(rows.events[0].total_tokens, 20);
 }
 
 #[test]

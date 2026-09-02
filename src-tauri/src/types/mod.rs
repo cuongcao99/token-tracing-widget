@@ -3,6 +3,7 @@
 pub mod file_checkpoint;
 pub mod provider;
 pub mod provider_usage_summary;
+pub mod rate_limit;
 pub mod session_usage_summary;
 pub mod source_health;
 pub mod theme;

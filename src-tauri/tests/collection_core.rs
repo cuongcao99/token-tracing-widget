@@ -59,6 +59,7 @@ fn summary_contains_independent_provider_totals_for_the_overlay() {
                 ),
                 UsageEvent::for_test(Provider::Codex, "codex-session", "2026-01-01T00:00:03Z", 8),
             ],
+            rate_limits: Vec::new(),
         },
         &[
             SourceHealth::detected(Provider::Claude),
@@ -92,6 +93,7 @@ fn aggregate_current_session_resets_after_the_windows_local_day_changes() {
                 "2026-01-01T00:00:00Z",
                 115_265,
             )],
+            rate_limits: Vec::new(),
         },
         &[SourceHealth::detected(Provider::Claude)],
         &[Provider::Claude],
@@ -365,6 +367,7 @@ impl CollectionStore for InMemoryStore {
     ) -> Result<SummaryRows, StorageError> {
         Ok(SummaryRows {
             events: self.events.clone(),
+            rate_limits: Vec::new(),
         })
     }
 }
@@ -494,7 +497,10 @@ fn active_provider_expires_after_ten_seconds_but_last_update_remains() {
     )];
     let source_health = vec![SourceHealth::detected(Provider::Claude)];
     let summary = compute_summary(
-        &SummaryRows { events },
+        &SummaryRows {
+            events,
+            rate_limits: Vec::new(),
+        },
         &source_health,
         &[Provider::Claude],
         &FixedClock::new("2026-01-01T10:00:11Z", "2026-01-01"),
@@ -521,7 +527,10 @@ fn today_total_combines_enabled_providers_without_double_counting_cumulative_sna
         SourceHealth::detected(Provider::Codex),
     ];
     let summary = compute_summary(
-        &SummaryRows { events },
+        &SummaryRows {
+            events,
+            rate_limits: Vec::new(),
+        },
         &source_health,
         &[Provider::Claude, Provider::Codex],
         &FixedClock::new("2026-01-01T10:00:30Z", "2026-01-01"),
@@ -551,6 +560,7 @@ fn future_events_do_not_inflate_the_current_session_total() {
                 UsageEvent::for_test(Provider::Claude, "session-a", "2026-01-01T10:00:00Z", 20),
                 UsageEvent::for_test(Provider::Claude, "session-a", "2026-01-01T10:01:00Z", 100),
             ],
+            rate_limits: Vec::new(),
         },
         &[SourceHealth::detected(Provider::Claude)],
         &[Provider::Claude],
@@ -572,6 +582,7 @@ fn disabled_provider_events_do_not_enter_summary_totals() {
             ),
             UsageEvent::for_test(Provider::Codex, "codex-session", "2026-01-01T10:00:01Z", 30),
         ],
+        rate_limits: Vec::new(),
     };
     let health = vec![
         SourceHealth::detected(Provider::Claude),

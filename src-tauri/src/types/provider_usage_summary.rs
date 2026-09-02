@@ -5,6 +5,7 @@ use serde::Serialize;
 use crate::UsageState;
 
 use super::provider::Provider;
+use super::rate_limit::RateLimitSummary;
 use super::session_usage_summary::SessionUsageSummary;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -18,6 +19,8 @@ pub struct ProviderUsageSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_updated_at: Option<String>,
     pub sessions: Vec<SessionUsageSummary>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rate_limits: Vec<RateLimitSummary>,
 }
 
 impl ProviderUsageSummary {
@@ -36,6 +39,7 @@ impl ProviderUsageSummary {
             today_tokens,
             last_updated_at,
             sessions,
+            rate_limits: Vec::new(),
         }
     }
 }

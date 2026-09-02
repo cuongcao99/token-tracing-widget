@@ -79,6 +79,73 @@ fn codex_reader_returns_safe_cumulative_observations() {
 }
 
 #[test]
+fn codex_reader_returns_latest_sanitized_rate_limits() {
+    let file = NamedTempFile::new().unwrap();
+    fs::write(
+        file.path(),
+        br#"{"payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"output_tokens":5,"total_tokens":15}},"rate_limits":{"primary":{"used_percent":8.0,"window_minutes":300,"resets_at":1788367000},"secondary":{"used_percent":31.0,"window_minutes":10080,"resets_at":1788748000}}},"timestamp":"2026-01-01T00:00:00Z"}
+{"payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"output_tokens":5,"total_tokens":15}},"rate_limits":{"primary":{"used_percent":12.0,"window_minutes":300,"resets_at":1788367052},"secondary":{"used_percent":38.0,"window_minutes":10080,"resets_at":1788748134},"plan_type":"plus"}},"timestamp":"2026-01-01T00:00:01Z"}
+"#,
+    )
+    .unwrap();
+
+    let result = CodexReader::default()
+        .read_observations(file.path(), 0, MAX_SOURCE_BYTES_PER_ATTEMPT)
+        .expect("Codex rate limits should be readable");
+
+    assert_eq!(result.rate_limits.len(), 2);
+    assert_eq!(result.rate_limits[0].window_minutes, 300);
+    assert_eq!(result.rate_limits[0].used_percent, 12);
+    assert_eq!(result.rate_limits[0].resets_at, 1_788_367_052);
+    assert_eq!(result.rate_limits[1].window_minutes, 10_080);
+    assert_eq!(result.rate_limits[1].used_percent, 38);
+}
+
+#[test]
+fn codex_reader_prefers_latest_thread_name_from_session_index() {
+    let directory = tempfile::tempdir().unwrap();
+    let session_id = "019feeb0-0072-75a1-8d25-010d8bb342c8";
+    let sessions = directory
+        .path()
+        .join(".codex")
+        .join("sessions")
+        .join("2026")
+        .join("01")
+        .join("01");
+    fs::create_dir_all(&sessions).unwrap();
+    let file = sessions.join(format!("rollout-2026-01-01T00-00-00-{session_id}.jsonl"));
+    fs::write(
+        &file,
+        r#"{"payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10,"output_tokens":5,"total_tokens":15}}},"timestamp":"2026-01-01T00:00:00Z"}
+"#,
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join(".codex").join("session_index.jsonl"),
+        format!(
+            "{{\"id\":\"{session_id}\",\"thread_name\":\"Old name\",\"updated_at\":\"2026-01-01T00:00:00Z\"}}\n{{\"id\":\"{session_id}\",\"thread_name\":\"Renamed session\",\"updated_at\":\"2026-01-01T00:00:01Z\"}}\n"
+        ),
+    )
+    .unwrap();
+
+    let result = CodexReader::default()
+        .read_observations(&file, 0, MAX_SOURCE_BYTES_PER_ATTEMPT)
+        .expect("Codex fixture should be readable");
+
+    assert_eq!(
+        first_observation(&result.observations)
+            .session_name
+            .as_deref(),
+        Some("Renamed session")
+    );
+    assert_eq!(result.session_name.as_deref(), Some("Renamed session"));
+    assert_eq!(
+        result.session_name_updated_at.as_deref(),
+        Some("2026-01-01T00:00:01Z")
+    );
+}
+
+#[test]
 fn readers_ignore_unknown_record_kinds() {
     let mut file = NamedTempFile::new().unwrap();
     writeln!(file, r#"{{"type":"unknown"}}"#).unwrap();

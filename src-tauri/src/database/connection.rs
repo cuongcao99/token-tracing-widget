@@ -6,10 +6,13 @@ use rusqlite::Connection;
 
 use crate::collection::CollectionBatch;
 use crate::types::file_checkpoint::FileCheckpoint;
+use crate::types::rate_limit::ProviderRateLimitSummary;
 use crate::types::usage_event::UsageEvent;
 use crate::types::widget_settings::WidgetSettingsSnapshot;
 
-use super::{diagnostics, file_checkpoints, schema, sessions, settings, sources, usage_events};
+use super::{
+    diagnostics, file_checkpoints, rate_limits, schema, sessions, settings, sources, usage_events,
+};
 use crate::sources::source_config::{LoadedSourceConfigs, SourceConfig};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,6 +42,7 @@ impl std::error::Error for StorageError {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SummaryRows {
     pub events: Vec<UsageEvent>,
+    pub rate_limits: Vec<ProviderRateLimitSummary>,
 }
 
 pub struct IndexStore {
@@ -106,6 +110,32 @@ impl IndexStore {
             usage_events::insert(&transaction, event).map_err(|_| StorageError::Write)?;
             sessions::upsert(&transaction, event).map_err(|_| StorageError::Write)?;
         }
+        for update in &batch.session_key_updates {
+            let old_keys = usage_events::rekey_file(
+                &transaction,
+                update.provider,
+                &update.file_identity,
+                &update.session_key,
+            )
+            .map_err(|_| StorageError::Write)?;
+            for old_key in old_keys {
+                sessions::rekey(&transaction, update.provider, &old_key, &update.session_key)
+                    .map_err(|_| StorageError::Write)?;
+            }
+        }
+        for update in &batch.session_name_updates {
+            sessions::update_display_name(
+                &transaction,
+                update.provider,
+                &update.session_key,
+                &update.name,
+                &update.updated_at,
+            )
+            .map_err(|_| StorageError::Write)?;
+        }
+        for update in &batch.rate_limit_updates {
+            rate_limits::upsert(&transaction, update).map_err(|_| StorageError::Write)?;
+        }
         for source in &batch.source_updates {
             sources::upsert(&transaction, source).map_err(|_| StorageError::Write)?;
         }
@@ -124,9 +154,13 @@ impl IndexStore {
         day_start: &str,
         now: &str,
     ) -> Result<SummaryRows, StorageError> {
-        usage_events::query_between(&self.connection, day_start, now)
-            .map(|events| SummaryRows { events })
-            .map_err(|_| StorageError::Read)
+        let events = usage_events::query_between(&self.connection, day_start, now)
+            .map_err(|_| StorageError::Read)?;
+        let rate_limits = rate_limits::query(&self.connection).map_err(|_| StorageError::Read)?;
+        Ok(SummaryRows {
+            events,
+            rate_limits,
+        })
     }
 
     pub fn count_usage_events(&self) -> Result<u64, StorageError> {

@@ -2,6 +2,7 @@
 
 use crate::types::provider::Provider;
 use crate::types::provider_usage_summary::ProviderUsageSummary;
+use crate::types::rate_limit::RateLimitSummary;
 use crate::types::session_usage_summary::{
     safe_session_id, SessionUsageState, SessionUsageSummary,
 };
@@ -17,6 +18,7 @@ pub fn compute_provider_summary(
     provider: Provider,
     events: &[UsageEvent],
     health: Option<&SourceHealth>,
+    rate_limits: &[RateLimitSummary],
     now: &str,
     local_day: &str,
 ) -> ProviderUsageSummary {
@@ -53,14 +55,16 @@ pub fn compute_provider_summary(
     })
     .collect();
 
-    ProviderUsageSummary::new(
+    let mut summary = ProviderUsageSummary::new(
         provider,
         state,
         compute_current_session_tokens_for_local_day(&provider_events, now, local_day),
         compute_today_total(&provider_events, local_day),
         active.last_updated_at,
         sessions,
-    )
+    );
+    summary.rate_limits = rate_limits.to_vec();
+    summary
 }
 
 fn source_is_usable(health: Option<&SourceHealth>) -> bool {

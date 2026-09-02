@@ -6,6 +6,7 @@ use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::Path;
 
 use crate::types::provider::Provider;
+use crate::types::rate_limit::RateLimitSnapshot;
 use crate::types::token_observation::TokenObservation;
 use crate::utils::bounded_io;
 
@@ -30,6 +31,10 @@ impl ProviderReadObservation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProviderReadResult {
     pub observations: Vec<ProviderReadObservation>,
+    pub session_key: Option<String>,
+    pub session_name: Option<String>,
+    pub session_name_updated_at: Option<String>,
+    pub rate_limits: Vec<RateLimitSnapshot>,
     pub next_offset: u64,
     pub pending_offset: Option<u64>,
     pub bytes_read: u64,
@@ -62,6 +67,14 @@ impl std::error::Error for ProviderReadError {}
 
 pub trait ProviderAdapter: Send + Sync {
     fn provider(&self) -> Provider;
+
+    fn read_rate_limits(&self, _file: &Path) -> Vec<RateLimitSnapshot> {
+        Vec::new()
+    }
+
+    fn should_read_file(&self, _file: &Path, _local_day: &str) -> bool {
+        true
+    }
 
     fn read_observations(
         &self,
@@ -158,6 +171,10 @@ where
 
     Ok(ProviderReadResult {
         observations,
+        session_key: None,
+        session_name: None,
+        session_name_updated_at: None,
+        rate_limits: Vec::new(),
         next_offset,
         pending_offset,
         bytes_read: reader

@@ -27,6 +27,7 @@ fn computes_session_and_today_totals_per_provider() {
         Provider::Claude,
         &events,
         Some(&SourceHealth::detected(Provider::Claude)),
+        &[],
         "2026-01-01T00:00:04Z",
         "2026-01-01",
     );
@@ -64,6 +65,7 @@ fn provider_summary_sums_concurrent_current_day_sessions() {
         Provider::Claude,
         &events,
         Some(&SourceHealth::detected(Provider::Claude)),
+        &[],
         "2026-01-01T00:01:59Z",
         "2026-01-01",
     );
@@ -95,6 +97,7 @@ fn resets_current_session_when_latest_event_is_from_a_previous_local_day() {
         Provider::Claude,
         &events,
         Some(&SourceHealth::detected(Provider::Claude)),
+        &[],
         "2026-01-02T00:00:00Z",
         "2026-01-02",
     );
@@ -122,6 +125,7 @@ fn preserves_idle_provider_totals_and_marks_missing_source_unavailable() {
         Provider::Claude,
         &events,
         Some(&SourceHealth::detected(Provider::Claude)),
+        &[],
         "2026-01-01T00:03:00Z",
         "2026-01-01",
     );
@@ -134,6 +138,7 @@ fn preserves_idle_provider_totals_and_marks_missing_source_unavailable() {
         Provider::Codex,
         &events,
         Some(&SourceHealth::new(Provider::Codex, "not_detected")),
+        &[],
         "2026-01-01T00:03:00Z",
         "2026-01-01",
     );

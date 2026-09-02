@@ -1,5 +1,6 @@
 //! Collection inputs shared by the pure core and the SQLite boundary.
 
+use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::database::connection::IndexStore;
@@ -10,6 +11,7 @@ use crate::sources::session_files::{DiscoveryResult, DiscoveryStatus};
 use crate::sources::source_config::SourceConfig;
 use crate::types::file_checkpoint::FileCheckpoint;
 use crate::types::provider::Provider;
+use crate::types::rate_limit::RateLimitSnapshot;
 use crate::types::source_health::SourceHealth;
 use crate::types::usage_event::UsageEvent;
 use crate::types::usage_summary::UsageSummary;
@@ -20,7 +22,7 @@ use crate::usage::active_provider::{
 use crate::usage::cumulative_delta::{convert_observations, DeltaConversionError};
 use crate::usage::daily_total::compute_today_total;
 use crate::usage::provider_summary::compute_provider_summary;
-use crate::utils::windows_time::{current_local_day, current_utc_timestamp};
+use crate::utils::windows_time::{current_local_day, current_utc_timestamp, timestamp_local_day};
 use crate::UsageState;
 
 pub use crate::database::connection::{StorageError, SummaryRows};
@@ -29,6 +31,9 @@ pub use crate::database::connection::{StorageError, SummaryRows};
 pub struct CollectionBatch {
     pub events: Vec<UsageEvent>,
     pub checkpoints: Vec<FileCheckpoint>,
+    pub session_key_updates: Vec<SessionKeyUpdate>,
+    pub session_name_updates: Vec<SessionNameUpdate>,
+    pub rate_limit_updates: Vec<RateLimitUpdate>,
     pub source_updates: Vec<SourceUpdate>,
     pub diagnostics: Vec<DiagnosticUpdate>,
 }
@@ -38,10 +43,34 @@ impl CollectionBatch {
         Self {
             events,
             checkpoints,
+            session_key_updates: Vec::new(),
+            session_name_updates: Vec::new(),
+            rate_limit_updates: Vec::new(),
             source_updates: Vec::new(),
             diagnostics: Vec::new(),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionNameUpdate {
+    pub provider: Provider,
+    pub session_key: String,
+    pub name: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionKeyUpdate {
+    pub provider: Provider,
+    pub file_identity: String,
+    pub session_key: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RateLimitUpdate {
+    pub provider: Provider,
+    pub snapshot: RateLimitSnapshot,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -252,20 +281,36 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
 
         let mut batch = CollectionBatch::new(Vec::new(), Vec::new());
         let mut source_health = Vec::with_capacity(ordered.len());
+        let mut allowed_codex_file_identities = BTreeSet::new();
         let mut has_pending_reads = false;
         for source in ordered {
-            let (events, checkpoints, health, diagnostics, source_has_pending_reads) =
-                match self.collect_source(source, clock.now()) {
-                    Ok(result) => result,
-                    Err(error) => {
-                        self.last_summary = UsageSummary::stale_from(&self.last_summary);
-                        return Err(error);
-                    }
-                };
+            let (
+                events,
+                checkpoints,
+                health,
+                diagnostics,
+                session_key_updates,
+                session_name_updates,
+                rate_limit_updates,
+                source_has_pending_reads,
+                allowed_file_identities,
+            ) = match self.collect_source(source, clock.now(), clock.local_day()) {
+                Ok(result) => result,
+                Err(error) => {
+                    self.last_summary = UsageSummary::stale_from(&self.last_summary);
+                    return Err(error);
+                }
+            };
             has_pending_reads |= source_has_pending_reads;
             batch.events.extend(events);
             batch.checkpoints.extend(checkpoints);
+            batch.session_key_updates.extend(session_key_updates);
+            batch.session_name_updates.extend(session_name_updates);
+            batch.rate_limit_updates.extend(rate_limit_updates);
             batch.diagnostics.extend(diagnostics);
+            if source.provider() == Provider::Codex {
+                allowed_codex_file_identities.extend(allowed_file_identities);
+            }
             batch.source_updates.push(SourceUpdate {
                 provider: source.provider(),
                 configured_root: source.configured_root.clone(),
@@ -282,13 +327,18 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
             self.last_summary = UsageSummary::stale_from(&self.last_summary);
             return Err(CollectionError::Storage(error));
         }
-        let rows = match self.store.query_events_for_summary("", clock.now()) {
+        let mut rows = match self.store.query_events_for_summary("", clock.now()) {
             Ok(rows) => rows,
             Err(error) => {
                 self.last_summary = UsageSummary::stale_from(&self.last_summary);
                 return Err(CollectionError::Storage(error));
             }
         };
+        rows.events.retain(|event| {
+            event.provider != Provider::Codex
+                || timestamp_local_day(&event.observed_at).as_deref() != Some(clock.local_day())
+                || allowed_codex_file_identities.contains(&event.file_identity)
+        });
         let summary = compute_summary(&rows, &source_health, &enabled_providers, clock);
         self.last_summary = summary.clone();
 
@@ -308,13 +358,18 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
         &self,
         source: &ProviderSource<'_>,
         now: &str,
+        local_day: &str,
     ) -> Result<
         (
             Vec<UsageEvent>,
             Vec<FileCheckpoint>,
             SourceHealth,
             Vec<DiagnosticUpdate>,
+            Vec<SessionKeyUpdate>,
+            Vec<SessionNameUpdate>,
+            Vec<RateLimitUpdate>,
             bool,
+            BTreeSet<String>,
         ),
         CollectionError,
     > {
@@ -334,21 +389,43 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
                 Vec::new(),
                 SourceHealth::new(provider, "disabled"),
                 diagnostics,
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
                 false,
+                BTreeSet::new(),
             ));
         }
 
         let mut health_state = discovery_state(source.discovery.status()).to_owned();
         let mut events = Vec::new();
         let mut checkpoints = Vec::new();
+        let mut session_key_updates = Vec::new();
+        let mut session_name_updates = Vec::new();
+        let mut rate_limit_updates = Vec::new();
+        let mut allowed_file_identities = BTreeSet::new();
         let mut has_pending_reads = false;
         let mut remaining_source_bytes = MAX_SOURCE_BYTES_PER_ATTEMPT;
         for file in source.discovery.files() {
-            if remaining_source_bytes == 0 {
-                has_pending_reads = true;
-                break;
+            let should_read_observations = remaining_source_bytes > 0
+                && source
+                    .adapter
+                    .should_read_file(file.filesystem_path(), local_day);
+            if !should_read_observations {
+                if remaining_source_bytes == 0 {
+                    has_pending_reads = true;
+                }
+                rate_limit_updates.extend(
+                    source
+                        .adapter
+                        .read_rate_limits(file.filesystem_path())
+                        .into_iter()
+                        .map(|snapshot| RateLimitUpdate { provider, snapshot }),
+                );
+                continue;
             }
             let identity = file.opaque_identity(provider);
+            allowed_file_identities.insert(identity.clone());
             let checkpoint = self
                 .store
                 .load_checkpoint(&identity)
@@ -374,6 +451,34 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
                     continue;
                 }
             };
+            if let Some(session_key) = result.session_key.as_ref() {
+                session_key_updates.push(SessionKeyUpdate {
+                    provider,
+                    file_identity: identity.clone(),
+                    session_key: session_key.clone(),
+                });
+            }
+            if let (Some(name), Some(updated_at)) = (
+                result.session_name.as_ref(),
+                result.session_name_updated_at.as_ref(),
+            ) {
+                session_name_updates.push(SessionNameUpdate {
+                    provider,
+                    session_key: result
+                        .session_key
+                        .clone()
+                        .unwrap_or_else(|| identity.clone()),
+                    name: name.clone(),
+                    updated_at: updated_at.clone(),
+                });
+            }
+            rate_limit_updates.extend(
+                result
+                    .rate_limits
+                    .iter()
+                    .cloned()
+                    .map(|snapshot| RateLimitUpdate { provider, snapshot }),
+            );
             remaining_source_bytes = remaining_source_bytes.saturating_sub(result.bytes_read);
             if result.pending_offset.is_none() && result.next_offset < file.size_bytes() {
                 has_pending_reads = true;
@@ -426,7 +531,11 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
             checkpoints,
             SourceHealth::new(provider, health_state),
             diagnostics,
+            session_key_updates,
+            session_name_updates,
+            rate_limit_updates,
             has_pending_reads,
+            allowed_file_identities,
         ))
     }
 }
@@ -474,10 +583,23 @@ pub fn compute_summary(
             let health = source_health
                 .iter()
                 .find(|entry| entry.provider == provider);
+            let rate_limits: Vec<_> = if enabled_providers.contains(&provider)
+                && health.is_some_and(|health| {
+                    matches!(health.state.as_str(), "detected" | "limited" | "malformed")
+                }) {
+                rows.rate_limits
+                    .iter()
+                    .filter(|entry| entry.provider == provider)
+                    .map(|entry| entry.rate_limit)
+                    .collect()
+            } else {
+                Vec::new()
+            };
             compute_provider_summary(
                 provider,
                 &enabled_events,
                 health,
+                &rate_limits,
                 clock.now(),
                 clock.local_day(),
             )
