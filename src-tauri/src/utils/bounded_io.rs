@@ -48,3 +48,23 @@ pub fn read_line<R: BufRead>(reader: &mut R, max_bytes: usize) -> io::Result<Opt
         }
     }
 }
+
+pub fn discard_line<R: BufRead>(reader: &mut R) -> io::Result<bool> {
+    loop {
+        let available = reader.fill_buf()?;
+        if available.is_empty() {
+            return Ok(false);
+        }
+
+        let chunk_length = available
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .map_or(available.len(), |position| position + 1);
+        let has_newline = available[..chunk_length].contains(&b'\n');
+        reader.consume(chunk_length);
+
+        if has_newline {
+            return Ok(true);
+        }
+    }
+}

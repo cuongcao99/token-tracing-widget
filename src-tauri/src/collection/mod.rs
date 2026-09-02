@@ -359,6 +359,15 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
                     continue;
                 }
             };
+            if result.skipped_oversized_records > 0 {
+                health_state = "limited".to_owned();
+                diagnostics.push(DiagnosticUpdate {
+                    provider,
+                    category: "limited".to_owned(),
+                    occurrence_count: 1,
+                    last_occurred_at: now.to_owned(),
+                });
+            }
             let delta = match convert_observations(&identity, &checkpoint, result.observations) {
                 Ok(delta) => delta,
                 Err(error) => {

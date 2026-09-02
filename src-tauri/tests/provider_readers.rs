@@ -114,13 +114,33 @@ fn readers_reject_negative_token_counts_without_exposing_record_data() {
 fn readers_reject_oversized_records_before_parsing() {
     let mut file = NamedTempFile::new().unwrap();
     let padding = "x".repeat(1_048_577);
-    writeln!(file, r#"{{"type":"unknown","padding":"{padding}"}}"#).unwrap();
+    write!(file, r#"{{"type":"unknown","padding":"{padding}"}}"#).unwrap();
 
     let error = CodexReader::default()
         .read_observations(file.path(), 0)
         .expect_err("oversized records should fail closed");
 
     assert_eq!(error, ProviderReadError::RecordTooLarge);
+}
+
+#[test]
+fn readers_continue_after_oversized_non_token_records() {
+    let mut file = NamedTempFile::new().unwrap();
+    let padding = "x".repeat(1_048_577);
+    writeln!(file, r#"{{"type":"unknown","padding":"{padding}"}}"#).unwrap();
+    writeln!(
+        file,
+        r#"{{"payload":{{"type":"token_count","info":{{"total_token_usage":{{"input_tokens":10,"output_tokens":5,"total_tokens":15}}}}}},"timestamp":"2026-01-01T00:00:00Z"}}"#
+    )
+    .unwrap();
+
+    let result = CodexReader::default()
+        .read_observations(file.path(), 0)
+        .expect("oversized non-token records should not block later usage records");
+
+    assert_eq!(result.observations.len(), 1);
+    assert_eq!(result.observations[0].observation.total_tokens, 15);
+    assert_eq!(result.next_offset, fs::metadata(file.path()).unwrap().len());
 }
 
 #[test]

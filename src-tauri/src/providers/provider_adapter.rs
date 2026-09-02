@@ -31,6 +31,7 @@ pub struct ProviderReadResult {
     pub observations: Vec<ProviderReadObservation>,
     pub next_offset: u64,
     pub pending_offset: Option<u64>,
+    pub skipped_oversized_records: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,15 +85,25 @@ where
     let mut observations = Vec::new();
     let mut next_offset = start_offset;
     let mut pending_offset = None;
+    let mut skipped_oversized_records: usize = 0;
 
-    while let Some(line) =
-        bounded_io::read_line(&mut reader, MAX_RECORD_BYTES).map_err(|error| {
-            match error.kind() {
-                std::io::ErrorKind::InvalidData => ProviderReadError::RecordTooLarge,
-                _ => ProviderReadError::Io,
+    loop {
+        let line = match bounded_io::read_line(&mut reader, MAX_RECORD_BYTES) {
+            Ok(Some(line)) => line,
+            Ok(None) => break,
+            Err(error) if error.kind() == std::io::ErrorKind::InvalidData => {
+                if !bounded_io::discard_line(&mut reader).map_err(|_| ProviderReadError::Io)? {
+                    return Err(ProviderReadError::RecordTooLarge);
+                }
+                next_offset = reader
+                    .stream_position()
+                    .map_err(|_| ProviderReadError::Io)?;
+                skipped_oversized_records = skipped_oversized_records.saturating_add(1);
+                continue;
             }
-        })?
-    {
+            Err(_) => return Err(ProviderReadError::Io),
+        };
+
         let record_start = next_offset;
         let record_end = record_start.saturating_add(line.bytes.len() as u64);
         if line.bytes.iter().all(u8::is_ascii_whitespace) {
@@ -118,5 +129,6 @@ where
         observations,
         next_offset,
         pending_offset,
+        skipped_oversized_records,
     })
 }
