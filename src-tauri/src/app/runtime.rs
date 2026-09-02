@@ -362,16 +362,24 @@ fn compose_summary(
         return summary;
     }
 
-    if let Some(provider_summary) = summary
-        .providers
-        .iter()
-        .find(|provider_summary| provider_summary.state == crate::UsageState::Active)
-    {
-        summary.state = crate::UsageState::Active;
-        summary.provider = Some(provider_summary.provider.display_name().to_owned());
-    } else if summary.state == crate::UsageState::Active {
-        summary.state = crate::UsageState::Idle;
-        summary.provider = None;
+    let global_provider_is_hooked = summary.provider.as_deref().is_some_and(|provider| {
+        activity
+            .hooked_providers
+            .iter()
+            .any(|hooked| hooked.display_name() == provider)
+    });
+    if global_provider_is_hooked {
+        if let Some(provider_summary) = summary
+            .providers
+            .iter()
+            .find(|provider_summary| provider_summary.state == crate::UsageState::Active)
+        {
+            summary.state = crate::UsageState::Active;
+            summary.provider = Some(provider_summary.provider.display_name().to_owned());
+        } else if summary.state == crate::UsageState::Active {
+            summary.state = crate::UsageState::Idle;
+            summary.provider = None;
+        }
     }
 
     summary
