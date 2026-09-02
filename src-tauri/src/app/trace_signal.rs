@@ -210,6 +210,7 @@ mod windows_pipe {
     use std::ffi::{c_void, OsStr};
     use std::os::windows::ffi::OsStrExt;
     use std::ptr;
+    use std::time::Duration;
 
     use super::{TraceSignal, MAX_HOOK_INPUT_BYTES, TRACE_PIPE_NAME};
 
@@ -229,6 +230,8 @@ mod windows_pipe {
     const PIPE_WAIT: u32 = 0x0000_0000;
     const PIPE_REJECT_REMOTE_CLIENTS: u32 = 0x0000_0008;
     const PIPE_UNLIMITED_INSTANCES: u32 = 255;
+    const SEND_ATTEMPTS: usize = 3;
+    const SEND_RETRY_DELAY: Duration = Duration::from_millis(10);
 
     #[link(name = "kernel32")]
     unsafe extern "system" {
@@ -372,6 +375,18 @@ mod windows_pipe {
             _ => return false,
         };
         let name = pipe_name();
+        for attempt in 0..SEND_ATTEMPTS {
+            if send_payload(&name, &payload) {
+                return true;
+            }
+            if attempt + 1 < SEND_ATTEMPTS {
+                std::thread::sleep(SEND_RETRY_DELAY);
+            }
+        }
+        false
+    }
+
+    fn send_payload(name: &[u16], payload: &[u8]) -> bool {
         let handle = unsafe {
             CreateFileW(
                 name.as_ptr(),

@@ -1,16 +1,16 @@
-use std::time::{Duration, Instant};
-
+use std::collections::BTreeSet;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
 
-use crate::app::runtime::{AppState, RuntimeError};
+use crate::app::runtime::{AppState, RuntimeError, TraceTransition};
 use crate::app::trace_signal::HookListener;
 use crate::collection::{CollectionReport, WindowsClock};
 use crate::commands::usage_summary::{emit_usage_summary, SummaryEventError};
-use crate::sources::file_watcher::{FileWatcher, WatchRoot, WatchSignal};
+use crate::sources::file_watcher::{SourceObserver, WatchSignal};
 use crate::sources::source_config::SourceConfig;
-use crate::types::trace_signal::TraceSignal;
+use crate::types::provider::Provider;
 use crate::types::usage_summary::UsageSummary;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,26 +37,50 @@ pub(crate) enum CollectionReason {
     Notification,
     Reconciliation,
     Retry,
+    FinalFlush,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CollectionCommand {
+    Activate(Provider),
+    Changed(Provider),
+    WatchUnavailable(Provider),
+    ConfigurationChanged,
+    Finalize { provider: Provider, last_run: bool },
+    Shutdown,
 }
 
 #[derive(Debug)]
 pub(crate) struct LiveScheduler {
     config: LiveCollectionConfig,
     notification_deadline: Option<Instant>,
-    reconciliation_deadline: Instant,
+    reconciliation_deadline: Option<Instant>,
+    final_flush_deadline: Option<Instant>,
     retry_deadline: Option<Instant>,
     retry_attempt: u32,
 }
 
 impl LiveScheduler {
-    pub(crate) fn new(start: Instant, config: LiveCollectionConfig) -> Self {
+    pub(crate) fn new(_start: Instant, config: LiveCollectionConfig) -> Self {
         Self {
             config,
             notification_deadline: None,
-            reconciliation_deadline: start + config.reconciliation_interval,
+            reconciliation_deadline: None,
+            final_flush_deadline: None,
             retry_deadline: None,
             retry_attempt: 0,
         }
+    }
+
+    pub(crate) fn activate(&mut self, now: Instant) {
+        if self.reconciliation_deadline.is_none() {
+            self.reconciliation_deadline = Some(now + self.config.reconciliation_interval);
+        }
+    }
+
+    pub(crate) fn deactivate(&mut self) {
+        self.notification_deadline = None;
+        self.reconciliation_deadline = None;
     }
 
     pub(crate) fn mark_changed(&mut self, now: Instant) {
@@ -67,19 +91,34 @@ impl LiveScheduler {
         );
     }
 
-    pub(crate) fn next_deadline(&self) -> Instant {
-        if let Some(retry_deadline) = self.retry_deadline {
-            return retry_deadline;
-        }
+    pub(crate) fn mark_final_flush(&mut self, now: Instant) {
+        self.final_flush_deadline = Some(
+            self.final_flush_deadline
+                .map_or(now, |deadline| deadline.min(now)),
+        );
+    }
 
-        let mut deadline = self.reconciliation_deadline;
-        if let Some(notification_deadline) = self.notification_deadline {
-            deadline = deadline.min(notification_deadline);
-        }
-        deadline
+    pub(crate) fn next_deadline(&self) -> Option<Instant> {
+        [
+            self.final_flush_deadline,
+            self.retry_deadline,
+            self.notification_deadline,
+            self.reconciliation_deadline,
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
 
     pub(crate) fn take_due(&mut self, now: Instant) -> Option<CollectionReason> {
+        if self
+            .final_flush_deadline
+            .is_some_and(|deadline| deadline <= now)
+        {
+            self.final_flush_deadline = None;
+            return Some(CollectionReason::FinalFlush);
+        }
+
         if let Some(retry_deadline) = self.retry_deadline {
             if retry_deadline > now {
                 return None;
@@ -96,10 +135,17 @@ impl LiveScheduler {
             return Some(CollectionReason::Notification);
         }
 
-        if self.reconciliation_deadline <= now {
-            while self.reconciliation_deadline <= now {
-                self.reconciliation_deadline += self.config.reconciliation_interval;
+        if self
+            .reconciliation_deadline
+            .is_some_and(|deadline| deadline <= now)
+        {
+            let mut deadline = self
+                .reconciliation_deadline
+                .expect("reconciliation deadline should be present");
+            while deadline <= now {
+                deadline += self.config.reconciliation_interval;
             }
+            self.reconciliation_deadline = Some(deadline);
             return Some(CollectionReason::Reconciliation);
         }
 
@@ -128,15 +174,6 @@ impl LiveScheduler {
 
 pub(crate) trait CollectionBackend: Send {
     fn collect(&mut self) -> Result<CollectionReport, RuntimeError>;
-    fn watch_roots(&self) -> Vec<WatchRoot>;
-
-    fn apply_trace_signal(
-        &mut self,
-        _signal: &TraceSignal,
-        _now: Instant,
-    ) -> Result<Option<UsageSummary>, RuntimeError> {
-        Ok(None)
-    }
 }
 
 pub(crate) trait SummaryPublisher: Send {
@@ -147,6 +184,7 @@ pub(crate) struct LiveCollectionLoop<B, P> {
     backend: B,
     publisher: P,
     scheduler: LiveScheduler,
+    active_providers: BTreeSet<Provider>,
 }
 
 impl<B, P> LiveCollectionLoop<B, P>
@@ -164,27 +202,44 @@ where
             backend,
             publisher,
             scheduler: LiveScheduler::new(start, config),
+            active_providers: BTreeSet::new(),
         }
     }
 
-    pub(crate) fn on_signal(&mut self, signal: WatchSignal, now: Instant) -> bool {
-        match signal {
-            WatchSignal::Changed(_)
-            | WatchSignal::WatchUnavailable(_)
-            | WatchSignal::ConfigurationChanged => {
+    pub(crate) fn on_command(&mut self, command: CollectionCommand, now: Instant) -> bool {
+        match command {
+            CollectionCommand::Activate(provider) => {
+                self.active_providers.insert(provider);
+                self.scheduler.activate(now);
                 self.scheduler.mark_changed(now);
                 true
             }
-            WatchSignal::Trace(signal) => {
-                if let Ok(Some(summary)) = self.backend.apply_trace_signal(&signal, now) {
-                    if self.publisher.publish(&summary).is_err() {
-                        eprintln!("summary_event:emit");
-                    }
+            CollectionCommand::Changed(provider)
+            | CollectionCommand::WatchUnavailable(provider)
+                if self.active_providers.contains(&provider) =>
+            {
+                self.scheduler.mark_changed(now);
+                true
+            }
+            CollectionCommand::Changed(_) | CollectionCommand::WatchUnavailable(_) => true,
+            CollectionCommand::ConfigurationChanged if !self.active_providers.is_empty() => {
+                self.scheduler.mark_changed(now);
+                true
+            }
+            CollectionCommand::ConfigurationChanged => true,
+            CollectionCommand::Finalize { provider, last_run } => {
+                if last_run {
+                    self.active_providers.remove(&provider);
                 }
-                self.scheduler.mark_changed(now);
+                self.scheduler.mark_final_flush(now);
+                if self.active_providers.is_empty() {
+                    self.scheduler.deactivate();
+                } else {
+                    self.scheduler.activate(now);
+                }
                 true
             }
-            WatchSignal::Shutdown => false,
+            CollectionCommand::Shutdown => false,
         }
     }
 
@@ -203,34 +258,29 @@ where
         Some(reason)
     }
 
-    pub(crate) fn run(mut self, receiver: Receiver<WatchSignal>, mut watcher: FileWatcher) {
+    pub(crate) fn run(mut self, receiver: Receiver<CollectionCommand>) {
         loop {
-            if let Some(reason) = self.process_due(Instant::now()) {
-                if reason == CollectionReason::Reconciliation {
-                    watcher.replace_roots(self.backend.watch_roots());
-                }
+            if self.process_due(Instant::now()).is_some() {
                 continue;
             }
 
-            let wait = self
-                .scheduler
-                .next_deadline()
-                .saturating_duration_since(Instant::now());
-            match receiver.recv_timeout(wait) {
-                Ok(signal) => {
-                    let now = Instant::now();
-                    if matches!(&signal, WatchSignal::ConfigurationChanged) {
-                        watcher.replace_roots(self.backend.watch_roots());
-                    }
-                    if !self.on_signal(signal, now) {
-                        break;
-                    }
-                }
-                Err(RecvTimeoutError::Timeout) => {}
-                Err(RecvTimeoutError::Disconnected) => break,
+            let command = match self.scheduler.next_deadline() {
+                Some(deadline) => match receiver
+                    .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                {
+                    Ok(command) => command,
+                    Err(RecvTimeoutError::Timeout) => continue,
+                    Err(RecvTimeoutError::Disconnected) => break,
+                },
+                None => match receiver.recv() {
+                    Ok(command) => command,
+                    Err(_) => break,
+                },
+            };
+            if !self.on_command(command, Instant::now()) {
+                break;
             }
         }
-        watcher.shutdown();
     }
 }
 
@@ -247,20 +297,6 @@ impl RuntimeBackend {
 impl CollectionBackend for RuntimeBackend {
     fn collect(&mut self) -> Result<CollectionReport, RuntimeError> {
         self.state.collect_once(&WindowsClock::current())
-    }
-
-    fn watch_roots(&self) -> Vec<WatchRoot> {
-        self.state.watch_roots()
-    }
-
-    fn apply_trace_signal(
-        &mut self,
-        signal: &TraceSignal,
-        now: Instant,
-    ) -> Result<Option<UsageSummary>, RuntimeError> {
-        self.state
-            .apply_trace_signal(signal, now)
-            .map(|result| Some(result.summary))
     }
 }
 
@@ -280,10 +316,172 @@ impl SummaryPublisher for TauriSummaryPublisher {
     }
 }
 
+struct TraceControlLoop<P> {
+    state: AppState,
+    publisher: P,
+    observer: SourceObserver,
+    collection_sender: Sender<CollectionCommand>,
+    listener: HookListener,
+    collection_worker: Option<JoinHandle<()>>,
+    active_providers: BTreeSet<Provider>,
+}
+
+impl<P> TraceControlLoop<P>
+where
+    P: SummaryPublisher,
+{
+    fn new(
+        state: AppState,
+        publisher: P,
+        observer: SourceObserver,
+        collection_sender: Sender<CollectionCommand>,
+        listener: HookListener,
+        collection_worker: JoinHandle<()>,
+    ) -> Self {
+        Self {
+            state,
+            publisher,
+            observer,
+            collection_sender,
+            listener,
+            collection_worker: Some(collection_worker),
+            active_providers: BTreeSet::new(),
+        }
+    }
+
+    fn publish(&mut self, summary: &UsageSummary) {
+        if self.publisher.publish(summary).is_err() {
+            eprintln!("summary_event:emit");
+        }
+    }
+
+    fn send_collection(&self, command: CollectionCommand) {
+        let _ = self.collection_sender.send(command);
+    }
+
+    fn apply_transition(&mut self, transition: TraceTransition) {
+        match transition {
+            TraceTransition::Started { provider, .. } => {
+                self.active_providers.insert(provider);
+                if !self.observer.is_active(provider) {
+                    if let Some(root) = self
+                        .state
+                        .watch_roots()
+                        .into_iter()
+                        .find(|root| root.provider() == provider)
+                    {
+                        self.observer.start_provider(root);
+                    }
+                }
+                self.send_collection(CollectionCommand::Activate(provider));
+            }
+            TraceTransition::Stopped { provider, last_run } => {
+                if last_run {
+                    self.active_providers.remove(&provider);
+                    self.observer.stop_provider(provider);
+                }
+                self.send_collection(CollectionCommand::Finalize { provider, last_run });
+            }
+            TraceTransition::Ignored => {}
+        }
+    }
+
+    fn expire_trace_activity(&mut self, now: Instant) {
+        let Ok((summary, transitions)) = self.state.expire_trace_activity(now) else {
+            return;
+        };
+        if transitions.is_empty() {
+            return;
+        }
+        self.publish(&summary);
+        for transition in transitions {
+            self.apply_transition(transition);
+        }
+    }
+
+    fn on_signal(&mut self, signal: WatchSignal, now: Instant) -> bool {
+        match signal {
+            WatchSignal::Trace(signal) => {
+                if let Ok(result) = self.state.apply_trace_signal(&signal, now) {
+                    if !matches!(result.transition, TraceTransition::Ignored) {
+                        self.publish(&result.summary);
+                        self.apply_transition(result.transition);
+                    }
+                }
+                true
+            }
+            WatchSignal::Changed(provider) => {
+                self.send_collection(CollectionCommand::Changed(provider));
+                true
+            }
+            WatchSignal::WatchUnavailable(provider) => {
+                self.send_collection(CollectionCommand::WatchUnavailable(provider));
+                true
+            }
+            WatchSignal::ConfigurationChanged => {
+                let roots = self.state.watch_roots();
+                self.observer.replace_roots(roots.clone());
+                for provider in self.active_providers.clone() {
+                    if !self.observer.is_active(provider) {
+                        if let Some(root) = roots
+                            .iter()
+                            .find(|root| root.provider() == provider)
+                            .cloned()
+                        {
+                            self.observer.start_provider(root);
+                        }
+                    }
+                }
+                self.send_collection(CollectionCommand::ConfigurationChanged);
+                true
+            }
+            WatchSignal::Shutdown => false,
+        }
+    }
+
+    fn run(mut self, receiver: Receiver<WatchSignal>) {
+        loop {
+            if self
+                .state
+                .next_trace_expiry()
+                .is_some_and(|deadline| deadline <= Instant::now())
+            {
+                self.expire_trace_activity(Instant::now());
+                continue;
+            }
+            let signal = match self.state.next_trace_expiry() {
+                Some(deadline) => match receiver
+                    .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                {
+                    Ok(signal) => signal,
+                    Err(RecvTimeoutError::Timeout) => {
+                        self.expire_trace_activity(Instant::now());
+                        continue;
+                    }
+                    Err(RecvTimeoutError::Disconnected) => break,
+                },
+                None => match receiver.recv() {
+                    Ok(signal) => signal,
+                    Err(_) => break,
+                },
+            };
+            if !self.on_signal(signal, Instant::now()) {
+                break;
+            }
+        }
+
+        self.listener.shutdown();
+        self.observer.shutdown();
+        let _ = self.collection_sender.send(CollectionCommand::Shutdown);
+        if let Some(worker) = self.collection_worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
+
 pub(crate) struct LiveCollectionHandle {
     sender: Mutex<Option<Sender<WatchSignal>>>,
     worker: Mutex<Option<JoinHandle<()>>>,
-    listener: Mutex<Option<HookListener>>,
 }
 
 impl LiveCollectionHandle {
@@ -298,11 +496,6 @@ impl LiveCollectionHandle {
     }
 
     pub(crate) fn shutdown(&self) {
-        if let Ok(mut listener) = self.listener.lock() {
-            if let Some(mut listener) = listener.take() {
-                listener.shutdown();
-            }
-        }
         if let Ok(mut sender) = self.sender.lock() {
             if let Some(sender) = sender.take() {
                 let _ = sender.send(WatchSignal::Shutdown);
@@ -320,7 +513,6 @@ impl LiveCollectionHandle {
         Self {
             sender: Mutex::new(Some(sender)),
             worker: Mutex::new(Some(worker)),
-            listener: Mutex::new(None),
         }
     }
 }
@@ -347,27 +539,41 @@ pub(crate) fn start_live_collection(
     app: tauri::AppHandle,
 ) -> LiveCollectionHandle {
     let (sender, receiver) = mpsc::channel();
-    let watcher = FileWatcher::start(state.watch_roots(), sender.clone());
-    let listener = HookListener::start(sender.clone());
-    let backend = RuntimeBackend::new(state);
-    let publisher = TauriSummaryPublisher::new(app);
-    let worker = thread::Builder::new()
+    let (collection_sender, collection_receiver) = mpsc::channel();
+    let collection_state = state.clone();
+    let collection_app = app.clone();
+    let collection_worker = thread::Builder::new()
         .name("live-collection".to_owned())
         .spawn(move || {
             LiveCollectionLoop::new(
-                backend,
-                publisher,
+                RuntimeBackend::new(collection_state),
+                TauriSummaryPublisher::new(collection_app),
                 Instant::now(),
                 LiveCollectionConfig::default(),
             )
-            .run(receiver, watcher);
+            .run(collection_receiver);
         })
         .expect("live collection worker should start");
+    let listener = HookListener::start(sender.clone());
+    let control_sender = sender.clone();
+    let control_worker = thread::Builder::new()
+        .name("trace-control".to_owned())
+        .spawn(move || {
+            TraceControlLoop::new(
+                state,
+                TauriSummaryPublisher::new(app),
+                SourceObserver::new(control_sender),
+                collection_sender,
+                listener,
+                collection_worker,
+            )
+            .run(receiver);
+        })
+        .expect("trace control worker should start");
 
     LiveCollectionHandle {
         sender: Mutex::new(Some(sender)),
-        worker: Mutex::new(Some(worker)),
-        listener: Mutex::new(Some(listener)),
+        worker: Mutex::new(Some(control_worker)),
     }
 }
 
@@ -376,7 +582,7 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::{
-        update_source_config_and_refresh, CollectionBackend, CollectionReason,
+        update_source_config_and_refresh, CollectionBackend, CollectionCommand, CollectionReason,
         LiveCollectionConfig, LiveCollectionHandle, LiveCollectionLoop, LiveScheduler,
         SummaryPublisher,
     };
@@ -384,7 +590,7 @@ mod tests {
     use crate::collection::{CollectionError, CollectionReport, FixedClock};
     use crate::commands::usage_summary::SummaryEventError;
     use crate::database::connection::StorageError;
-    use crate::sources::file_watcher::{WatchRoot, WatchSignal};
+    use crate::sources::file_watcher::WatchSignal;
     use crate::sources::session_files::DiscoveryLimits;
     use crate::sources::source_config::SourceConfig;
     use crate::types::provider::Provider;
@@ -431,10 +637,6 @@ mod tests {
             self.results
                 .pop_front()
                 .expect("test backend should have a scripted result")
-        }
-
-        fn watch_roots(&self) -> Vec<WatchRoot> {
-            Vec::new()
         }
     }
 
@@ -485,6 +687,7 @@ mod tests {
         let start = Instant::now();
         let mut scheduler = LiveScheduler::new(start, test_config());
 
+        scheduler.activate(start);
         scheduler.mark_changed(start);
         assert_eq!(
             scheduler.take_due(start + Duration::from_millis(200)),
@@ -509,7 +712,7 @@ mod tests {
             scheduler.record_failure(failure_at);
             assert_eq!(
                 scheduler.next_deadline(),
-                failure_at + Duration::from_secs(delay)
+                Some(failure_at + Duration::from_secs(delay))
             );
             assert_eq!(
                 scheduler.take_due(failure_at + Duration::from_secs(delay)),
@@ -541,7 +744,7 @@ mod tests {
         let start = Instant::now();
         let scheduler = LiveScheduler::new(start, test_config());
 
-        assert_eq!(scheduler.next_deadline(), start + Duration::from_secs(30));
+        assert_eq!(scheduler.next_deadline(), None);
     }
 
     #[test]
@@ -559,10 +762,11 @@ mod tests {
             test_config(),
         );
 
-        assert!(live.on_signal(WatchSignal::ConfigurationChanged, start));
+        live.on_command(CollectionCommand::Activate(Provider::Claude), start);
+        assert!(live.on_command(CollectionCommand::ConfigurationChanged, start));
         assert_eq!(
             live.scheduler.next_deadline(),
-            start + test_config().notification_debounce
+            Some(start + test_config().notification_debounce)
         );
     }
 
@@ -623,6 +827,45 @@ mod tests {
         );
         assert_eq!(live.publisher.summaries[0].today_tokens, 20);
         assert_eq!(live.backend.attempts, 1);
+    }
+
+    #[test]
+    fn last_stop_requests_one_final_flush_and_disarms_idle_schedule() {
+        let start = Instant::now();
+        let mut live = LiveCollectionLoop::new(
+            ScriptedBackend {
+                attempts: 0,
+                results: std::collections::VecDeque::from([
+                    Ok(test_report(20)),
+                    Ok(test_report(30)),
+                ]),
+            },
+            RecordingPublisher {
+                summaries: Vec::new(),
+            },
+            start,
+            test_config(),
+        );
+
+        live.on_command(CollectionCommand::Activate(Provider::Claude), start);
+        assert_eq!(
+            live.process_due(start + Duration::from_millis(200)),
+            Some(CollectionReason::Notification)
+        );
+        live.on_command(
+            CollectionCommand::Finalize {
+                provider: Provider::Claude,
+                last_run: true,
+            },
+            start + Duration::from_millis(201),
+        );
+
+        assert_eq!(
+            live.process_due(start + Duration::from_millis(201)),
+            Some(CollectionReason::FinalFlush)
+        );
+        assert_eq!(live.backend.attempts, 2);
+        assert_eq!(live.scheduler.next_deadline(), None);
     }
 
     #[test]
@@ -712,7 +955,8 @@ mod tests {
             start,
             test_config(),
         );
-        assert!(live.on_signal(WatchSignal::Changed(Provider::Claude), start));
+        live.on_command(CollectionCommand::Activate(Provider::Claude), start);
+        assert!(live.on_command(CollectionCommand::Changed(Provider::Claude), start));
         live.process_due(start + Duration::from_millis(200));
 
         assert_eq!(live.publisher.summaries[0].today_tokens, 30);
@@ -747,6 +991,7 @@ mod tests {
             start,
             test_config(),
         );
+        live.scheduler.activate(start);
 
         assert_eq!(
             live.process_due(start + Duration::from_secs(30)),
@@ -791,7 +1036,8 @@ mod tests {
             start,
             test_config(),
         );
-        live.on_signal(WatchSignal::Changed(Provider::Claude), start);
+        live.on_command(CollectionCommand::Activate(Provider::Claude), start);
+        live.on_command(CollectionCommand::Changed(Provider::Claude), start);
         live.process_due(start + Duration::from_millis(200));
 
         assert_eq!(live.publisher.summaries[0].today_tokens, 30);
@@ -845,10 +1091,6 @@ mod tests {
                 self.reports.push(report.clone());
             }
             result
-        }
-
-        fn watch_roots(&self) -> Vec<WatchRoot> {
-            self.state.watch_roots()
         }
     }
 

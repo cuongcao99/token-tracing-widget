@@ -192,7 +192,7 @@ impl TraceActivityState {
         let expired = self
             .active_runs
             .iter()
-            .filter(|(_, run)| now.saturating_duration_since(run.received_at) > TRACE_ACTIVITY_TTL)
+            .filter(|(_, run)| now.saturating_duration_since(run.received_at) >= TRACE_ACTIVITY_TTL)
             .map(|(key, _)| key.clone())
             .collect::<Vec<_>>();
         let providers = expired
@@ -495,6 +495,37 @@ impl AppState {
             summary: self.summary(),
             transition,
         })
+    }
+
+    pub(crate) fn next_trace_expiry(&self) -> Option<Instant> {
+        self.trace_activity.lock().ok().and_then(|activity| {
+            activity
+                .active_runs
+                .values()
+                .map(|run| run.received_at + TRACE_ACTIVITY_TTL)
+                .min()
+        })
+    }
+
+    pub(crate) fn expire_trace_activity(
+        &self,
+        now: Instant,
+    ) -> Result<(UsageSummary, Vec<TraceTransition>), RuntimeError> {
+        let transitions = {
+            let mut activity = self
+                .trace_activity
+                .lock()
+                .map_err(|_| RuntimeError::StatePoisoned)?;
+            activity
+                .expire(now)
+                .into_iter()
+                .map(|provider| TraceTransition::Stopped {
+                    provider,
+                    last_run: !activity.has_active_run(provider),
+                })
+                .collect()
+        };
+        Ok((self.summary(), transitions))
     }
 
     pub fn source_config(&self, provider: Provider) -> Result<SourceConfig, RuntimeError> {

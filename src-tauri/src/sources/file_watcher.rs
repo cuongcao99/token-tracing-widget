@@ -1,5 +1,7 @@
 //! Change notifications and reconciliation for source files.
 
+#[cfg(windows)]
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 
@@ -35,37 +37,95 @@ pub(crate) enum WatchSignal {
     Shutdown,
 }
 
-pub(crate) struct FileWatcher {
+pub(crate) struct SourceObserver {
     sender: Sender<WatchSignal>,
     #[cfg(windows)]
-    stop_signal: Option<std::sync::Arc<win32::StopSignal>>,
-    #[cfg(windows)]
-    workers: Vec<std::thread::JoinHandle<()>>,
+    workers: BTreeMap<Provider, ProviderWorker>,
 }
 
-impl FileWatcher {
-    pub(crate) fn start(roots: Vec<WatchRoot>, sender: Sender<WatchSignal>) -> Self {
-        let mut watcher = Self {
+#[cfg(windows)]
+struct ProviderWorker {
+    stop_signal: std::sync::Arc<win32::StopSignal>,
+    worker: std::thread::JoinHandle<()>,
+}
+
+impl SourceObserver {
+    pub(crate) fn new(sender: Sender<WatchSignal>) -> Self {
+        Self {
             sender,
             #[cfg(windows)]
-            stop_signal: None,
-            #[cfg(windows)]
-            workers: Vec::new(),
-        };
+            workers: BTreeMap::new(),
+        }
+    }
 
+    pub(crate) fn start_provider(&mut self, root: WatchRoot) {
         #[cfg(windows)]
-        watcher.start_workers(roots);
+        {
+            let provider = root.provider();
+            self.stop_provider(provider);
+            let Some(stop_signal) = win32::StopSignal::new() else {
+                self.send(WatchSignal::WatchUnavailable(provider));
+                return;
+            };
+            let sender = self.sender.clone();
+            let worker_stop_signal = stop_signal.clone();
+            let worker = std::thread::Builder::new()
+                .name(format!("source-observer-{}", provider.as_str()))
+                .spawn(move || win32::watch_root(root, sender, worker_stop_signal))
+                .expect("source observer worker should start");
+            self.workers.insert(
+                provider,
+                ProviderWorker {
+                    stop_signal,
+                    worker,
+                },
+            );
+        }
         #[cfg(not(windows))]
-        let _ = roots;
+        let _ = root;
+    }
 
-        watcher
+    pub(crate) fn stop_provider(&mut self, provider: Provider) {
+        #[cfg(windows)]
+        {
+            if let Some(worker) = self.workers.remove(&provider) {
+                worker.stop_signal.request();
+                let _ = worker.worker.join();
+            }
+        }
+        #[cfg(not(windows))]
+        let _ = provider;
+    }
+
+    pub(crate) fn is_active(&self, provider: Provider) -> bool {
+        #[cfg(windows)]
+        {
+            self.workers
+                .get(&provider)
+                .is_some_and(|worker| !worker.worker.is_finished())
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = provider;
+            false
+        }
     }
 
     pub(crate) fn replace_roots(&mut self, roots: Vec<WatchRoot>) {
         #[cfg(windows)]
         {
-            self.stop_workers();
-            self.start_workers(roots);
+            let roots = roots
+                .into_iter()
+                .map(|root| (root.provider(), root))
+                .collect::<BTreeMap<_, _>>();
+            let active_providers = self.workers.keys().copied().collect::<Vec<_>>();
+            for provider in active_providers {
+                if let Some(root) = roots.get(&provider).cloned() {
+                    self.start_provider(root);
+                } else {
+                    self.stop_provider(provider);
+                }
+            }
         }
         #[cfg(not(windows))]
         let _ = roots;
@@ -73,48 +133,11 @@ impl FileWatcher {
 
     pub(crate) fn shutdown(&mut self) {
         #[cfg(windows)]
-        self.stop_workers();
-    }
-
-    #[cfg(windows)]
-    fn start_workers(&mut self, roots: Vec<WatchRoot>) {
-        if roots.is_empty() {
-            return;
-        }
-
-        let worker_count = roots.len();
-        let (ready_sender, ready_receiver) = std::sync::mpsc::channel();
-
-        let Some(stop_signal) = win32::StopSignal::new() else {
-            for root in roots {
-                self.send(WatchSignal::WatchUnavailable(root.provider()));
+        {
+            let providers = self.workers.keys().copied().collect::<Vec<_>>();
+            for provider in providers {
+                self.stop_provider(provider);
             }
-            return;
-        };
-        self.stop_signal = Some(stop_signal.clone());
-
-        for root in roots {
-            let sender = self.sender.clone();
-            let stop_signal = stop_signal.clone();
-            let ready_sender = ready_sender.clone();
-            self.workers.push(std::thread::spawn(move || {
-                win32::watch_root(root, sender, stop_signal, ready_sender);
-            }));
-        }
-
-        drop(ready_sender);
-        for _ in 0..worker_count {
-            let _ = ready_receiver.recv_timeout(std::time::Duration::from_secs(1));
-        }
-    }
-
-    #[cfg(windows)]
-    fn stop_workers(&mut self) {
-        if let Some(stop_signal) = self.stop_signal.take() {
-            stop_signal.request();
-        }
-        for worker in self.workers.drain(..) {
-            let _ = worker.join();
         }
     }
 
@@ -123,7 +146,7 @@ impl FileWatcher {
     }
 }
 
-impl Drop for FileWatcher {
+impl Drop for SourceObserver {
     fn drop(&mut self) {
         self.shutdown();
     }
@@ -280,7 +303,6 @@ mod win32 {
         root: WatchRoot,
         sender: std::sync::mpsc::Sender<WatchSignal>,
         stop_signal: Arc<StopSignal>,
-        ready_sender: std::sync::mpsc::Sender<()>,
     ) {
         let path = path_to_utf16(root.path());
         let directory = unsafe {
@@ -295,14 +317,12 @@ mod win32 {
             )
         };
         let Some(directory) = OwnedHandle::new(directory) else {
-            let _ = ready_sender.send(());
             send(&sender, WatchSignal::WatchUnavailable(root.provider()));
             return;
         };
 
         let read_event = unsafe { CreateEventW(ptr::null(), FALSE, FALSE, ptr::null()) };
         let Some(read_event) = OwnedHandle::new(read_event) else {
-            let _ = ready_sender.send(());
             send(&sender, WatchSignal::WatchUnavailable(root.provider()));
             return;
         };
@@ -310,7 +330,6 @@ mod win32 {
         let mut buffer = [0_u8; 64 * 1024];
         loop {
             if stop_signal.is_requested() {
-                let _ = ready_sender.send(());
                 return;
             }
 
@@ -336,16 +355,12 @@ mod win32 {
                 if error == ERROR_IO_PENDING {
                     // The read is outstanding and will complete through the read event.
                 } else if error == ERROR_OPERATION_ABORTED || stop_signal.is_requested() {
-                    let _ = ready_sender.send(());
                     return;
                 } else {
-                    let _ = ready_sender.send(());
                     send(&sender, WatchSignal::WatchUnavailable(root.provider()));
                     return;
                 }
             }
-
-            let _ = ready_sender.send(());
 
             let handles = [read_event.raw(), stop_signal.raw()];
             let wait_result = unsafe {
@@ -470,7 +485,7 @@ mod win32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{FileWatcher, WatchRoot, WatchSignal};
+    use super::{SourceObserver, WatchRoot, WatchSignal};
     use crate::types::provider::Provider;
 
     #[cfg(windows)]
@@ -478,10 +493,9 @@ mod tests {
     fn native_watcher_reports_file_change_without_forwarding_path() {
         let root = tempfile::tempdir().expect("watch root should be created");
         let (sender, receiver) = std::sync::mpsc::channel();
-        let mut watcher = FileWatcher::start(
-            vec![WatchRoot::new(Provider::Claude, root.path().to_path_buf())],
-            sender,
-        );
+        let mut watcher = SourceObserver::new(sender);
+        watcher.start_provider(WatchRoot::new(Provider::Claude, root.path().to_path_buf()));
+        std::thread::sleep(std::time::Duration::from_millis(50));
 
         std::fs::write(root.path().join("session.jsonl"), b"metadata-only\n")
             .expect("session file should be written");
@@ -501,13 +515,10 @@ mod tests {
         let root = tempfile::tempdir().expect("watch root should be created");
         let missing = root.path().join("missing");
         let (sender, receiver) = std::sync::mpsc::channel();
-        let mut watcher = FileWatcher::start(
-            vec![
-                WatchRoot::new(Provider::Claude, root.path().to_path_buf()),
-                WatchRoot::new(Provider::Codex, missing),
-            ],
-            sender,
-        );
+        let mut watcher = SourceObserver::new(sender);
+        watcher.start_provider(WatchRoot::new(Provider::Claude, root.path().to_path_buf()));
+        watcher.start_provider(WatchRoot::new(Provider::Codex, missing));
+        std::thread::sleep(std::time::Duration::from_millis(50));
 
         std::fs::write(root.path().join("session.jsonl"), b"metadata-only\n")
             .expect("session file should be written");
