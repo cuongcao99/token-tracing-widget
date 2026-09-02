@@ -258,7 +258,9 @@ impl CollectionBackend for RuntimeBackend {
         signal: &TraceSignal,
         now: Instant,
     ) -> Result<Option<UsageSummary>, RuntimeError> {
-        self.state.apply_trace_signal(signal, now).map(Some)
+        self.state
+            .apply_trace_signal(signal, now)
+            .map(|result| Some(result.summary))
     }
 }
 
