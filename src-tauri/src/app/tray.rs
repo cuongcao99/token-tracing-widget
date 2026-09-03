@@ -1,5 +1,6 @@
 //! System-tray menu and actions.
 
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
 use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
 
 pub(crate) const MAIN_WINDOW_LABEL: &str = "main";
@@ -62,6 +63,14 @@ pub(crate) fn action_for_menu_id(menu_id: &str) -> TrayAction {
     }
 }
 
+fn action_for_tray_click(button: MouseButton, button_state: MouseButtonState) -> TrayAction {
+    if button == MouseButton::Left && button_state == MouseButtonState::Up {
+        TrayAction::Show
+    } else {
+        TrayAction::Ignore
+    }
+}
+
 fn menu_items() -> [(&'static str, &'static str); 4] {
     [
         (SHOW_MENU_ID, "Show"),
@@ -116,6 +125,12 @@ fn set_main_window_visibility<R: tauri::Runtime>(app: &tauri::AppHandle<R>, visi
     };
     if let Err(error) = result {
         eprintln!("shell:window_visibility:{error}");
+        return;
+    }
+    if visible {
+        if let Err(error) = window.set_focus() {
+            eprintln!("shell:window_focus:{error}");
+        }
     }
 }
 
@@ -141,7 +156,20 @@ pub(crate) fn setup_tray<R: tauri::Runtime>(
     tauri::tray::TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
         .menu(&menu)
+        .show_menu_on_left_click(false)
         .tooltip("Token Tracing")
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button,
+                button_state,
+                ..
+            } = event
+            {
+                if action_for_tray_click(button, button_state) == TrayAction::Show {
+                    set_main_window_visibility(tray.app_handle(), true);
+                }
+            }
+        })
         .on_menu_event(|app, event| match action_for_menu_id(event.id().as_ref()) {
             TrayAction::Show => set_main_window_visibility(app, true),
             TrayAction::Hide => set_main_window_visibility(app, false),
@@ -157,6 +185,7 @@ pub(crate) fn setup_tray<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tauri::tray::{MouseButton, MouseButtonState};
 
     #[test]
     fn lifecycle_menu_ids_map_to_exact_actions() {
@@ -213,5 +242,21 @@ mod tests {
         assert!(!options.always_on_top);
         assert!(options.skip_taskbar);
         assert!(!options.shadow);
+    }
+
+    #[test]
+    fn left_click_release_shows_the_main_window() {
+        assert_eq!(
+            action_for_tray_click(MouseButton::Left, MouseButtonState::Up),
+            TrayAction::Show
+        );
+        assert_eq!(
+            action_for_tray_click(MouseButton::Right, MouseButtonState::Up),
+            TrayAction::Ignore
+        );
+        assert_eq!(
+            action_for_tray_click(MouseButton::Left, MouseButtonState::Down),
+            TrayAction::Ignore
+        );
     }
 }
