@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 
 use tempfile::TempDir;
 use token_tracing_widget_lib::collection::{
-    compute_summary, CollectionCoordinator, CollectionError, CollectionStore, CollectionStoreError,
-    FixedClock, ProviderSource, SourceUpdate, SummaryRows, WindowsClock,
+    CollectionCoordinator, CollectionError, CollectionStore, CollectionStoreError, FixedClock,
+    ProviderSource, SourceUpdate, SummaryRows, WindowsClock,
 };
 use token_tracing_widget_lib::database::store::IndexStore;
 use token_tracing_widget_lib::providers::claude::ClaudeReader;
@@ -23,6 +23,7 @@ use token_tracing_widget_lib::usage::cumulative_delta::convert_observations;
 use token_tracing_widget_lib::usage::observation_validation::{
     validate_observation, ObservationValidationError,
 };
+use token_tracing_widget_lib::usage::summary::compute_summary;
 
 fn codex_observation(timestamp: &str, total: u64) -> TokenObservation {
     let input_tokens = total / 2;
@@ -66,7 +67,8 @@ fn summary_contains_independent_provider_totals_for_the_overlay() {
             SourceHealth::detected(Provider::Codex),
         ],
         &[Provider::Claude, Provider::Codex],
-        &FixedClock::new("2026-01-01T00:00:04Z", "2026-01-01"),
+        "2026-01-01T00:00:04Z",
+        "2026-01-01",
     );
 
     assert_eq!(summary.today_tokens, 23);
@@ -97,7 +99,8 @@ fn aggregate_current_session_resets_after_the_windows_local_day_changes() {
         },
         &[SourceHealth::detected(Provider::Claude)],
         &[Provider::Claude],
-        &FixedClock::new("2026-01-02T00:00:00Z", "2026-01-02"),
+        "2026-01-02T00:00:00Z",
+        "2026-01-02",
     );
 
     assert_eq!(summary.current_session_tokens, Some(0));
@@ -506,7 +509,8 @@ fn active_provider_expires_after_fifteen_seconds_but_last_update_remains() {
         },
         &source_health,
         &[Provider::Claude],
-        &FixedClock::new("2026-01-01T10:00:16Z", "2026-01-01"),
+        "2026-01-01T10:00:16Z",
+        "2026-01-01",
     );
 
     assert_eq!(summary.state, token_tracing_widget_lib::UsageState::Idle);
@@ -533,7 +537,8 @@ fn active_provider_stays_active_until_the_fifteen_second_fallback() {
         },
         &[SourceHealth::detected(Provider::Claude)],
         &[Provider::Claude],
-        &FixedClock::new("2026-01-01T10:00:14Z", "2026-01-01"),
+        "2026-01-01T10:00:14Z",
+        "2026-01-01",
     );
 
     assert_eq!(summary.state, token_tracing_widget_lib::UsageState::Active);
@@ -556,7 +561,8 @@ fn today_total_combines_enabled_providers_without_double_counting_cumulative_sna
         },
         &source_health,
         &[Provider::Claude, Provider::Codex],
-        &FixedClock::new("2026-01-01T10:00:30Z", "2026-01-01"),
+        "2026-01-01T10:00:30Z",
+        "2026-01-01",
     );
 
     assert_eq!(summary.today_tokens, 40);
@@ -587,7 +593,8 @@ fn future_events_do_not_inflate_the_current_session_total() {
         },
         &[SourceHealth::detected(Provider::Claude)],
         &[Provider::Claude],
-        &FixedClock::new("2026-01-01T10:00:30Z", "2026-01-01"),
+        "2026-01-01T10:00:30Z",
+        "2026-01-01",
     );
 
     assert_eq!(summary.current_session_tokens, Some(20));
@@ -616,7 +623,8 @@ fn disabled_provider_events_do_not_enter_summary_totals() {
         &rows,
         &health,
         &[Provider::Claude],
-        &FixedClock::new("2026-01-01T10:00:30Z", "2026-01-01"),
+        "2026-01-01T10:00:30Z",
+        "2026-01-01",
     );
 
     assert_eq!(summary.today_tokens, 20);

@@ -1,19 +1,18 @@
-//! Selecting the provider with the newest valid usage event.
-
 use crate::types::usage_event::UsageEvent;
-use crate::usage::session_summary::compute_session_aggregation;
 use crate::utils::windows_time::{parse_timestamp_seconds, timestamp_local_day};
 use crate::UsageState;
 
+use super::sessions::compute_session_aggregation;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ActiveProviderResult {
-    pub state: UsageState,
-    pub provider: Option<String>,
-    pub current_session_tokens: Option<u64>,
-    pub last_updated_at: Option<String>,
+pub(super) struct ActiveProviderResult {
+    pub(super) state: UsageState,
+    pub(super) provider: Option<String>,
+    pub(super) current_session_tokens: Option<u64>,
+    pub(super) last_updated_at: Option<String>,
 }
 
-pub fn compute_active_provider(events: &[UsageEvent], now: &str) -> ActiveProviderResult {
+pub(super) fn compute_active_provider(events: &[UsageEvent], now: &str) -> ActiveProviderResult {
     let Some(now_seconds) = parse_timestamp_seconds(now) else {
         return idle_result(None);
     };
@@ -42,7 +41,7 @@ pub fn compute_active_provider(events: &[UsageEvent], now: &str) -> ActiveProvid
 /// Computes the current-session total from events observed on the supplied
 /// Windows-local calendar day while retaining the all-history active-provider
 /// calculation for state and last-update metadata.
-pub fn compute_current_session_tokens_for_local_day(
+pub(super) fn compute_current_session_tokens_for_local_day(
     events: &[UsageEvent],
     now: &str,
     local_day: &str,

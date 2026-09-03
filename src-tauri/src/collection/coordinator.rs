@@ -6,14 +6,8 @@ use crate::sources::session_files::DiscoveryResult;
 use crate::types::provider::Provider;
 use crate::types::source_health::SourceHealth;
 use crate::types::usage_summary::UsageSummary;
-use crate::usage::active_provider::{
-    compute_active_provider, compute_current_session_tokens_for_local_day,
-};
-use crate::usage::daily_total::compute_today_total;
-use crate::usage::provider_summary::compute_provider_summary;
-use crate::usage::summary::SummaryRows;
+use crate::usage::summary::compute_summary;
 use crate::utils::windows_time::{current_local_day, current_utc_timestamp, timestamp_local_day};
-use crate::UsageState;
 
 use super::persistence::{CollectionBatch, CollectionStore, CollectionStoreError, SourceUpdate};
 use super::source_collection::{error_category, SourceCollectionResult};
@@ -240,7 +234,13 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
                 || timestamp_local_day(&event.observed_at).as_deref() != Some(clock.local_day())
                 || allowed_codex_file_identities.contains(&event.file_identity)
         });
-        let summary = compute_summary(&rows, &source_health, &enabled_providers, clock);
+        let summary = compute_summary(
+            &rows,
+            &source_health,
+            &enabled_providers,
+            clock.now(),
+            clock.local_day(),
+        );
         self.last_summary = summary.clone();
 
         Ok(CollectionReport {
@@ -253,73 +253,5 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
 
     pub fn last_summary(&self) -> &UsageSummary {
         &self.last_summary
-    }
-}
-
-pub fn compute_summary(
-    rows: &SummaryRows,
-    source_health: &[SourceHealth],
-    enabled_providers: &[Provider],
-    clock: &dyn CollectionClock,
-) -> UsageSummary {
-    let enabled_events: Vec<_> = rows
-        .events
-        .iter()
-        .filter(|event| enabled_providers.contains(&event.provider))
-        .cloned()
-        .collect();
-    let active = compute_active_provider(&enabled_events, clock.now());
-    let usable_source = source_health
-        .iter()
-        .any(|health| matches!(health.state.as_str(), "detected" | "limited" | "malformed"));
-    let state = if active.state == UsageState::Active {
-        UsageState::Active
-    } else if usable_source {
-        UsageState::Idle
-    } else {
-        UsageState::Unavailable
-    };
-    let providers = Provider::all()
-        .iter()
-        .copied()
-        .map(|provider| {
-            let health = source_health
-                .iter()
-                .find(|entry| entry.provider == provider);
-            let rate_limits: Vec<_> = if enabled_providers.contains(&provider)
-                && health.is_some_and(|health| {
-                    matches!(health.state.as_str(), "detected" | "limited" | "malformed")
-                }) {
-                rows.rate_limits
-                    .iter()
-                    .filter(|entry| entry.provider == provider)
-                    .map(|entry| entry.rate_limit)
-                    .collect()
-            } else {
-                Vec::new()
-            };
-            compute_provider_summary(
-                provider,
-                &enabled_events,
-                health,
-                &rate_limits,
-                clock.now(),
-                clock.local_day(),
-            )
-        })
-        .collect();
-
-    UsageSummary {
-        state,
-        provider: active.provider,
-        current_session_tokens: compute_current_session_tokens_for_local_day(
-            &enabled_events,
-            clock.now(),
-            clock.local_day(),
-        ),
-        today_tokens: compute_today_total(&enabled_events, clock.local_day()),
-        last_updated_at: active.last_updated_at,
-        source_health: source_health.to_vec(),
-        providers,
     }
 }

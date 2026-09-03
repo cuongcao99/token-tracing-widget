@@ -11,7 +11,7 @@ use crate::sources::file_watcher::{SourceObserver, WatchSignal};
 use crate::sources::source_config::SourceConfig;
 use crate::types::provider::Provider;
 use crate::types::usage_summary::UsageSummary;
-use crate::usage::session_summary::ACTIVE_SESSION_WINDOW_SECONDS;
+use crate::usage::summary::ACTIVE_SESSION_WINDOW_SECONDS;
 use crate::UsageState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

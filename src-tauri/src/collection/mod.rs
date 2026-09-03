@@ -6,8 +6,8 @@ mod source_collection;
 
 pub use crate::usage::summary::SummaryRows;
 pub use coordinator::{
-    compute_summary, CollectionClock, CollectionCoordinator, CollectionError, CollectionReport,
-    FixedClock, ProviderSource, WindowsClock,
+    CollectionClock, CollectionCoordinator, CollectionError, CollectionReport, FixedClock,
+    ProviderSource, WindowsClock,
 };
 pub use persistence::{
     CollectionBatch, CollectionStore, CollectionStoreError, DiagnosticUpdate, RateLimitUpdate,
