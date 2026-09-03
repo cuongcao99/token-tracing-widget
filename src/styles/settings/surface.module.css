@@ -19,6 +19,7 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--elevation-settings);
   font-family: var(--font-ui);
+  animation: settings-arrive var(--motion-layout-duration) var(--motion-easing) both;
 }
 
 .body {
@@ -109,6 +110,10 @@
   color: var(--color-muted);
   background: var(--color-card);
   cursor: pointer;
+  transition:
+    color var(--motion-duration) var(--motion-easing),
+    background-color var(--motion-duration) var(--motion-easing),
+    transform var(--motion-duration) var(--motion-easing);
 }
 
 .closeButton:hover {
@@ -120,6 +125,10 @@
   outline: var(--focus-width) solid var(--focus-color);
   outline-offset: var(--focus-offset);
   box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.closeButton:active {
+  transform: scale(0.94);
 }
 
 .closeIcon {
@@ -230,5 +239,23 @@
 @media (max-width: 420px) {
   .root {
     --settings-inline-padding: var(--settings-mobile-inline-padding);
+  }
+}
+
+@keyframes settings-arrive {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    animation: none;
   }
 }

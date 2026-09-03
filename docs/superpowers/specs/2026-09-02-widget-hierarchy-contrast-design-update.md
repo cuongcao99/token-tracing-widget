@@ -114,14 +114,34 @@ SQLite, dependencies, or window/data boundaries.
 ## Follow-up: resize content anchor
 
 - The widget keeps its native vertical bounds at the visible-provider baseline
-  through 520 logical pixels. Its content-fit target ends 17px after the last
+  through 520 logical pixels. Its content-fit target ends 20px after the last
   rendered provider content.
 - The anchor gap is applied to the window target rather than added as
   scrollable content, so it does not create a scrollbar. Scrolling begins only
   when real content exceeds the maximum height or the user resizes below the
   content anchor. Collapsed Idle anchors below its disclosure button; expanded
   Idle anchors below its last session row.
-- Height synchronization is intentionally narrow: the initial render and Idle
-  disclosure changes may re-fit the window, while provider visibility, source
-  health, collection toggles, theme, token-only updates, and live data changes
-  do not reset a manually resized height.
+- The widget starts in auto-fit mode and re-fits when the session content
+  structure changes, provider visibility changes, or Idle disclosure changes.
+  Source health, collection toggles, theme, token-only updates, and live data
+  changes from source refreshes do not reset that fit.
+- A vertical native resize gesture switches the widget to user-sized mode for
+  the lifetime of that widget mount. Later content changes preserve the user's
+  height; horizontal-only resizing leaves auto-fit available for the height.
+
+## Follow-up: restrained motion
+
+- The widget and Settings surfaces use a short editorial settle on mount:
+  opacity plus a 4px upward translation and a near-neutral scale shift.
+- Progress fills, state colors, scrollbar thumb color, switches, disclosure
+  affordances, and press feedback use the shared 180ms ease-out motion token.
+  New session rows use the same small 4px arrival to make list changes legible.
+- Automatic native height changes use a roughly 150ms bounded interpolation
+  driven by display frames, so high-refresh screens still get enough small
+  steps without making the widget feel sluggish. Native size calls do not block
+  the next display frame; the final request is still awaited before the resize
+  settles.
+- The widget's vertical rhythm remains fixed while the native window changes
+  height; container-height-driven spacing is avoided so inner content does not
+  reflow against the resize animation.
+- All nonessential movement is removed under `prefers-reduced-motion`.

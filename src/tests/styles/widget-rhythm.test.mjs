@@ -28,11 +28,9 @@ const tokenCss = readStylesheet("../../styles/globals/tokens.css");
 const layoutSource = readStylesheet("../../lib/widget-layout.ts");
 
 describe("widget vertical rhythm", () => {
-  it("uses one bounded container-relative spacing token", () => {
-    expect(surfaceCss).toContain("container-type: size;");
-    expect(tokenCss).toContain(
-      "--widget-rhythm: clamp(10px, 4cqh, 20px);",
-    );
+  it("keeps vertical rhythm stable while the native window resizes", () => {
+    expect(tokenCss).toContain("--widget-rhythm: 12px;");
+    expect(tokenCss).not.toContain("cqh");
     expect(layoutSource).toContain("WIDGET_MIN_HEIGHT = 192");
     expect(layoutSource).toContain("WIDGET_MAX_HEIGHT = 520");
   });
@@ -113,6 +111,26 @@ describe("widget vertical rhythm", () => {
     expect(stylesheetBlock(surfaceCss, ".providerList::-webkit-scrollbar-thumb")).toContain(
       "background: var(--color-muted-soft);",
     );
+  });
+
+  it("uses restrained motion with reduced-motion fallbacks", () => {
+    expect(tokenCss).toContain(
+      "--motion-easing: cubic-bezier(0.16, 1, 0.3, 1);",
+    );
+    expect(tokenCss).toContain("--motion-layout-duration: 150ms;");
+    expect(surfaceCss).toContain("animation: widget-arrive");
+    expect(surfaceCss).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(providerCss).toContain(
+      "animation: provider-section-arrive var(--motion-layout-duration)",
+    );
+    expect(stylesheetBlock(limitsCss, ".fill")).toContain(
+      "width 220ms var(--motion-easing)",
+    );
+    expect(sessionsCss).toContain(
+      "animation: session-row-arrive var(--motion-layout-duration)",
+    );
+    expect(providerCss).toContain("@keyframes provider-section-arrive");
+    expect(sessionsCss).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
   it("gives updated timestamps room for descenders", () => {

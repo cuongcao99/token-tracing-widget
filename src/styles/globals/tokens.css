@@ -60,7 +60,7 @@
 
   --provider-mark-size: 20px;
   --provider-mark-gap: 10px;
-  --widget-rhythm: clamp(10px, 4cqh, 20px);
+  --widget-rhythm: 12px;
   --widget-width: 440px;
   --widget-height: 316px;
   --widget-padding-top: 21px;
@@ -138,8 +138,9 @@
 
   --focus-width: 2px;
   --focus-offset: 3px;
-  --motion-duration: 140ms;
-  --motion-easing: ease;
+  --motion-duration: 180ms;
+  --motion-layout-duration: 150ms;
+  --motion-easing: cubic-bezier(0.16, 1, 0.3, 1);
 
   --elevation-widget: none;
   --elevation-settings-light: 0 18px 42px -16px rgba(20, 20, 19, 0.26),

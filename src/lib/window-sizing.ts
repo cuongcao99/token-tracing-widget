@@ -3,9 +3,11 @@ import { syncWidgetWindowHeight as syncDesktopWidgetWindowHeight } from "./deskt
 export function syncWidgetWindowHeight(
   visibleProviderCount: number,
   measuredContentHeight?: number,
+  animate = false,
 ): Promise<void> {
   return syncDesktopWidgetWindowHeight(
     visibleProviderCount,
     measuredContentHeight,
+    animate,
   );
 }

@@ -2,7 +2,6 @@
   position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  container-type: size;
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -17,6 +16,7 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--elevation-widget);
   font-family: var(--font-ui);
+  animation: widget-arrive var(--motion-layout-duration) var(--motion-easing) both;
 }
 
 .header {
@@ -86,4 +86,27 @@
   border: 2px solid transparent;
   border-radius: var(--radius-pill);
   background-clip: padding-box;
+  transition: background-color var(--motion-duration) var(--motion-easing);
+}
+
+@keyframes widget-arrive {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    animation: none;
+  }
+
+  .providerList::-webkit-scrollbar-thumb {
+    transition: none;
+  }
 }

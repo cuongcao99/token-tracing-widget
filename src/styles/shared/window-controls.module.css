@@ -19,10 +19,16 @@
   cursor: grab;
   pointer-events: auto;
   appearance: none;
+  transition:
+    color var(--motion-duration) var(--motion-easing),
+    background-color var(--motion-duration) var(--motion-easing),
+    border-color var(--motion-duration) var(--motion-easing),
+    transform var(--motion-duration) var(--motion-easing);
 }
 
 .grip:active {
   cursor: grabbing;
+  transform: translateX(-50%) scale(0.96);
 }
 
 .gripDot {

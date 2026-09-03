@@ -40,10 +40,76 @@ function clamp(value: number, minimum: number, maximum: number): number {
 
 let latestRequest = 0;
 let resizeQueue: Promise<void> = Promise.resolve();
+const WIDGET_RESIZE_DURATION_MS = 150;
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof globalThis.matchMedia === "function" &&
+    globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+function nextAnimationFrame(): Promise<number> {
+  if (typeof globalThis.requestAnimationFrame === "function") {
+    return new Promise((resolve) => {
+      globalThis.requestAnimationFrame((timestamp) => resolve(timestamp));
+    });
+  }
+
+  return new Promise((resolve) => {
+    globalThis.setTimeout(() => resolve(Date.now()), 16);
+  });
+}
+
+async function setWidgetSize(
+  window: ReturnType<typeof getCurrentWindow>,
+  logicalWidth: number,
+  currentHeight: number,
+  targetHeight: number,
+  requestId: number,
+  animate: boolean,
+): Promise<void> {
+  if (!animate || prefersReducedMotion() || currentHeight === targetHeight) {
+    await window.setSize(new LogicalSize(logicalWidth, targetHeight));
+    return;
+  }
+
+  const startTimestamp = await nextAnimationFrame();
+  let timestamp = startTimestamp;
+  let lastSizeRequest = Promise.resolve();
+
+  while (true) {
+    if (requestId !== latestRequest) {
+      await lastSizeRequest;
+      return;
+    }
+
+    const progress = Math.min(
+      1,
+      Math.max(0, (timestamp - startTimestamp) / WIDGET_RESIZE_DURATION_MS),
+    );
+    const height = Math.round(
+      currentHeight + (targetHeight - currentHeight) * progress,
+    );
+
+    if (height !== currentHeight || progress >= 1) {
+      lastSizeRequest = window
+        .setSize(new LogicalSize(logicalWidth, height))
+        .catch(() => undefined);
+    }
+
+    if (progress >= 1) {
+      await lastSizeRequest;
+      return;
+    }
+    timestamp = await nextAnimationFrame();
+  }
+}
 
 export function syncWidgetWindowHeight(
   visibleProviderCount: number,
   measuredContentHeight?: number,
+  animate = false,
 ): Promise<void> {
   const requestId = ++latestRequest;
   const request = resizeQueue.catch(() => undefined).then(async () => {
@@ -76,7 +142,19 @@ export function syncWidgetWindowHeight(
 
     if (requestId !== latestRequest) return;
 
-    await window.setSize(new LogicalSize(logicalWidth, targetHeight));
+    const currentHeight = clamp(
+      Math.round(physicalSize.height / factor),
+      minimumHeight,
+      WIDGET_MAX_HEIGHT,
+    );
+    await setWidgetSize(
+      window,
+      logicalWidth,
+      currentHeight,
+      targetHeight,
+      requestId,
+      animate,
+    );
   });
 
   resizeQueue = request.catch(() => undefined);

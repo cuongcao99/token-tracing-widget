@@ -77,9 +77,15 @@ describe("panel surface CSS", () => {
     expect(widgetSurfaceCss).toMatch(
       /\.providerList::-webkit-scrollbar-button\s*\{[^}]*display:\s*none[^}]*width:\s*0[^}]*height:\s*0/s,
     );
-    expect(widgetSurfaceCss).toContain(
-      ".providerList::-webkit-scrollbar-thumb {\n  background: var(--color-muted-soft);\n  border: 2px solid transparent;\n  border-radius: var(--radius-pill);\n  background-clip: padding-box;\n}",
+    const widgetScrollbarThumb = stylesheetBlock(
+      widgetSurfaceCss,
+      ".providerList::-webkit-scrollbar-thumb",
     );
+    expect(widgetScrollbarThumb).toContain(
+      "background: var(--color-muted-soft);",
+    );
+    expect(widgetScrollbarThumb).toContain("border: 2px solid transparent;");
+    expect(widgetScrollbarThumb).toContain("background-clip: padding-box;");
   });
 
   it("keeps settings elevated while the widget surface stays shadow-free", () => {

@@ -74,10 +74,74 @@ describe("widget window sizing", () => {
     );
   });
 
-  it("adds a 17px anchor gap after measured content", async () => {
+  it("tracks a high-refresh display during automatic height changes", async () => {
+    let timestamp = 0;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      timestamp += 1000 / 120;
+      callback(timestamp);
+      return 0;
+    });
+
+    try {
+      await syncWidgetWindowHeight(1, undefined, true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(setSize.mock.calls.length).toBeGreaterThanOrEqual(16);
+    expect(timestamp).toBeLessThanOrEqual(175);
+    expect(setSize.mock.calls.at(-1)?.[0]).toMatchObject({
+      width: 600,
+      height: 244,
+    });
+
+    const heights = setSize.mock.calls.map(
+      ([size]) => (size as { height: number }).height,
+    );
+    const largestFrameStep = Math.max(
+      ...heights.slice(1).map((height, index) =>
+        Math.abs(height - heights[index]),
+      ),
+    );
+    expect(largestFrameStep).toBeLessThanOrEqual(20);
+  });
+
+  it("keeps scheduling frames when native size IPC is slow", async () => {
+    let timestamp = 0;
+    let blockSizeRequests = true;
+    const pendingSizeResolvers: Array<() => void> = [];
+    setSize.mockImplementation(
+      () =>
+        blockSizeRequests
+          ? new Promise<void>((resolve) => {
+              pendingSizeResolvers.push(resolve);
+            })
+          : Promise.resolve(),
+    );
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      timestamp += 1000 / 120;
+      callback(timestamp);
+      return 0;
+    });
+
+    let request: Promise<void> | undefined;
+    try {
+      request = syncWidgetWindowHeight(1, undefined, true);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setSize.mock.calls.length).toBeGreaterThan(10);
+    } finally {
+      blockSizeRequests = false;
+      pendingSizeResolvers.forEach((resolve) => resolve());
+      if (request) await request;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("adds a 20px anchor gap after measured content", async () => {
     await syncWidgetWindowHeight(1, 400);
 
-    expect(setSize).toHaveBeenCalledWith(expect.objectContaining({ height: 417 }));
+    expect(setSize).toHaveBeenCalledWith(expect.objectContaining({ height: 420 }));
     expect(setSizeConstraints).toHaveBeenCalledWith({
       minWidth: 360,
       minHeight: 244,

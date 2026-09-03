@@ -7,6 +7,7 @@ import styles from "../../styles/shared/window-controls.module.css";
 
 interface WindowResizeHandlesProps {
   windowName: "widget" | "settings";
+  onResizeStart?: (direction: WindowResizeDirection) => void;
 }
 
 const resizeHandles: Array<{
@@ -27,14 +28,19 @@ const resizeHandles: Array<{
 function handleResizeStart(
   event: MouseEvent<HTMLButtonElement>,
   direction: WindowResizeDirection,
+  onResizeStart?: (direction: WindowResizeDirection) => void,
 ) {
   if (event.button !== 0) return;
   event.preventDefault();
   event.stopPropagation();
+  onResizeStart?.(direction);
   void startCurrentWindowResize(direction).catch(() => undefined);
 }
 
-export default function WindowResizeHandles({ windowName }: WindowResizeHandlesProps) {
+export default function WindowResizeHandles({
+  windowName,
+  onResizeStart,
+}: WindowResizeHandlesProps) {
   return (
     <div
       className={`${styles.resizeHandles} window-resize-handles`}
@@ -46,7 +52,7 @@ export default function WindowResizeHandles({ windowName }: WindowResizeHandlesP
           key={direction}
           type="button"
           aria-label={`Resize ${windowName} from ${label}`}
-          onMouseDown={(event) => handleResizeStart(event, direction)}
+          onMouseDown={(event) => handleResizeStart(event, direction, onResizeStart)}
         />
       ))}
     </div>

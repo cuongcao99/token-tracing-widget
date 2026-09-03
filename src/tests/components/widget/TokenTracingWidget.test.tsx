@@ -11,12 +11,14 @@ import type { WidgetSettingsSnapshot } from "../../../lib/widget-settings";
 
 const {
   startCurrentWindowDrag,
+  startCurrentWindowResize,
   syncWidgetWindowHeight,
   useUsageSummary,
   useWidgetSettings,
   providerSectionRender,
 } = vi.hoisted(() => ({
   startCurrentWindowDrag: vi.fn().mockResolvedValue(undefined),
+  startCurrentWindowResize: vi.fn().mockResolvedValue(undefined),
   syncWidgetWindowHeight: vi.fn().mockResolvedValue(undefined),
   useUsageSummary: vi.fn(),
   useWidgetSettings: vi.fn(),
@@ -31,6 +33,7 @@ vi.mock("../../../hooks/useWidgetSettings", () => ({
 }));
 vi.mock("../../../lib/window-actions", () => ({
   startCurrentWindowDrag,
+  startCurrentWindowResize,
 }));
 vi.mock("../../../lib/window-sizing", () => ({
   syncWidgetWindowHeight,
@@ -92,6 +95,7 @@ const settings: WidgetSettingsSnapshot = {
 
 beforeEach(() => {
   startCurrentWindowDrag.mockClear();
+  startCurrentWindowResize.mockClear();
   syncWidgetWindowHeight.mockClear();
   providerSectionRender.mockClear();
   useUsageSummary.mockReturnValue({ summary });
@@ -141,7 +145,7 @@ describe("TokenTracingWidget", () => {
     expect(screen.queryByText("Total today")).not.toBeInTheDocument();
     expect(screen.getByRole("banner").querySelector('[data-state="active"]'))
       .toHaveAttribute("data-phrase");
-    expect(syncWidgetWindowHeight).toHaveBeenCalledWith(2);
+    expect(syncWidgetWindowHeight).toHaveBeenCalledWith(2, undefined, true);
     expect(screen.getByRole("main")).toHaveAttribute("data-theme", "claude");
     expect(screen.getByRole("main")).toHaveAttribute("data-color-mode", "dark");
 
@@ -174,7 +178,7 @@ describe("TokenTracingWidget", () => {
     expect(screen.getByRole("main")).toHaveAttribute("data-color-mode", "light");
     expect(screen.queryByText("Total", { selector: "span" })).not.toBeInTheDocument();
     expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
-    expect(syncWidgetWindowHeight).toHaveBeenCalledWith(1);
+    expect(syncWidgetWindowHeight).toHaveBeenCalledWith(1, undefined, true);
   });
 
   it("previews disabled sources as unavailable and recomputes the aggregate total", () => {
@@ -205,10 +209,28 @@ describe("TokenTracingWidget", () => {
     });
     rerender(<TokenTracingWidget />);
 
+    const sourceRefreshedSummary: UsageSummary = {
+      ...summary,
+      providers: summary.providers.map((usage) =>
+        usage.provider === "codex"
+          ? {
+              ...usage,
+              state: "unavailable",
+              currentSessionTokens: undefined,
+              todayTokens: 0,
+              sessions: [],
+              rateLimits: [],
+            }
+          : usage,
+      ),
+    };
+    useUsageSummary.mockReturnValue({ summary: sourceRefreshedSummary });
+    rerender(<TokenTracingWidget />);
+
     expect(syncWidgetWindowHeight).toHaveBeenCalledTimes(1);
   });
 
-  it("does not resize when visible providers change in Settings", () => {
+  it("auto-resizes when visible providers change in Settings", () => {
     const { rerender } = render(<TokenTracingWidget />);
 
     expect(syncWidgetWindowHeight).toHaveBeenCalledTimes(1);
@@ -226,6 +248,100 @@ describe("TokenTracingWidget", () => {
     });
     rerender(<TokenTracingWidget />);
 
+    expect(syncWidgetWindowHeight).toHaveBeenCalledTimes(2);
+  });
+
+  it("measures intrinsic content instead of adding space to the current height", () => {
+    const { rerender } = render(<TokenTracingWidget />);
+    const root = screen.getByRole("main");
+    const providerList = screen.getByRole("region", { name: "Provider usage" });
+    const codexSection = screen.getByRole("heading", { name: "Codex" }).closest("article");
+
+    expect(codexSection).not.toBeNull();
+    if (!codexSection) return;
+
+    Object.defineProperties(root, {
+      clientHeight: { configurable: true, value: 400 },
+    });
+    Object.defineProperties(providerList, {
+      clientHeight: { configurable: true, value: 300 },
+      scrollHeight: { configurable: true, value: 300 },
+    });
+    vi.spyOn(providerList, "getBoundingClientRect").mockReturnValue({
+      top: 100,
+    } as DOMRect);
+    vi.spyOn(codexSection, "getBoundingClientRect").mockReturnValue({
+      bottom: 280,
+    } as DOMRect);
+
+    useWidgetSettings.mockReturnValue({
+      settings: {
+        ...settings,
+        visibleProviders: [
+          { provider: "claude", visible: false },
+          { provider: "codex", visible: true },
+        ],
+      },
+      persistedSettings: settings,
+      previewSourceEnabled: null,
+    });
+    rerender(<TokenTracingWidget />);
+
+    expect(syncWidgetWindowHeight).toHaveBeenLastCalledWith(1, 280, true);
+  });
+
+  it("auto-resizes when the session content structure changes", () => {
+    const { rerender } = render(<TokenTracingWidget />);
+
+    expect(syncWidgetWindowHeight).toHaveBeenCalledTimes(1);
+
+    const nextSummary: UsageSummary = {
+      ...summary,
+      providers: summary.providers.map((usage) =>
+        usage.provider === "codex"
+          ? {
+              ...usage,
+              sessions: [
+                ...usage.sessions,
+                { id: "codex-idle", state: "idle", todayTokens: 1 },
+              ],
+            }
+          : usage,
+      ),
+    };
+    useUsageSummary.mockReturnValue({ summary: nextSummary });
+    rerender(<TokenTracingWidget />);
+
+    expect(syncWidgetWindowHeight).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops auto-resizing after a user starts a vertical resize", () => {
+    const { rerender } = render(<TokenTracingWidget />);
+
+    expect(syncWidgetWindowHeight).toHaveBeenCalledTimes(1);
+    fireEvent.mouseDown(
+      screen.getByRole("button", { name: "Resize widget from bottom edge" }),
+      { button: 0 },
+    );
+
+    const nextSummary: UsageSummary = {
+      ...summary,
+      providers: summary.providers.map((usage) =>
+        usage.provider === "codex"
+          ? {
+              ...usage,
+              sessions: [
+                ...usage.sessions,
+                { id: "codex-idle", state: "idle", todayTokens: 1 },
+              ],
+            }
+          : usage,
+      ),
+    };
+    useUsageSummary.mockReturnValue({ summary: nextSummary });
+    rerender(<TokenTracingWidget />);
+
+    expect(startCurrentWindowResize).toHaveBeenCalledWith("South");
     expect(syncWidgetWindowHeight).toHaveBeenCalledTimes(1);
   });
 

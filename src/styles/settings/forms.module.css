@@ -21,7 +21,9 @@
   color: transparent;
   background: var(--color-switch-off);
   cursor: pointer;
-  transition: background var(--motion-duration) var(--motion-easing);
+  transition:
+    background-color var(--motion-duration) var(--motion-easing),
+    transform var(--motion-duration) var(--motion-easing);
 }
 
 .switchOn {
