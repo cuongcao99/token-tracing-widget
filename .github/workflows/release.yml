@@ -50,6 +50,7 @@ jobs:
 
   publish:
     name: Publish Windows installer
+    if: github.ref == 'refs/heads/main'
     needs: verify
     runs-on: windows-latest
     permissions:
