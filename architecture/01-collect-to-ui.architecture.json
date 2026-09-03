@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Token Tracing: From Session Files to the Widget",
+    "output": "01-collect-to-ui.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "claude-source",
+      "type": "external",
+      "label": "Claude Code",
+      "sublabel": ".claude/projects",
+      "tag": "local session data",
+      "pos": [40, 210],
+      "size": [160, 72]
+    },
+    {
+      "id": "codex-source",
+      "type": "external",
+      "label": "Codex",
+      "sublabel": ".codex/sessions",
+      "tag": "local session data",
+      "pos": [40, 390],
+      "size": [160, 72]
+    },
+    {
+      "id": "discovery-watcher",
+      "type": "backend",
+      "label": "Discovery + watch",
+      "sublabel": "safe roots · signals",
+      "pos": [225, 300],
+      "size": [130, 72]
+    },
+    {
+      "id": "provider-readers",
+      "type": "backend",
+      "label": "Provider adapters",
+      "sublabel": "bounded record readers",
+      "pos": [380, 300],
+      "size": [130, 72]
+    },
+    {
+      "id": "collection-core",
+      "type": "backend",
+      "label": "Collection core",
+      "sublabel": "validate · delta",
+      "tag": "metadata-only",
+      "pos": [535, 300],
+      "size": [130, 72]
+    },
+    {
+      "id": "sqlite-index",
+      "type": "database",
+      "label": "SQLite index",
+      "sublabel": "events · state",
+      "pos": [690, 300],
+      "size": [120, 72]
+    },
+    {
+      "id": "summary-aggregation",
+      "type": "backend",
+      "label": "Summary aggregation",
+      "sublabel": "provider totals",
+      "pos": [835, 300],
+      "size": [130, 72]
+    },
+    {
+      "id": "tauri-bridge",
+      "type": "messagebus",
+      "label": "Tauri typed bridge",
+      "sublabel": "typed commands + events",
+      "tag": "UsageSummary",
+      "pos": [990, 300],
+      "size": [130, 72]
+    },
+    {
+      "id": "react-widget",
+      "type": "frontend",
+      "label": "React widget",
+      "sublabel": "typed summary render",
+      "pos": [1145, 300],
+      "size": [130, 72]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Local provider files",
+      "wraps": ["claude-source", "codex-source"]
+    },
+    {
+      "kind": "region",
+      "label": "Rust-owned collection + storage",
+      "wraps": [
+        "discovery-watcher",
+        "provider-readers",
+        "collection-core",
+        "sqlite-index",
+        "summary-aggregation"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Normalized metadata seam",
+      "wraps": ["tauri-bridge", "react-widget"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "claude-to-discovery",
+      "from": "claude-source",
+      "to": "discovery-watcher"
+    },
+    {
+      "id": "codex-to-discovery",
+      "from": "codex-source",
+      "to": "discovery-watcher"
+    },
+    {
+      "id": "discovery-to-readers",
+      "from": "discovery-watcher",
+      "to": "provider-readers",
+      "label": "discovered files + saved positions",
+      "labelDy": 60
+    },
+    {
+      "id": "readers-to-core",
+      "from": "provider-readers",
+      "to": "collection-core",
+      "label": "TokenObservation",
+      "labelDy": 60
+    },
+    {
+      "id": "core-to-sqlite",
+      "from": "collection-core",
+      "to": "sqlite-index",
+      "label": "one transactional batch",
+      "labelDy": 60
+    },
+    {
+      "id": "sqlite-to-summary",
+      "from": "sqlite-index",
+      "to": "summary-aggregation",
+      "label": "committed events",
+      "labelDy": 60
+    },
+    {
+      "id": "summary-to-bridge",
+      "from": "summary-aggregation",
+      "to": "tauri-bridge",
+      "label": "UsageSummary",
+      "labelDy": 60
+    },
+    {
+      "id": "bridge-to-react",
+      "from": "tauri-bridge",
+      "to": "react-widget",
+      "label": "summary command + event",
+      "labelDy": 60,
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "orange",
+      "title": "Inputs",
+      "items": [
+        "Reads %USERPROFILE%\\.claude\\projects and %USERPROFILE%\\.codex\\sessions",
+        "Provider signals trigger scheduled recollection; paths stay inside Rust"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Collection invariants",
+      "items": [
+        "Rust validates, converts counters to deltas, and deduplicates before storage",
+        "SQLite commits events and checkpoints in one transaction"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "UI metadata seam",
+      "items": [
+        "Tauri sends a normalized UsageSummary",
+        "Prompts, responses, and raw records never cross the seam"
+      ]
+    }
+  ]
+}
