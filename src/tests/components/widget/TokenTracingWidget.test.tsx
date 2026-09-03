@@ -141,7 +141,7 @@ describe("TokenTracingWidget", () => {
       screen.getByRole("progressbar", { name: "5h: 88% remaining" }),
     ).toHaveAttribute("aria-valuenow", "88");
     expect(screen.getByText("Total", { selector: "span" })).toBeInTheDocument();
-    expect(screen.getByText("173,816,684", { selector: "strong" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Total: 173,816,684 tokens")).toBeInTheDocument();
     expect(screen.queryByText("Total today")).not.toBeInTheDocument();
     expect(screen.getByRole("banner").querySelector('[data-state="active"]'))
       .toHaveAttribute("data-phrase");
@@ -231,9 +231,13 @@ describe("TokenTracingWidget", () => {
 
     expect(screen.getByRole("heading", { name: "Claude" })).toBeInTheDocument();
     expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
-    expect(screen.getAllByText("26,544,812", { selector: "strong" })).toHaveLength(3);
+    expect(
+      screen
+        .getAllByTestId("rolling-number")
+        .filter((number) => number.getAttribute("data-value") === "26,544,812"),
+    ).toHaveLength(3);
     expect(screen.getByRole("contentinfo")).toHaveTextContent("26,544,812");
-    expect(screen.queryByText("173,816,684", { selector: "strong" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Total: 173,816,684 tokens")).not.toBeInTheDocument();
   });
 
   it("does not resize when a source toggle changes without changing widget content", () => {

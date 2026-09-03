@@ -9,6 +9,7 @@ import "./styles/widget/provider.module.css";
 import "./styles/widget/metrics.module.css";
 import "./styles/widget/total.module.css";
 import "./styles/widget/loading.module.css";
+import "./styles/widget/rolling-number.module.css";
 import "./styles/shared/branding.module.css";
 import "./styles/shared/window-controls.module.css";
 

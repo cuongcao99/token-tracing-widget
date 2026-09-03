@@ -37,3 +37,11 @@ section geometry, including its heading, limit slots, metric slots, and
 updated-time slot. Session rows are omitted until the real summary arrives.
 The small `ProviderLoadingSkeleton` layout contract keeps those slot counts
 reusable when another provider or metric set is added.
+
+## Token value motion
+
+When a displayed numeric value changes, each digit uses a small vertical reel.
+Digit positions are matched from the right so the units position starts first,
+followed by tens and larger positions with a short stagger. Separators remain
+static, and the final value stays available through the existing accessible
+label. Reduced-motion users see the new value immediately without the reel.

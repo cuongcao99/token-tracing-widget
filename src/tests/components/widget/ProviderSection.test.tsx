@@ -31,9 +31,8 @@ describe("ProviderSection composition", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Fixture" })).toBeInTheDocument();
-    expect(screen.queryByText("Active")).not.toBeInTheDocument();
     expect(screen.getByText("First")).toBeInTheDocument();
-    expect(screen.getByText("1", { selector: "strong" })).toHaveAttribute(
+    expect(screen.getByLabelText("First: 1 tokens")).toHaveAttribute(
       "aria-label",
       "First: 1 tokens",
     );

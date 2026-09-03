@@ -10,6 +10,7 @@ const widgetModulePaths = [
   "../../styles/widget/metrics.module.css",
   "../../styles/widget/total.module.css",
   "../../styles/widget/loading.module.css",
+  "../../styles/widget/rolling-number.module.css",
   "../../styles/shared/branding.module.css",
   "../../styles/shared/window-controls.module.css",
 ];
@@ -51,6 +52,7 @@ describe("widget CSS module boundaries", () => {
       "./styles/widget/metrics.module.css",
       "./styles/widget/total.module.css",
       "./styles/widget/loading.module.css",
+      "./styles/widget/rolling-number.module.css",
       "./styles/shared/branding.module.css",
       "./styles/shared/window-controls.module.css",
     ]) {

@@ -1,0 +1,56 @@
+.number {
+  display: inline-flex;
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.window {
+  display: inline-block;
+  flex: 0 0 1ch;
+  width: 1ch;
+  height: 1em;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+
+.track {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.rolling {
+  will-change: transform;
+  animation: rolling-digit var(--motion-duration) var(--motion-easing) both;
+  animation-delay: var(--rolling-delay);
+}
+
+.face {
+  display: block;
+  flex: 0 0 1em;
+  height: 1em;
+  line-height: 1;
+  text-align: center;
+}
+
+.separator {
+  display: inline-block;
+}
+
+@keyframes rolling-digit {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(var(--rolling-distance));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rolling {
+    animation: none;
+    transform: translateY(var(--rolling-distance));
+    will-change: auto;
+  }
+}

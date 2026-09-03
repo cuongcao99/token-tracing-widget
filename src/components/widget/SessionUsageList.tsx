@@ -1,6 +1,7 @@
 import type { WidgetSessionViewModel } from "../../lib/widget-view-model";
 import styles from "../../styles/widget/sessions.module.css";
 import { formatTokens } from "./widget-types";
+import RollingNumber from "./RollingNumber";
 
 export interface SessionUsageListProps {
   sessions: readonly WidgetSessionViewModel[];
@@ -64,7 +65,9 @@ function SessionRow({ session }: {
         ) : null}
         {sessionLabel}
       </div>
-      <strong className={styles.tokens}>{tokens}</strong>
+      <strong className={styles.tokens}>
+        <RollingNumber value={tokens} />
+      </strong>
     </div>
   );
 }

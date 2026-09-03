@@ -1,5 +1,6 @@
 import type { UsageMetric } from "./widget-types";
 import styles from "../../styles/widget/metrics.module.css";
+import RollingNumber from "./RollingNumber";
 
 export interface UsageMetricsProps {
   metrics: readonly UsageMetric[];
@@ -16,7 +17,7 @@ export default function UsageMetrics({
         <div className={styles.metric} key={`${metric.label}-${index}`}>
           <span className={styles.label}>{metric.label}</span>
           <strong className={styles.value} aria-label={metric.ariaLabel}>
-            {metric.value}
+            <RollingNumber value={metric.value} />
           </strong>
         </div>
       ))}

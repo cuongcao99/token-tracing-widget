@@ -15,7 +15,9 @@ describe("SessionUsageList", () => {
 
     expect(screen.getByText("Active run")).toBeInTheDocument();
     expect(screen.getByText("Current")).toBeInTheDocument();
-    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: "Current session, Active run: 12 tokens" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Idle · 1")).not.toBeInTheDocument();
     const disclosure = screen.getByText("More sessions").closest("details");
     expect(disclosure).not.toBeNull();
@@ -25,7 +27,7 @@ describe("SessionUsageList", () => {
 
     expect(disclosure).toHaveAttribute("open");
     expect(screen.getByText("Idle run")).toBeInTheDocument();
-    expect(screen.getByText("8")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Idle run: 8 tokens" })).toBeInTheDocument();
   });
 
   it("shortens fallback IDs while exposing and copying the full ID", () => {
