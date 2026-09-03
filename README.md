@@ -44,6 +44,53 @@ The README intentionally stays at product level. Technical ownership,
 runtime flow, privacy seams, and extension guidance live in
 [`ARCHITECTURE.md`](ARCHITECTURE.md) and the linked source-of-truth documents.
 
+## ✦ Development
+
+### Prerequisites
+
+- Windows 11.
+- Node.js 22 or newer.
+- Rust stable through [rustup](https://rustup.rs/).
+- WebView2 runtime, normally already available on Windows 11.
+
+### Clone and setup
+
+```powershell
+git clone https://github.com/cuongcao99/token-tracing-widget.git
+cd token-tracing-widget
+npm ci
+```
+
+### Run
+
+```powershell
+# Frontend development server only
+npm run dev
+
+# Full Tauri desktop app
+npm run tauri dev
+```
+
+### Build and test
+
+```powershell
+# Frontend production build
+npm run build
+
+# Windows debug bundle
+npm run tauri build -- --debug
+
+# Windows release installer
+npm run tauri build
+
+# Frontend test suite
+npm test -- --run
+```
+
+The release installer is written to
+`src-tauri/target/release/bundle/nsis/`. The complete pre-merge verification
+matrix is documented in [`AGENTS.md`](AGENTS.md).
+
 ## ✦ Release notes
 
 ### Unreleased · `0.1.0`

@@ -204,13 +204,14 @@ sidecar, background service, or ORM is part of the approved implementation.
 
 The latest implementation baseline was verified with:
 
-- frontend: `npm test -- --run` — 47 tests passing;
+- frontend: `npm test -- --run` — 139 tests passing across 34 test files;
 - frontend build: `npm run build` — passing;
 - Rust formatting: `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check` — passing;
 - Rust compile: `cargo check --manifest-path src-tauri/Cargo.toml` — passing;
-- Rust tests: `cargo test --manifest-path src-tauri/Cargo.toml` — 107 tests passing;
+- Rust tests: `cargo test --manifest-path src-tauri/Cargo.toml` — 136 tests passing;
 - debug package build: `npm run tauri build -- --debug` — passing, producing
-  `src-tauri/target/debug/token-tracing-widget.exe`.
+  `src-tauri/target/debug/token-tracing-widget.exe` and the NSIS installer at
+  `src-tauri/target/debug/bundle/nsis/Token Tracing Widget_0.1.0_x64-setup.exe`.
 
 Packaged Windows manual smoke coverage for drag, resize, and multi-window
 placement has not yet been completed, so automated success should not be read
