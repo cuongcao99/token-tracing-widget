@@ -53,12 +53,12 @@ describe("widget vertical rhythm", () => {
     );
   });
 
-  it("makes quota the hero and keeps token totals supportive", () => {
+  it("uses matching UI numerals for quota and keeps token totals supportive", () => {
     expect(stylesheetBlock(limitsCss, ".value")).toContain(
-      "font-family: var(--font-display);",
+      "font-family: var(--font-ui);",
     );
     expect(stylesheetBlock(limitsCss, ".value")).toContain(
-      "font-size: var(--type-widget-limit-value);",
+      "font-size: calc(var(--type-widget-limit-value) - 2px);",
     );
     expect(stylesheetBlock(metricsCss, ".value")).toContain(
       "font-family: var(--font-ui);",

@@ -39,8 +39,8 @@
 .value {
   flex: 0 0 auto;
   color: var(--limit-color);
-  font-family: var(--font-display);
-  font-size: var(--type-widget-limit-value);
+  font-family: var(--font-ui);
+  font-size: calc(var(--type-widget-limit-value) - 2px);
   font-variant-numeric: tabular-nums;
   font-weight: 400;
   line-height: 1;
