@@ -36,9 +36,9 @@ fn native_roots_are_fixed_beneath_the_synthetic_profile() {
         .expect("Codex native root should resolve");
 
     assert_eq!(claude.provider(), Provider::Claude);
-    assert_eq!(claude.relative_path(), ".claude/projects");
+    assert_eq!(claude.configured_root_label(), ".claude/projects");
     assert_eq!(codex.provider(), Provider::Codex);
-    assert_eq!(codex.relative_path(), ".codex/sessions");
+    assert_eq!(codex.configured_root_label(), ".codex/sessions");
 }
 
 #[test]

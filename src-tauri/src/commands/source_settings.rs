@@ -20,7 +20,6 @@ pub struct SourceSettingsInput {
 }
 
 impl SourceSettingsInput {
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn into_config(self) -> Result<SourceConfig, String> {
         let root_override = self
             .root_override

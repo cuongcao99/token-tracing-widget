@@ -47,7 +47,7 @@ impl ProviderRoot {
         &self.configured_root
     }
 
-    pub fn relative_path(&self) -> &str {
+    pub fn configured_root_label(&self) -> &str {
         self.configured_root()
     }
 

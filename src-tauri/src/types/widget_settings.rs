@@ -67,5 +67,3 @@ impl WidgetSettingsSnapshot {
         self.theme
     }
 }
-
-pub type WidgetSettings = WidgetSettingsSnapshot;

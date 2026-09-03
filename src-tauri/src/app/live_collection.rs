@@ -429,7 +429,6 @@ pub(crate) struct LiveCollectionHandle {
 }
 
 impl LiveCollectionHandle {
-    #[allow(dead_code)]
     pub(crate) fn request_source_refresh(&self) -> bool {
         let Ok(sender) = self.sender.lock() else {
             return false;
@@ -461,7 +460,6 @@ impl LiveCollectionHandle {
     }
 }
 
-#[allow(dead_code)]
 pub(crate) fn update_source_config_and_refresh(
     state: &AppState,
     handle: &LiveCollectionHandle,

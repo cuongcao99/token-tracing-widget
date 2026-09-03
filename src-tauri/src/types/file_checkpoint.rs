@@ -54,8 +54,4 @@ impl FileCheckpoint {
         self.modified_at_unix_ms = modified_at_unix_ms;
         self
     }
-
-    pub fn is_compatible_with(&self, provider: Provider) -> bool {
-        self.provider == provider
-    }
 }

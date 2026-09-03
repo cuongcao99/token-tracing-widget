@@ -80,7 +80,6 @@ impl DiscoveredSessionFile {
         format!("{:x}", hasher.finalize())
     }
 
-    #[allow(dead_code)]
     pub(crate) fn filesystem_path(&self) -> &Path {
         &self.filesystem_path
     }
@@ -102,10 +101,6 @@ impl DiscoveryResult {
 
     pub fn configured_root(&self) -> &str {
         &self.configured_root
-    }
-
-    pub fn root_relative(&self) -> &str {
-        self.configured_root()
     }
 
     pub fn status(&self) -> DiscoveryStatus {

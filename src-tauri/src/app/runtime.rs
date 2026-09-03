@@ -1,4 +1,4 @@
-//! Managed runtime for one-shot native provider collection.
+//! Managed runtime for native provider collection and shared application state.
 
 use std::fmt;
 use std::fs;

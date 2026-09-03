@@ -1,4 +1,4 @@
-//! Change notifications and reconciliation for source files.
+//! Path-free change notifications for enabled provider roots.
 
 #[cfg(windows)]
 use std::collections::BTreeMap;
