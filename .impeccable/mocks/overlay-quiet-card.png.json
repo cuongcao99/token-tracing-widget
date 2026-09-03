@@ -1,0 +1,6 @@
+{
+  "surface": "main-overlay",
+  "variant": "quiet-card",
+  "prompt": "Apple-inspired light utility card: 320x120 compact overlay with a quiet two-row hierarchy. Parchment or white surface, near-black ink, muted gray, one Action Blue accent, hairline separators, no shadows, no gradients. Header Codex plus Active status; primary Current session 12,480; secondary Today 48,920; footer Updated just now. Use a crisp system sans, generous 8px/12px/17px rhythm, subtle 8px radius, no controls, emojis, charts, photos, Apple logo, or extra copy.",
+  "approved": false
+}

@@ -1,0 +1,112 @@
+.root {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--widget-padding-top) var(--widget-padding-inline)
+    var(--widget-padding-bottom);
+  overflow: hidden;
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  border: 0;
+  outline: none;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-widget);
+  font-family: var(--font-ui);
+  animation: widget-arrive var(--motion-layout-duration) var(--motion-easing) both;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--widget-header-gap);
+  min-width: 0;
+  padding-bottom: var(--widget-rhythm);
+  border-bottom: 1px solid var(--color-line-soft);
+  user-select: none;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--widget-title-gap);
+}
+
+.titleText {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-accent);
+  font-family: var(--font-display);
+  font-size: var(--type-widget-title);
+  font-weight: 400;
+  letter-spacing: -0.2px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.providerList {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  margin-right: calc(-1 * var(--widget-padding-inline));
+  padding-top: var(--widget-rhythm);
+  padding-right: var(--widget-padding-inline);
+  padding-bottom: var(--space-1);
+  padding-left: 0;
+  align-content: start;
+  scrollbar-color: var(--color-muted-soft) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.providerList::-webkit-scrollbar {
+  width: var(--widget-scrollbar-width);
+}
+
+.providerList::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.providerList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.providerList::-webkit-scrollbar-thumb {
+  background: var(--color-muted-soft);
+  border: 2px solid transparent;
+  border-radius: var(--radius-pill);
+  background-clip: padding-box;
+  transition: background-color var(--motion-duration) var(--motion-easing);
+}
+
+@keyframes widget-arrive {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    animation: none;
+  }
+
+  .providerList::-webkit-scrollbar-thumb {
+    transition: none;
+  }
+}

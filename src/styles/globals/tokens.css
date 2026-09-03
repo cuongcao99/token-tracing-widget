@@ -1,0 +1,157 @@
+:root {
+  --color-canvas: #faf9f5;
+  --color-card: #efe9de;
+  --color-ink: #141413;
+  --color-body: #3d3d3a;
+  --color-muted: #6c6a64;
+  --color-muted-soft: #74716a;
+  --color-line: #e6dfd8;
+  --color-line-soft: #ebe6df;
+  --color-accent: #cc785c;
+  --color-accent-active: #a9583e;
+  --color-accent-soft: rgba(204, 120, 92, 0.28);
+  --color-positive: #1c7464;
+  --color-warning: #946200;
+  --color-error: #b54b3b;
+  --color-hibernating: #586b9f;
+  --color-on-dark: #faf9f5;
+  --color-on-dark-soft: #a09d96;
+  --color-switch-off: #d7cfc6;
+  --color-switch-knob: #fff;
+  --focus-color: var(--color-accent);
+  --focus-ring: var(--color-accent-soft);
+
+  --font-ui: "StyreneB", Inter, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-display: "Copernicus", "Tiempos Headline", "Cormorant Garamond",
+    "EB Garamond", Garamond, Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", Consolas, monospace;
+
+  --type-settings-title: 32px;
+  --type-settings-section: 20px;
+  --type-settings-label: 14px;
+  --type-settings-meta: 12px;
+  --type-widget-title: 32px;
+  --type-widget-provider: 14px;
+  --type-widget-status: 11px;
+  --type-widget-meta: 11px;
+  --type-widget-value: 15px;
+  --type-widget-total-label: 13px;
+  --type-widget-total: 16px;
+  --type-widget-limit-value: 16px;
+  --provider-name-display-weight: 600;
+  --provider-name-display-tracking: -0.15px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  --provider-mark-size: 20px;
+  --provider-mark-gap: 10px;
+  --widget-rhythm: 12px;
+  --widget-width: 440px;
+  --widget-height: 316px;
+  --widget-padding-top: 21px;
+  --widget-padding-inline: 22px;
+  --widget-padding-bottom: 19px;
+  --widget-header-gap: 18px;
+  --widget-title-gap: 10px;
+  --widget-status-gap: 6px;
+  --widget-status-dot-size: 8px;
+  --widget-provider-gap: 12px;
+  --widget-metrics-gap: 24px;
+  --widget-metrics-offset: 9px;
+  --widget-metric-gap: 4px;
+  --widget-total-gap: 16px;
+  --widget-scrollbar-width: 10px;
+
+  --settings-width: 520px;
+  --settings-height: 600px;
+  --settings-inline-padding: 32px;
+  --settings-mobile-inline-padding: 22px;
+  --settings-scrollbar-gutter: 8px;
+  --settings-padding-top: 27px;
+  --settings-padding-bottom: 25px;
+  --settings-header-gap: 16px;
+  --settings-title-gap: 10px;
+  --settings-header-bottom: 22px;
+  --settings-subtitle-margin-top: 6px;
+  --settings-section-gap: 24px;
+  --settings-appearance-gap: 20px;
+  --settings-section-heading-gap: 16px;
+  --settings-section-heading-bottom: 8px;
+  --settings-card-padding-inline: 18px;
+  --settings-row-min-height: 54px;
+  --settings-row-padding-block: 8px;
+  --settings-row-gap: 18px;
+  --settings-identity-gap: 3px;
+  --settings-switch-width: 37px;
+  --settings-switch-height: 21px;
+  --settings-switch-padding: 2px;
+  --settings-switch-knob-size: 17px;
+  --settings-switch-on-offset: 16px;
+  --settings-source-actions-gap: 11px;
+  --settings-mobile-source-actions-gap: 7px;
+  --settings-health-gap: 6px;
+  --settings-health-dot-size: 6px;
+  --settings-path-focus-radius: 3px;
+  --settings-close-size: 30px;
+  --settings-close-icon-size: 15px;
+  --settings-close-margin-top: -2px;
+  --settings-close-margin-end: var(--settings-scrollbar-gutter);
+  --settings-picker-min-width: 136px;
+  --settings-picker-min-height: 36px;
+  --settings-picker-gap: 18px;
+  --settings-picker-padding-block: 7px;
+  --settings-picker-padding-start: 12px;
+  --settings-picker-padding-end: 10px;
+  --settings-picker-menu-gap: 6px;
+  --settings-picker-menu-padding: 4px;
+  --settings-picker-option-padding-block: 8px;
+  --settings-picker-option-padding-inline: 10px;
+
+  --window-grip-top: 7px;
+  --window-grip-layer: 30;
+  --window-grip-column-size: 3px;
+  --window-grip-row-size: 3px;
+  --window-grip-gap: 2px;
+  --window-grip-width: 28px;
+  --window-grip-height: 18px;
+  --window-grip-dot-opacity: 0.68;
+  --window-resize-layer: 20;
+  --window-resize-edge-inset: 42px;
+  --window-resize-edge-size: 9px;
+  --window-resize-side-inset: 12px;
+  --window-resize-corner-size: 13px;
+
+  --focus-width: 2px;
+  --focus-offset: 3px;
+  --motion-duration: 180ms;
+  --motion-layout-duration: 150ms;
+  --motion-easing: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --elevation-widget: none;
+  --elevation-settings-light: 0 18px 42px -16px rgba(20, 20, 19, 0.26),
+    0 36px 82px -26px rgba(20, 20, 19, 0.24);
+  --elevation-settings-dark: 0 18px 42px -16px rgba(0, 0, 0, 0.54),
+    0 36px 82px -26px rgba(0, 0, 0, 0.48);
+  --elevation-settings: var(--elevation-settings-light);
+  --elevation-picker-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.65);
+  --elevation-picker: var(--elevation-picker-shadow);
+
+  --provider-monochrome-filter: brightness(0);
+  --window-grip-ink: var(--color-muted);
+  --window-grip-line: var(--color-line);
+  --window-grip-surface: var(--color-card);
+}

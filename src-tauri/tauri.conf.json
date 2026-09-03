@@ -14,12 +14,17 @@
       {
         "label": "main",
         "title": "Token Tracing Widget",
-        "width": 320,
-        "height": 120,
-        "resizable": false,
+        "width": 440,
+        "height": 316,
+        "minWidth": 360,
+        "minHeight": 192,
+        "maxWidth": 720,
+        "maxHeight": 520,
+        "resizable": true,
         "decorations": false,
         "transparent": true,
-        "alwaysOnTop": true,
+        "shadow": false,
+        "alwaysOnTop": false,
         "skipTaskbar": true
       }
     ],
@@ -28,7 +33,8 @@
     }
   },
   "bundle": {
-    "active": false,
+    "active": true,
+    "targets": ["nsis"],
     "icon": ["icons/icon.ico"]
   }
 }

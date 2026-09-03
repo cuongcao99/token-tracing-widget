@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>D2 pixel comparison</title>
+  </head>
+  <body>
+    <pre id="output">Comparing…</pre>
+    <script>
+      const root = "/.impeccable/frontend-modularity/visual/";
+      const cases = {
+        settings: [
+          ["light-normal", "baseline-settings-light-normal-520x600.png", "after-settings-light-normal-520x600.png"],
+          ["light-narrow", "baseline-settings-light-narrow-380x600.png", "after-settings-light-narrow-380x600.png"],
+          ["dark-normal", "baseline-settings-dark-normal-520x600.png", "after-settings-dark-normal-520x600.png"],
+          ["dark-narrow", "baseline-settings-dark-narrow-380x600.png", "after-settings-dark-narrow-380x600.png"]
+        ],
+        widgets: [
+          ["light-normal", "baseline-widget-light-providers-2-normal-440x316.png", "after-widget-light-providers-2-normal-440x316.png", "d2-widget-light-providers-2-normal-440x316.png"],
+          ["light-narrow", "baseline-widget-light-providers-2-narrow-360x316.png", "after-widget-light-providers-2-narrow-360x316.png", "d2-widget-light-providers-2-narrow-360x316.png"],
+          ["dark-normal", "baseline-widget-dark-providers-2-normal-440x316.png", "after-widget-dark-providers-2-normal-440x316.png", "d2-widget-dark-providers-2-normal-440x316.png"],
+          ["dark-narrow", "baseline-widget-dark-providers-2-narrow-360x316.png", "after-widget-dark-providers-2-narrow-360x316.png", "d2-widget-dark-providers-2-narrow-360x316.png"]
+        ]
+      };
+
+      const bytesFor = async (name) => new Uint8Array(await (await fetch(root + name, { cache: "no-store" })).arrayBuffer());
+      const imageFor = (name) => new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error("image_load_failed:" + name));
+        image.src = root + name + "?d2PixelCompare=1";
+      });
+      const pixelsFor = (image) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.drawImage(image, 0, 0);
+        return { width: canvas.width, height: canvas.height, data: context.getImageData(0, 0, canvas.width, canvas.height).data };
+      };
+      const compare = async (leftName, rightName) => {
+        const [leftBytes, rightBytes, leftImage, rightImage] = await Promise.all([
+          bytesFor(leftName), bytesFor(rightName), imageFor(leftName), imageFor(rightName)
+        ]);
+        const left = pixelsFor(leftImage);
+        const right = pixelsFor(rightImage);
+        if (left.width !== right.width || left.height !== right.height) throw new Error("dimension_mismatch:" + leftName + ":" + rightName);
+        let differingBytes = 0;
+        for (let index = 0; index < Math.max(leftBytes.length, rightBytes.length); index += 1) {
+          if (leftBytes[index] !== rightBytes[index]) differingBytes += 1;
+        }
+        let differingPixels = 0;
+        let sumAbs = 0;
+        let maxChannel = 0;
+        for (let pixel = 0; pixel < left.width * left.height; pixel += 1) {
+          let pixelDifferent = false;
+          for (let channel = 0; channel < 4; channel += 1) {
+            const difference = Math.abs(left.data[pixel * 4 + channel] - right.data[pixel * 4 + channel]);
+            if (difference !== 0) pixelDifferent = true;
+            sumAbs += difference;
+            if (difference > maxChannel) maxChannel = difference;
+          }
+          if (pixelDifferent) differingPixels += 1;
+        }
+        return {
+          width: left.width,
+          height: left.height,
+          leftBytes: leftBytes.length,
+          rightBytes: rightBytes.length,
+          differingBytes,
+          differingPixels,
+          meanAbsRgba: Number((sumAbs / (left.width * left.height * 4)).toFixed(6)),
+          maxChannel
+        };
+      };
+      const run = async () => {
+        const output = { dpr: window.devicePixelRatio, settings: {}, widgets: {} };
+        for (const [label, left, right] of cases.settings) output.settings[label] = await compare(left, right);
+        for (const [label, baseline, d1After, d2Capture] of cases.widgets) {
+          output.widgets[label] = {
+            baselineToD1After: await compare(baseline, d1After),
+            baselineToD2Capture: await compare(baseline, d2Capture),
+            d1AfterToD2Capture: await compare(d1After, d2Capture)
+          };
+        }
+        document.querySelector("#output").textContent = JSON.stringify(output, null, 2);
+      };
+      run().catch((error) => { document.querySelector("#output").textContent = String(error && error.stack || error); });
+    </script>
+  </body>
+</html>

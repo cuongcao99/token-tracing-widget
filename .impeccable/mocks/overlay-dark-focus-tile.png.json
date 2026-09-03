@@ -1,0 +1,6 @@
+{
+  "surface": "main-overlay",
+  "variant": "dark-focus-tile",
+  "prompt": "Apple-inspired dark utility tile: 320x120 compact overlay with near-black #272729 surface, white text, muted gray, and one blue #2997ff accent. Header Codex plus Active status; Current session 12,480 is the dominant focal point; a hairline separator; footer Today 48,920 and Updated just now. Crisp system sans, careful baseline alignment, restrained 8px/12px/17px rhythm, subtle 8px radius, no shadows, gradients, controls, emojis, charts, photos, Apple logo, or extra copy.",
+  "approved": true
+}

@@ -258,6 +258,16 @@ Version 1 is complete when:
 9. Tray, settings, positioning, startup, and uninstall pass Windows 11 smoke testing.
 10. Unit, integration, UI, and privacy-boundary tests pass.
 
+## Design update — 2026-08-30
+
+The five-source-file bound belongs to the development-only provider-format
+probe, not to ongoing live collection. Live collection may enumerate file
+metadata across the entire fixed provider root, must prioritize the newest
+metadata before applying the byte budget, and must not impose an arbitrary
+file-count cap. The 50 MiB per-attempt source-byte budget remains as the
+content-read safety boundary; unchanged checkpointed files are still read
+incrementally from their saved offsets.
+
 ## References
 
 - [Tauri configuration and window options](https://v2.tauri.app/reference/config/)

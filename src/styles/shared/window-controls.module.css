@@ -1,0 +1,127 @@
+.grip {
+  position: absolute;
+  top: var(--window-grip-top);
+  left: 50%;
+  z-index: var(--window-grip-layer);
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: repeat(3, var(--window-grip-column-size));
+  grid-template-rows: repeat(2, var(--window-grip-row-size));
+  place-content: center;
+  gap: var(--window-grip-gap);
+  width: var(--window-grip-width);
+  height: var(--window-grip-height);
+  padding: 0;
+  color: var(--window-grip-ink);
+  background: var(--window-grip-surface);
+  border: 1px solid var(--window-grip-line);
+  border-radius: var(--radius-pill);
+  cursor: grab;
+  pointer-events: auto;
+  appearance: none;
+  transition:
+    color var(--motion-duration) var(--motion-easing),
+    background-color var(--motion-duration) var(--motion-easing),
+    border-color var(--motion-duration) var(--motion-easing),
+    transform var(--motion-duration) var(--motion-easing);
+}
+
+.grip:active {
+  cursor: grabbing;
+  transform: translateX(-50%) scale(0.96);
+}
+
+.gripDot {
+  width: var(--window-grip-column-size);
+  height: var(--window-grip-row-size);
+  border-radius: 50%;
+  background: currentColor;
+  opacity: var(--window-grip-dot-opacity);
+}
+
+.resizeHandles {
+  position: absolute;
+  z-index: var(--window-resize-layer);
+  inset: 0;
+  pointer-events: none;
+}
+
+.resizeHandle {
+  position: absolute;
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: transparent;
+  background: transparent;
+  appearance: none;
+  pointer-events: auto;
+}
+
+.resizeHandleN,
+.resizeHandleS {
+  right: var(--window-resize-edge-inset);
+  left: var(--window-resize-edge-inset);
+  height: var(--window-resize-edge-size);
+}
+
+.resizeHandleN {
+  top: 0;
+  cursor: n-resize;
+}
+
+.resizeHandleS {
+  bottom: 0;
+  cursor: s-resize;
+}
+
+.resizeHandleE,
+.resizeHandleW {
+  top: var(--window-resize-side-inset);
+  bottom: var(--window-resize-side-inset);
+  width: var(--window-resize-edge-size);
+}
+
+.resizeHandleE {
+  right: 0;
+  cursor: e-resize;
+}
+
+.resizeHandleW {
+  left: 0;
+  cursor: w-resize;
+}
+
+.resizeHandleNE,
+.resizeHandleSE,
+.resizeHandleSW,
+.resizeHandleNW {
+  width: var(--window-resize-corner-size);
+  height: var(--window-resize-corner-size);
+}
+
+.resizeHandleNE {
+  top: 0;
+  right: 0;
+  cursor: ne-resize;
+}
+
+.resizeHandleSE {
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+}
+
+.resizeHandleSW {
+  bottom: 0;
+  left: 0;
+  cursor: sw-resize;
+}
+
+.resizeHandleNW {
+  top: 0;
+  left: 0;
+  cursor: nw-resize;
+}

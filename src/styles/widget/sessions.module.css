@@ -1,0 +1,199 @@
+.list {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: baseline;
+  min-width: 0;
+  column-gap: var(--widget-metrics-gap);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-line-soft);
+  animation: session-row-arrive var(--motion-layout-duration)
+    var(--motion-easing) both;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.labelGroup {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  gap: var(--space-2);
+}
+
+.currentLabel {
+  flex: 0 0 auto;
+  color: var(--color-positive);
+  font-size: var(--type-widget-status);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.label {
+  flex: 1 1 auto;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-body);
+  font-size: var(--type-widget-meta);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.labelButton {
+  flex: 1 1 auto;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.labelButton:hover {
+  color: var(--color-ink);
+}
+
+.labelButton:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.idLabel {
+  color: var(--color-muted-soft);
+  font-family: var(--font-mono);
+  font-size: var(--type-widget-meta);
+  letter-spacing: 0;
+}
+
+.tokens {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-muted-soft);
+  font-family: var(--font-ui);
+  font-size: var(--type-widget-meta);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.disclosure {
+  min-width: 0;
+  color: var(--color-muted);
+}
+
+.summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  margin: var(--space-1) 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  background: var(--color-line-soft);
+  cursor: pointer;
+  font-size: var(--type-widget-meta);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  list-style: none;
+  transition:
+    color var(--motion-duration) var(--motion-easing),
+    background-color var(--motion-duration) var(--motion-easing),
+    border-color var(--motion-duration) var(--motion-easing),
+    transform var(--motion-duration) var(--motion-easing);
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary::before {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  content: "";
+  transform: rotate(-45deg);
+  transition: transform var(--motion-duration) var(--motion-easing);
+}
+
+.disclosure[open] > .summary::before {
+  transform: rotate(45deg);
+}
+
+.summary:hover {
+  color: var(--color-ink);
+  border-color: var(--color-line);
+}
+
+.summary:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.summary:active {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    animation: none;
+  }
+
+  .summary,
+  .summary::before {
+    transition: none;
+  }
+}
+
+.idleRows {
+  display: grid;
+  min-width: 0;
+  gap: 0;
+  padding-top: var(--space-1);
+}
+
+.disclosure:not([open]) .row {
+  animation: none;
+}
+
+.disclosure[open] .row {
+  animation: session-row-arrive var(--motion-layout-duration)
+    var(--motion-easing) both;
+}
+
+@keyframes session-row-arrive {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}

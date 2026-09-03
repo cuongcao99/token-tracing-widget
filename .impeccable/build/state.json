@@ -1,0 +1,109 @@
+{
+  "tool": "build-phase",
+  "version": 2,
+  "startedAt": "2026-08-30T14:05:43.837Z",
+  "comp": ".impeccable\\mocks\\overlay-dark-focus-tile.png",
+  "direction": "c8e5dfba",
+  "breakpoint": "2048x768",
+  "artifact": null,
+  "phase": "hero",
+  "phases": {
+    "comps": {
+      "status": "closed",
+      "openedAt": "2026-08-30T14:05:43.836Z",
+      "closedAt": "2026-08-30T14:12:03.641Z",
+      "attempts": 1,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "3 comps, 1 approved",
+        "approved": ".impeccable\\mocks\\overlay-dark-focus-tile.png",
+        "at": "2026-08-30T14:12:03.640Z"
+      },
+      "forced": null
+    },
+    "spec": {
+      "status": "closed",
+      "openedAt": "2026-08-30T14:12:03.705Z",
+      "closedAt": "2026-08-30T14:14:05.662Z",
+      "attempts": 1,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "11 regions, 0 plates, 7 text regions measured",
+        "at": "2026-08-30T14:14:05.662Z"
+      },
+      "forced": null
+    },
+    "plates": {
+      "status": "closed",
+      "openedAt": "2026-08-30T14:14:05.662Z",
+      "closedAt": "2026-08-30T14:14:11.330Z",
+      "attempts": 1,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "no plates owed",
+        "at": "2026-08-30T14:14:11.329Z"
+      },
+      "forced": null
+    },
+    "hero": {
+      "status": "open",
+      "openedAt": "2026-08-30T14:14:11.330Z",
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": {
+        "ok": false,
+        "reasons": [
+          "comp-diff failed: undefined"
+        ],
+        "at": "2026-08-30T14:36:57.655Z"
+      },
+      "forced": null,
+      "records": 1
+    },
+    "sections": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "motion": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "responsive": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "review": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    }
+  },
+  "finish": null,
+  "plates": {}
+}
