@@ -15,11 +15,14 @@ mod tests {
     use super::compute_today_total;
     use crate::types::provider::Provider;
     use crate::types::usage_event::UsageEvent;
+    use crate::utils::windows_time::timestamp_local_day;
 
     #[test]
-    fn local_day_rolls_a_late_utc_event_into_the_next_windows_day() {
-        let event = UsageEvent::for_test(Provider::Claude, "session-a", "2026-01-01T23:30:00Z", 20);
+    fn includes_event_on_requested_local_day() {
+        let observed_at = "2026-01-01T23:30:00Z";
+        let event = UsageEvent::for_test(Provider::Claude, "session-a", observed_at, 20);
+        let local_day = timestamp_local_day(observed_at).expect("valid test timestamp");
 
-        assert_eq!(compute_today_total(&[event], "2026-01-02"), 20);
+        assert_eq!(compute_today_total(&[event], &local_day), 20);
     }
 }

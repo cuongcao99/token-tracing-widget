@@ -212,3 +212,19 @@ fn days_from_civil(year: i64, month: i64, day: i64) -> Option<i64> {
     let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
     Some(era * 146_097 + day_of_era - 719_468)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{local_day_from_utc_seconds, parse_timestamp_seconds};
+
+    #[test]
+    fn local_day_applies_positive_offset_to_late_utc_timestamp() {
+        let utc_seconds =
+            parse_timestamp_seconds("2026-01-01T23:30:00Z").expect("valid test timestamp");
+
+        assert_eq!(
+            local_day_from_utc_seconds(utc_seconds, 7 * 3_600).as_deref(),
+            Some("2026-01-02")
+        );
+    }
+}
