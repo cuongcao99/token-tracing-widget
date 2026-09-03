@@ -7,3 +7,4 @@ pub mod duplicate_event_filter;
 pub mod observation_validation;
 pub mod provider_summary;
 pub mod session_summary;
+pub mod summary;

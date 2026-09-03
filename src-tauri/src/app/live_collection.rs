@@ -526,9 +526,9 @@ mod tests {
         SummaryPublisher,
     };
     use crate::app::runtime::{AppState, RuntimeError};
+    use crate::collection::CollectionStoreError;
     use crate::collection::{CollectionError, CollectionReport, FixedClock};
     use crate::commands::usage_summary::SummaryEventError;
-    use crate::database::connection::StorageError;
     use crate::sources::file_watcher::WatchSignal;
     use crate::sources::session_files::DiscoveryLimits;
     use crate::sources::source_config::SourceConfig;
@@ -821,7 +821,7 @@ mod tests {
                 attempts: 0,
                 results: std::collections::VecDeque::from([
                     Err(RuntimeError::Collection(CollectionError::Storage(
-                        StorageError::Write,
+                        CollectionStoreError::Write,
                     ))),
                     Ok(test_report(30)),
                 ]),

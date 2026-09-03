@@ -1,14 +1,13 @@
-//! Opening the local SQLite database.
+//! Opening and mutating the local SQLite database.
 
 use std::path::Path;
 
 use rusqlite::Connection;
 
-use crate::collection::CollectionBatch;
+use crate::collection::{CollectionBatch, CollectionStore, CollectionStoreError};
 use crate::types::file_checkpoint::FileCheckpoint;
-use crate::types::rate_limit::ProviderRateLimitSummary;
-use crate::types::usage_event::UsageEvent;
 use crate::types::widget_settings::WidgetSettingsSnapshot;
+use crate::usage::summary::SummaryRows;
 
 use super::{
     diagnostics, file_checkpoints, rate_limits, schema, sessions, settings, sources, usage_events,
@@ -38,12 +37,6 @@ impl std::fmt::Display for StorageError {
 }
 
 impl std::error::Error for StorageError {}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SummaryRows {
-    pub events: Vec<UsageEvent>,
-    pub rate_limits: Vec<ProviderRateLimitSummary>,
-}
 
 pub struct IndexStore {
     connection: Connection,
@@ -169,5 +162,37 @@ impl IndexStore {
             .query_row("SELECT COUNT(*) FROM usage_events", [], |row| row.get(0))
             .map_err(|_| StorageError::Read)?;
         u64::try_from(count).map_err(|_| StorageError::Read)
+    }
+}
+
+impl CollectionStore for IndexStore {
+    fn load_checkpoint(
+        &self,
+        identity: &str,
+    ) -> Result<Option<FileCheckpoint>, CollectionStoreError> {
+        IndexStore::load_checkpoint(self, identity).map_err(map_collection_store_error)
+    }
+
+    fn apply_batch(&mut self, batch: &CollectionBatch) -> Result<(), CollectionStoreError> {
+        IndexStore::apply_batch(self, batch).map_err(map_collection_store_error)
+    }
+
+    fn query_events_for_summary(
+        &self,
+        day_start: &str,
+        now: &str,
+    ) -> Result<SummaryRows, CollectionStoreError> {
+        IndexStore::query_events_for_summary(self, day_start, now)
+            .map_err(map_collection_store_error)
+    }
+}
+
+fn map_collection_store_error(error: StorageError) -> CollectionStoreError {
+    match error {
+        StorageError::Write => CollectionStoreError::Write,
+        StorageError::InvalidValue => CollectionStoreError::InvalidValue,
+        StorageError::Open | StorageError::Schema | StorageError::Read => {
+            CollectionStoreError::Read
+        }
     }
 }

@@ -1,4 +1,4 @@
-use token_tracing_widget_lib::database::connection::IndexStore;
+use token_tracing_widget_lib::database::store::IndexStore;
 use token_tracing_widget_lib::types::provider::Provider;
 use token_tracing_widget_lib::types::widget_settings::WidgetSettingsSnapshot;
 

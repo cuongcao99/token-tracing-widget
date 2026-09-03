@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use token_tracing_widget_lib::collection::{
     CollectionBatch, DiagnosticUpdate, SessionNameUpdate, SourceUpdate,
 };
-use token_tracing_widget_lib::database::connection::{IndexStore, StorageError};
+use token_tracing_widget_lib::database::store::{IndexStore, StorageError};
 use token_tracing_widget_lib::sources::source_config::SourceConfig;
 use token_tracing_widget_lib::types::file_checkpoint::FileCheckpoint;
 use token_tracing_widget_lib::types::provider::Provider;

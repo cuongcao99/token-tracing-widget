@@ -5,7 +5,7 @@ use std::path::Path;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 use token_tracing_widget_lib::collection::{CollectionBatch, FixedClock};
-use token_tracing_widget_lib::database::connection::IndexStore;
+use token_tracing_widget_lib::database::store::IndexStore;
 use token_tracing_widget_lib::sources::session_files::DiscoveryLimits;
 use token_tracing_widget_lib::sources::source_config::SourceConfig;
 use token_tracing_widget_lib::types::file_checkpoint::FileCheckpoint;

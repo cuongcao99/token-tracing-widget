@@ -10,7 +10,7 @@ use tauri::Manager;
 use crate::collection::{
     CollectionClock, CollectionCoordinator, CollectionError, CollectionReport, ProviderSource,
 };
-use crate::database::connection::{IndexStore, StorageError};
+use crate::database::store::{IndexStore, StorageError};
 use crate::providers::registry::provider_registry;
 use crate::sources::file_watcher::WatchRoot;
 use crate::sources::provider_roots::{configured_root_path, watch_root_path};
@@ -132,6 +132,7 @@ impl Runtime {
 
     fn update_source_config(&mut self, config: SourceConfig) -> Result<(), RuntimeError> {
         self.coordinator
+            .store_mut()
             .save_source_config(&config)
             .map_err(RuntimeError::Settings)?;
         self.invalid_settings
@@ -144,6 +145,7 @@ impl Runtime {
         settings: WidgetSettingsSnapshot,
     ) -> Result<(), RuntimeError> {
         self.coordinator
+            .store_mut()
             .save_widget_settings(&settings)
             .map_err(RuntimeError::Settings)?;
         self.widget_settings = settings;

@@ -6,10 +6,10 @@ use std::sync::{Arc, Mutex};
 
 use tempfile::TempDir;
 use token_tracing_widget_lib::collection::{
-    compute_summary, CollectionCoordinator, CollectionError, CollectionStore, FixedClock,
-    ProviderSource, SourceUpdate, SummaryRows, WindowsClock,
+    compute_summary, CollectionCoordinator, CollectionError, CollectionStore, CollectionStoreError,
+    FixedClock, ProviderSource, SourceUpdate, SummaryRows, WindowsClock,
 };
-use token_tracing_widget_lib::database::connection::{IndexStore, StorageError};
+use token_tracing_widget_lib::database::store::IndexStore;
 use token_tracing_widget_lib::providers::claude::ClaudeReader;
 use token_tracing_widget_lib::providers::provider_adapter::{
     ProviderAdapter, ProviderReadError, ProviderReadObservation, ProviderReadResult,
@@ -322,18 +322,21 @@ struct InMemoryStore {
     events: Vec<UsageEvent>,
     checkpoints: HashMap<String, FileCheckpoint>,
     source_updates: Arc<Mutex<Vec<SourceUpdate>>>,
-    failure: Option<StorageError>,
+    failure: Option<CollectionStoreError>,
 }
 
 impl CollectionStore for InMemoryStore {
-    fn load_checkpoint(&self, identity: &str) -> Result<Option<FileCheckpoint>, StorageError> {
+    fn load_checkpoint(
+        &self,
+        identity: &str,
+    ) -> Result<Option<FileCheckpoint>, CollectionStoreError> {
         Ok(self.checkpoints.get(identity).cloned())
     }
 
     fn apply_batch(
         &mut self,
         batch: &token_tracing_widget_lib::collection::CollectionBatch,
-    ) -> Result<(), StorageError> {
+    ) -> Result<(), CollectionStoreError> {
         if let Some(error) = self.failure {
             return Err(error);
         }
@@ -364,7 +367,7 @@ impl CollectionStore for InMemoryStore {
         &self,
         _day_start: &str,
         _now: &str,
-    ) -> Result<SummaryRows, StorageError> {
+    ) -> Result<SummaryRows, CollectionStoreError> {
         Ok(SummaryRows {
             events: self.events.clone(),
             rate_limits: Vec::new(),
@@ -448,7 +451,7 @@ fn test_sources_with_failing_store() -> (
         ProviderSource::new(true, codex_discovery, codex_reader),
     ];
     let store = InMemoryStore {
-        failure: Some(StorageError::Write),
+        failure: Some(CollectionStoreError::Write),
         ..InMemoryStore::default()
     };
     (CollectionCoordinator::new(store), sources)
@@ -479,7 +482,7 @@ fn summary_is_not_recomputed_when_sqlite_commit_fails() {
 
     assert!(matches!(
         result,
-        Err(CollectionError::Storage(StorageError::Write))
+        Err(CollectionError::Storage(CollectionStoreError::Write))
     ));
     assert_eq!(
         coordinator.last_summary().state,
