@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import SessionUsageList from "../../../components/widget/SessionUsageList";
 
 describe("SessionUsageList", () => {
-  it("shows active sessions and keeps idle sessions behind a collapsed disclosure", () => {
+  it("keeps the active marker and uses a neutral disclosure label", () => {
     render(
       <SessionUsageList
         sessions={[
@@ -16,11 +16,12 @@ describe("SessionUsageList", () => {
     expect(screen.getByText("Active run")).toBeInTheDocument();
     expect(screen.getByText("Current")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
-    const disclosure = screen.getByText("Idle · 1").closest("details");
+    expect(screen.queryByText("Idle · 1")).not.toBeInTheDocument();
+    const disclosure = screen.getByText("More sessions").closest("details");
     expect(disclosure).not.toBeNull();
     expect(disclosure).not.toHaveAttribute("open");
 
-    fireEvent.click(screen.getByText("Idle · 1"));
+    fireEvent.click(screen.getByText("More sessions"));
 
     expect(disclosure).toHaveAttribute("open");
     expect(screen.getByText("Idle run")).toBeInTheDocument();

@@ -2,7 +2,10 @@ import { providerMeta, providerRegistry, type ProviderId } from "../../lib/provi
 import ProviderDot from "../shared/ProviderDot";
 import ProviderName from "../shared/ProviderName";
 import SettingsSwitch from "./SettingsSwitch";
-import type { ProviderStatusView } from "./settings-types";
+import {
+  providerActivityLabel,
+  type ProviderStatusView,
+} from "./settings-types";
 import surfaceStyles from "../../styles/settings/surface.module.css";
 
 interface ProviderVisibilitySectionProps {
@@ -27,7 +30,7 @@ export default function ProviderVisibilitySection({
       <div className={surfaceStyles.card}>
         {providerRegistry.map(({ id: provider }) => {
           const status = providers.find((entry) => entry.provider === provider);
-          const state = status?.state ?? "unavailable";
+          const state = providerActivityLabel(status?.state ?? "unavailable");
           const updated = status?.updated ?? "No updates yet";
           return (
             <div className={surfaceStyles.row} key={provider}>

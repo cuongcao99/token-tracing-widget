@@ -2,14 +2,14 @@
 
 use std::fs;
 use std::io::BufReader;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::providers::provider_adapter::MAX_RECORD_BYTES;
 use crate::types::session_usage_summary::normalize_session_name;
-use crate::utils::windows_time::{parse_timestamp_seconds, timestamp_local_day};
+use crate::utils::windows_time::parse_timestamp_seconds;
 
 const MAX_SESSION_INDEX_BYTES: u64 = 4 * 1024 * 1024;
 // ponytail: bounded metadata-prefix scan; raise only if Codex moves session metadata later.
@@ -36,21 +36,15 @@ pub(crate) fn session_key_for_file(file: &Path) -> Option<String> {
     Some(format!("{:x}", hasher.finalize()))
 }
 
-pub(crate) fn is_current_day_indexed_session(file: &Path, local_day: &str) -> bool {
+pub(crate) fn is_indexed_session(file: &Path) -> bool {
     let Some(session_id) = session_id_for_index(file) else {
         return true;
     };
-    let Some(session_day) = session_day_from_file(file) else {
-        return true;
-    };
-    if session_day != local_day {
-        return false;
-    }
     let Some(index_path) = session_index_path(file) else {
         return true;
     };
 
-    index_contains_session_for_day(&index_path, &session_id, local_day)
+    index_contains_session(&index_path, &session_id)
 }
 
 fn session_id_for_index(file: &Path) -> Option<String> {
@@ -134,7 +128,7 @@ fn lookup_name(index_path: &Path, session_id: &str) -> Option<SessionNameMetadat
     latest.map(|(_, metadata)| metadata)
 }
 
-fn index_contains_session_for_day(index_path: &Path, session_id: &str, local_day: &str) -> bool {
+fn index_contains_session(index_path: &Path, session_id: &str) -> bool {
     let Some(contents) = read_index(index_path) else {
         return false;
     };
@@ -144,18 +138,10 @@ fn index_contains_session_for_day(index_path: &Path, session_id: &str, local_day
         .filter(|line| line.len() <= MAX_RECORD_BYTES)
         .filter_map(|line| serde_json::from_str::<Value>(line).ok())
         .any(|record| {
-            let Some(id) = record.get("id").and_then(Value::as_str) else {
-                return false;
-            };
-            if !id.eq_ignore_ascii_case(session_id) {
-                return false;
-            }
             record
-                .get("updated_at")
+                .get("id")
                 .and_then(Value::as_str)
-                .and_then(timestamp_local_day)
-                .as_deref()
-                == Some(local_day)
+                .is_some_and(|id| id.eq_ignore_ascii_case(session_id))
         })
 }
 
@@ -198,38 +184,6 @@ fn session_id_from_file(file: &Path) -> Option<String> {
         return None;
     }
     Some(candidate.to_owned())
-}
-
-fn session_day_from_file(file: &Path) -> Option<String> {
-    let sessions_dir = file.ancestors().find(|ancestor| {
-        ancestor
-            .file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(|name| name.eq_ignore_ascii_case("sessions"))
-    })?;
-    let relative_parent = file.parent()?.strip_prefix(sessions_dir).ok()?;
-    let mut components = relative_parent.components();
-    let year = normal_component(components.next()?)?;
-    let month = normal_component(components.next()?)?;
-    let day = normal_component(components.next()?)?;
-    if components.next().is_some()
-        || year.len() != 4
-        || month.len() != 2
-        || day.len() != 2
-        || !year.bytes().all(|byte| byte.is_ascii_digit())
-        || !month.bytes().all(|byte| byte.is_ascii_digit())
-        || !day.bytes().all(|byte| byte.is_ascii_digit())
-    {
-        return None;
-    }
-    Some(format!("{year}-{month}-{day}"))
-}
-
-fn normal_component(component: Component<'_>) -> Option<&str> {
-    match component {
-        Component::Normal(value) => value.to_str(),
-        _ => None,
-    }
 }
 
 fn is_uuid(value: &str) -> bool {

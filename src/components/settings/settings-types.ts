@@ -7,29 +7,51 @@ export interface ProviderStatusView {
   updated: string;
 }
 
+export type SourceDisplayState = "available" | "unavailable" | "off";
+
+export function sourceHealthState(
+  provider: ProviderId,
+  health: SourceHealth[],
+  enabled: boolean,
+): SourceDisplayState {
+  if (!enabled) return "off";
+  const state = health.find((entry) => entry.provider === provider)?.state;
+  switch (state) {
+    case "detected":
+    case "limited":
+    case "malformed":
+      return "available";
+    case "disabled":
+      return "off";
+    default:
+      return "unavailable";
+  }
+}
+
 export function sourceHealthLabel(
   provider: ProviderId,
   health: SourceHealth[],
   enabled: boolean,
 ): string {
-  if (!enabled) return "Off";
-  const state = health.find((entry) => entry.provider === provider)?.state;
-  switch (state) {
-    case "detected":
-      return "Ready";
-    case "limited":
-      return "Limited";
-    case "malformed":
-      return "Check source";
-    case "permission_denied":
-      return "Needs access";
-    case "invalid_root":
-    case "not_detected":
+  switch (sourceHealthState(provider, health, enabled)) {
+    case "available":
+      return "Available";
+    case "off":
+      return "Off";
     case "unavailable":
       return "Unavailable";
-    case "disabled":
-      return "Off";
-    default:
+  }
+}
+
+export function providerActivityLabel(state: string): string {
+  switch (state) {
+    case "active":
+      return "Active";
+    case "idle":
+      return "Idle";
+    case "loading":
       return "Checking";
+    default:
+      return "Unavailable";
   }
 }

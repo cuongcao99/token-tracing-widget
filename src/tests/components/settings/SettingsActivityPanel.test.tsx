@@ -76,18 +76,18 @@ describe("SettingsActivityPanel", () => {
     expect(screen.getByText("Collect data from")).toBeInTheDocument();
 
     act(() => state.usageListener!(activitySummary("active", undefined, "limited")));
-    const limitedStates = screen
-      .getAllByText("Limited")
+    const availableStates = screen
+      .getAllByText("Available")
       .filter((element) => element.classList.contains(formStyles.sourceHealth));
-    expect(limitedStates).toHaveLength(2);
-    expect(limitedStates[0]).toHaveAttribute("data-health-state", "limited");
+    expect(availableStates).toHaveLength(2);
+    expect(availableStates[0]).toHaveAttribute("data-health-state", "available");
   });
 
   it("subscribes internally and preserves every activity status label", async () => {
     renderPanel();
     await waitFor(() => expect(state.usageListener).toBeDefined());
 
-    expect(screen.getAllByText("Loading · No updates yet")).toHaveLength(2);
+    expect(screen.getAllByText("Checking · No updates yet")).toHaveLength(2);
     const now = new Date().toISOString();
     act(() => state.usageListener!(activitySummary("active", now)));
     expect(await screen.findAllByText("Active · just now")).toHaveLength(2);
@@ -107,7 +107,7 @@ describe("SettingsActivityPanel", () => {
         activitySummary("stale", new Date(Date.now() - 2 * 60 * 60_000).toISOString()),
       ),
     );
-    expect(await screen.findAllByText("Stale · 2 hr ago")).toHaveLength(2);
+    expect(await screen.findAllByText("Unavailable · 2 hr ago")).toHaveLength(2);
   });
 
   it("uses the activity summary for source health in the same panel", async () => {
@@ -115,6 +115,11 @@ describe("SettingsActivityPanel", () => {
     await waitFor(() => expect(state.usageListener).toBeDefined());
 
     act(() => state.usageListener!(activitySummary("active", undefined, "permission_denied")));
-    expect(await screen.findAllByText("Needs access")).toHaveLength(2);
+    expect(await screen.findAllByText("Unavailable")).toHaveLength(2);
+    expect(
+      screen
+        .getAllByText("Unavailable")
+        .filter((element) => element.classList.contains(formStyles.sourceHealth)),
+    ).toHaveLength(2);
   });
 });

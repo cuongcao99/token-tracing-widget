@@ -13,17 +13,8 @@ export interface ProviderSectionProps {
   nameClassName?: string;
 }
 
-const statusStyles: Record<UsageState, string> = {
-  loading: styles.statusLoading,
-  active: styles.statusActive,
-  idle: styles.statusIdle,
-  unavailable: styles.statusUnavailable,
-  stale: styles.statusStale,
-};
-
 export default function ProviderSection({
   identity,
-  status,
   children,
   className,
   markClassName,
@@ -42,10 +33,6 @@ export default function ProviderSection({
             nameClassName={resolvedNameClassName}
           />
         </h2>
-        <span className={`${styles.status} ${statusStyles[status.state]}`}>
-          <span className={styles.statusDot} aria-hidden="true" />
-          {status.label}
-        </span>
       </div>
       {children}
     </article>

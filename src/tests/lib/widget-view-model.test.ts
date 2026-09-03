@@ -94,7 +94,7 @@ describe("createWidgetViewModel", () => {
     expect(model).not.toHaveProperty("sessionId");
   });
 
-  it("omits hidden providers while retaining the combined summary total", () => {
+  it("omits hidden providers from the combined total", () => {
     const model = createWidgetViewModel({
       summary,
       settings: {
@@ -109,7 +109,7 @@ describe("createWidgetViewModel", () => {
 
     expect(model.providers.map(({ provider }) => provider)).toEqual(["codex"]);
     expect(model.visibleProviderCount).toBe(1);
-    expect(model.totalTokens).toBe(30);
+    expect(model.totalTokens).toBe(20);
   });
 
   it("updates a session label in place without changing its stable ID", () => {

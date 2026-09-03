@@ -407,14 +407,10 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
         let mut has_pending_reads = false;
         let mut remaining_source_bytes = MAX_SOURCE_BYTES_PER_ATTEMPT;
         for file in source.discovery.files() {
-            let should_read_observations = remaining_source_bytes > 0
-                && source
-                    .adapter
-                    .should_read_file(file.filesystem_path(), local_day);
-            if !should_read_observations {
-                if remaining_source_bytes == 0 {
-                    has_pending_reads = true;
-                }
+            let is_allowed_file = source
+                .adapter
+                .should_read_file(file.filesystem_path(), local_day);
+            if !is_allowed_file {
                 rate_limit_updates.extend(
                     source
                         .adapter
@@ -426,6 +422,17 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
             }
             let identity = file.opaque_identity(provider);
             allowed_file_identities.insert(identity.clone());
+            if remaining_source_bytes == 0 {
+                has_pending_reads = true;
+                rate_limit_updates.extend(
+                    source
+                        .adapter
+                        .read_rate_limits(file.filesystem_path())
+                        .into_iter()
+                        .map(|snapshot| RateLimitUpdate { provider, snapshot }),
+                );
+                continue;
+            }
             let checkpoint = self
                 .store
                 .load_checkpoint(&identity)

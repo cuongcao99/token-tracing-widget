@@ -22,7 +22,7 @@ const providerDefinitions = [
     fontRole: "ui",
     accent: "#cc785c",
     automaticRoot: ".claude/projects",
-    displayRoot: "~/.claude/projects",
+    displayRoot: "~/.claude",
   },
   {
     id: "codex",
@@ -33,7 +33,7 @@ const providerDefinitions = [
     fontRole: "ui",
     accent: "#7e9bff",
     automaticRoot: ".codex/sessions",
-    displayRoot: "~/.codex/sessions",
+    displayRoot: "~/.codex",
   },
 ] as const satisfies readonly (ProviderIdentity & {
   id: string;

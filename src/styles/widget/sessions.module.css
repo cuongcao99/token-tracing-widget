@@ -85,9 +85,9 @@
 .tokens {
   max-width: 100%;
   overflow: hidden;
-  color: var(--color-ink);
-  font-family: var(--font-display);
-  font-size: var(--type-widget-session-value);
+  color: var(--color-muted-soft);
+  font-family: var(--font-ui);
+  font-size: var(--type-widget-meta);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   line-height: 1.05;

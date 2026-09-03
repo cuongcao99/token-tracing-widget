@@ -15,6 +15,10 @@
   animation: phrase-flicker 3.2s steps(2, end) infinite;
 }
 
+.phrase[data-state="active"] {
+  color: var(--color-accent);
+}
+
 .character {
   display: inline-block;
   animation: character-hop 720ms cubic-bezier(0.22, 1, 0.36, 1) both;

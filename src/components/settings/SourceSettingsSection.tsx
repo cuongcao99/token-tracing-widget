@@ -4,7 +4,7 @@ import type { SourceHealth } from "../../lib/usage-summary";
 import ProviderDot from "../shared/ProviderDot";
 import ProviderName from "../shared/ProviderName";
 import SettingsSwitch from "./SettingsSwitch";
-import { sourceHealthLabel } from "./settings-types";
+import { sourceHealthLabel, sourceHealthState } from "./settings-types";
 import formStyles from "../../styles/settings/forms.module.css";
 import surfaceStyles from "../../styles/settings/surface.module.css";
 
@@ -33,9 +33,7 @@ export default function SourceSettingsSection({
         {providerRegistry.map(({ id: provider }) => {
           const source = sources[provider];
           const root = source.rootOverride || providerMeta[provider].displayRoot;
-          const healthState =
-            health.find((entry) => entry.provider === provider)?.state ??
-            "unavailable";
+          const healthState = sourceHealthState(provider, health, source.enabled);
           return (
             <div className={formStyles.sourceRow} key={provider}>
               <div className={`${surfaceStyles.row} ${formStyles.sourceMain}`}>
@@ -57,7 +55,7 @@ export default function SourceSettingsSection({
                 <div className={formStyles.sourceActions}>
                   <span
                     className={formStyles.sourceHealth}
-                    data-health-state={source.enabled ? healthState : "disabled"}
+                    data-health-state={healthState}
                   >
                     <span className={formStyles.sourceHealthDot} aria-hidden="true" />
                     {sourceHealthLabel(provider, health, source.enabled)}

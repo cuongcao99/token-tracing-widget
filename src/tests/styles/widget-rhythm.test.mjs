@@ -73,9 +73,9 @@ describe("widget vertical rhythm", () => {
     expect(tokenCss).toContain("--type-widget-total: 16px;");
   });
 
-  it("keeps the activity phrase neutral and empty state readable", () => {
-    expect(activityCss).not.toContain('.phrase[data-state="active"]');
+  it("keeps waiting activity phrases neutral and empty state readable", () => {
     expect(activityCss).not.toContain('.phrase[data-state="idle"]');
+    expect(activityCss).not.toContain('.phrase[data-state="stale"]');
     expect(stylesheetBlock(providerCss, ".emptyState")).toContain(
       "color: var(--color-muted);",
     );
@@ -84,6 +84,15 @@ describe("widget vertical rhythm", () => {
     );
     expect(stylesheetBlock(providerCss, ".emptyState")).not.toContain(
       "opacity:",
+    );
+  });
+
+  it("marks an active activity phrase with the coral accent", () => {
+    expect(stylesheetBlock(activityCss, ".phrase")).toContain(
+      "color: var(--color-muted);",
+    );
+    expect(stylesheetBlock(activityCss, '.phrase[data-state="active"]')).toContain(
+      "color: var(--color-accent);",
     );
   });
 
@@ -97,6 +106,18 @@ describe("widget vertical rhythm", () => {
     );
     expect(stylesheetBlock(sessionsCss, ".label")).toContain(
       "text-overflow: ellipsis;",
+    );
+  });
+
+  it("uses the total's UI numerals for smaller session values", () => {
+    expect(stylesheetBlock(sessionsCss, ".tokens")).toContain(
+      "font-family: var(--font-ui);",
+    );
+    expect(stylesheetBlock(sessionsCss, ".tokens")).toContain(
+      "font-size: var(--type-widget-meta);",
+    );
+    expect(stylesheetBlock(sessionsCss, ".tokens")).toContain(
+      "color: var(--color-muted-soft);",
     );
   });
 

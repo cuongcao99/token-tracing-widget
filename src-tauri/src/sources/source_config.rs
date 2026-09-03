@@ -209,8 +209,8 @@ fn validate_explicit_path(path: &Path) -> Result<(), SourceConfigError> {
 
 fn native_root_label(provider: Provider) -> &'static str {
     match provider {
-        Provider::Claude => ".claude/projects",
-        Provider::Codex => ".codex/sessions",
+        Provider::Claude => ".claude",
+        Provider::Codex => ".codex",
     }
 }
 
@@ -227,11 +227,11 @@ mod tests {
         assert!(configs.is_enabled(Provider::Codex));
         assert_eq!(
             configs.get(Provider::Claude).configured_root_label(),
-            ".claude/projects"
+            ".claude"
         );
         assert_eq!(
             configs.get(Provider::Codex).configured_root_label(),
-            ".codex/sessions"
+            ".codex"
         );
     }
 

@@ -13,15 +13,14 @@ use crate::collection::{
 use crate::database::connection::{IndexStore, StorageError};
 use crate::providers::registry::provider_registry;
 use crate::sources::file_watcher::WatchRoot;
-use crate::sources::provider_roots::{configured_root_path, resolve_configured_root};
+use crate::sources::provider_roots::{configured_root_path, watch_root_path};
 use crate::sources::session_files::{discover_configured_source, DiscoveryLimits};
 use crate::sources::source_config::{SourceConfig, SourceConfigSet};
 use crate::types::provider::Provider;
 use crate::types::usage_summary::UsageSummary;
 use crate::types::widget_settings::WidgetSettingsSnapshot;
 
-pub const DEFAULT_DISCOVERY_LIMITS: DiscoveryLimits =
-    DiscoveryLimits::without_file_count(50 * 1024 * 1024);
+pub const DEFAULT_DISCOVERY_LIMITS: DiscoveryLimits = DiscoveryLimits::without_file_count(u64::MAX);
 
 struct Runtime {
     coordinator: CollectionCoordinator<IndexStore>,
@@ -124,9 +123,9 @@ impl Runtime {
                 if !config.enabled() {
                     return None;
                 }
-                resolve_configured_root(&self.profile_root, config)
+                watch_root_path(&self.profile_root, config)
                     .ok()
-                    .map(|root| WatchRoot::new(provider, root.filesystem_path().to_path_buf()))
+                    .map(|path| WatchRoot::new(provider, path))
             })
             .collect()
     }
@@ -355,5 +354,6 @@ mod tests {
     #[test]
     fn default_discovery_does_not_cap_file_count() {
         assert_eq!(DEFAULT_DISCOVERY_LIMITS.max_files, usize::MAX);
+        assert_eq!(DEFAULT_DISCOVERY_LIMITS.max_total_bytes, u64::MAX);
     }
 }

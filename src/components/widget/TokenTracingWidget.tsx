@@ -146,7 +146,7 @@ export default function TokenTracingWidget() {
           />
         ))}
       </section>
-      {viewModel.visibleProviderCount > 1 ? (
+      {viewModel.visibleProviderCount > 0 ? (
         <WidgetTotal tokens={viewModel.totalTokens} />
       ) : null}
       <WindowResizeHandles

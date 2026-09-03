@@ -96,16 +96,48 @@ pub fn configured_root_path(
     .map_err(map_path_error)
 }
 
+pub fn watch_root_path(profile_root: &Path, config: &SourceConfig) -> Result<PathBuf, RootError> {
+    if config.root_override().is_some() {
+        return resolve_configured_root(profile_root, config)
+            .map(|root| root.filesystem_path().to_path_buf());
+    }
+
+    resolve_existing_relative_root(
+        profile_root,
+        native_provider_root_relative(config.provider()),
+    )
+}
+
+pub fn native_provider_root_relative(provider: Provider) -> &'static str {
+    match provider {
+        Provider::Claude => ".claude",
+        Provider::Codex => ".codex",
+    }
+}
+
 fn resolve_automatic_root(
     profile_root: &Path,
     provider: Provider,
 ) -> Result<ProviderRoot, RootError> {
+    let relative_path = native_root_relative(provider);
+    let filesystem_path = resolve_existing_relative_root(profile_root, relative_path)?;
+
+    Ok(ProviderRoot {
+        provider,
+        configured_root: relative_path.to_owned(),
+        filesystem_path,
+    })
+}
+
+fn resolve_existing_relative_root(
+    profile_root: &Path,
+    relative_path: &str,
+) -> Result<PathBuf, RootError> {
     let profile_metadata = fs::symlink_metadata(profile_root).map_err(map_io_error)?;
     if !profile_metadata.is_dir() {
         return Err(RootError::InvalidRoot);
     }
 
-    let relative_path = native_root_relative(provider);
     let filesystem_path = safe_paths::join_under_root(profile_root, Path::new(relative_path))
         .map_err(map_path_error)?;
     let metadata = fs::symlink_metadata(&filesystem_path).map_err(map_io_error)?;
@@ -113,12 +145,7 @@ fn resolve_automatic_root(
         return Err(RootError::InvalidRoot);
     }
     safe_paths::validate_existing_path(profile_root, &filesystem_path).map_err(map_path_error)?;
-
-    Ok(ProviderRoot {
-        provider,
-        configured_root: relative_path.to_owned(),
-        filesystem_path,
-    })
+    Ok(filesystem_path)
 }
 
 fn resolve_explicit_root(

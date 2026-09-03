@@ -980,6 +980,7 @@ mod tests {
 
         assert_eq!(roots.len(), 1);
         assert_eq!(roots[0].provider(), Provider::Claude);
+        assert_eq!(roots[0].path(), profile.path().join(".claude"));
         assert!(AppState::unavailable().watch_roots().is_empty());
     }
 

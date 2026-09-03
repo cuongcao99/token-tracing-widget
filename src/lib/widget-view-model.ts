@@ -117,16 +117,13 @@ export function createWidgetViewModel({
     }
   }
 
-  const totalTokens =
-    previewSourceEnabled === null
-      ? summary.todayTokens
-      : summary.providers.reduce(
-          (total, usage) =>
-            previewSourceEnabled[usage.provider] === false
-              ? total
-              : total + usage.todayTokens,
-          0,
-        );
+  const totalTokens = providers.reduce(
+    (total, provider) =>
+      previewSourceEnabled?.[provider.provider] === false
+        ? total
+        : total + provider.metrics.todayTokens,
+    0,
+  );
 
   return {
     theme: settings.theme,

@@ -3,8 +3,8 @@ import type { RateLimitSummary } from "../../lib/contracts/usage-summary";
 import styles from "../../styles/widget/limits.module.css";
 
 const WINDOW_LABELS: Record<number, string> = {
-  300: "5h limit",
-  10_080: "7d limit",
+  300: "5h",
+  10_080: "7d",
 };
 const WINDOW_ORDER = [300, 10_080] as const;
 

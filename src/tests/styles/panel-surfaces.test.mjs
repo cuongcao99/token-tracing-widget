@@ -52,6 +52,12 @@ describe("panel surface CSS", () => {
     );
   });
 
+  it("aligns the settings close control with the scrollable cards", () => {
+    expect(settingsTokensCss).toContain(
+      "--settings-close-margin-end: var(--settings-scrollbar-gutter);",
+    );
+  });
+
   it("keeps the widget scrollbar aligned with settings without reflow", () => {
     const widgetProviderList = stylesheetBlock(
       widgetSurfaceCss,
@@ -121,9 +127,9 @@ describe("panel surface CSS", () => {
     expect(themePickerCss).toContain(".option");
     expect(themePickerCss).toContain("font-family: var(--font-ui);");
     expect(settingsFormsCss).toContain("font-size: var(--type-settings-meta);");
-    expect(settingsFormsCss).toContain('.sourceHealth[data-health-state="detected"]');
-    expect(settingsFormsCss).toContain('.sourceHealth[data-health-state="limited"]');
-    expect(settingsFormsCss).toContain('.sourceHealth[data-health-state="permission_denied"]');
+    expect(settingsFormsCss).toContain('.sourceHealth[data-health-state="available"]');
+    expect(settingsFormsCss).toContain('.sourceHealth[data-health-state="unavailable"]');
+    expect(settingsFormsCss).toContain('.sourceHealth[data-health-state="off"]');
     expect(settingsFormsCss).toContain("background: currentColor;");
     expect(themesCss).toContain('[data-theme="claude"][data-color-mode="dark"]');
     expect(themesCss).toContain("--color-positive: #5db872;");

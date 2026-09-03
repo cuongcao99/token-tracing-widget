@@ -134,11 +134,11 @@ describe("TokenTracingWidget", () => {
     expect(screen.getAllByLabelText("Session count: 1 session today")).toHaveLength(2);
     expect(screen.queryByText("1 sessions today")).not.toBeInTheDocument();
     expect(screen.getByText("Codex run")).toBeInTheDocument();
-    expect(screen.getByText("Idle · 1")).toBeInTheDocument();
-    expect(screen.getByText("5h limit")).toBeInTheDocument();
+    expect(screen.getByText("More sessions")).toBeInTheDocument();
+    expect(screen.getByText("5h")).toBeInTheDocument();
     expect(screen.getByText("88%")).toBeInTheDocument();
     expect(
-      screen.getByRole("progressbar", { name: "5h limit: 88% remaining" }),
+      screen.getByRole("progressbar", { name: "5h: 88% remaining" }),
     ).toHaveAttribute("aria-valuenow", "88");
     expect(screen.getByText("Total", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText("173,816,684", { selector: "strong" })).toBeInTheDocument();
@@ -157,7 +157,7 @@ describe("TokenTracingWidget", () => {
     expect(startCurrentWindowDrag).toHaveBeenCalledTimes(1);
   });
 
-  it("uses persisted visibility and dark mode without changing the summary totals", () => {
+  it("uses persisted visibility and shows the visible provider total", () => {
     useWidgetSettings.mockReturnValue({
       settings: {
         ...settings,
@@ -176,8 +176,9 @@ describe("TokenTracingWidget", () => {
     expect(screen.getAllByRole("heading", { name: "Claude" })).toHaveLength(1);
     expect(screen.queryByText("Codex")).not.toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveAttribute("data-color-mode", "light");
-    expect(screen.queryByText("Total", { selector: "span" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
+    expect(screen.getByText("Total", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("Total");
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("147,271,872");
     expect(syncWidgetWindowHeight).toHaveBeenCalledWith(1, undefined, true);
   });
 
@@ -191,7 +192,7 @@ describe("TokenTracingWidget", () => {
     render(<TokenTracingWidget />);
 
     expect(screen.getByRole("heading", { name: "Claude" })).toBeInTheDocument();
-    expect(screen.getByText("Unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("Unavailable")).not.toBeInTheDocument();
     expect(screen.getAllByText("26,544,812", { selector: "strong" })).toHaveLength(3);
     expect(screen.getByRole("contentinfo")).toHaveTextContent("26,544,812");
     expect(screen.queryByText("173,816,684", { selector: "strong" })).not.toBeInTheDocument();

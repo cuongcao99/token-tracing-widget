@@ -47,38 +47,6 @@
   transition: color var(--motion-duration) var(--motion-easing);
 }
 
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--widget-status-gap);
-  flex: 0 0 auto;
-  color: var(--color-muted);
-  font-size: var(--type-widget-status);
-  line-height: 1.2;
-  white-space: nowrap;
-  transition: color var(--motion-duration) var(--motion-easing);
-}
-
-.statusDot {
-  display: inline-block;
-  width: var(--widget-status-dot-size);
-  height: var(--widget-status-dot-size);
-  border-radius: 50%;
-  background: currentColor;
-  transition: background-color var(--motion-duration) var(--motion-easing);
-}
-
-.statusActive {
-  color: var(--color-positive);
-}
-
-.statusIdle,
-.statusLoading,
-.statusUnavailable,
-.statusStale {
-  color: var(--color-muted);
-}
-
 @keyframes provider-section-arrive {
   from {
     opacity: 0;

@@ -179,9 +179,9 @@ describe("SettingsScreen behavior", () => {
     render(<SettingsScreen />);
     await screen.findByRole("heading", { name: "Settings" });
     expect(screen.getByRole("button", {
-      name: "Choose Claude source folder: ~/.claude/projects",
-    })).toHaveTextContent("~/.claude/projects");
-    fireEvent.click(screen.getByRole("button", { name: "Choose Codex source folder: ~/.codex/sessions" }));
+      name: "Choose Claude source folder: ~/.claude",
+    })).toHaveTextContent("~/.claude");
+    fireEvent.click(screen.getByRole("button", { name: "Choose Codex source folder: ~/.codex" }));
 
     await waitFor(() => expect(screen.getByRole("button", {
       name: "Choose Codex source folder: C:\\work\\codex",

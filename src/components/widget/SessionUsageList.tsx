@@ -88,7 +88,7 @@ export default function SessionUsageList({
       ))}
       {idle.length > 0 && (
         <details className={styles.disclosure} onToggle={onToggle}>
-          <summary className={styles.summary}>Idle · {idle.length}</summary>
+          <summary className={styles.summary}>More sessions</summary>
           <div className={styles.idleRows}>
             {idle.map((session) => (
               <SessionRow

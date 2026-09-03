@@ -27,7 +27,7 @@ describe("UsageLimits", () => {
 
     expect(screen.getByText("86%")).toBeInTheDocument();
     expect(
-      screen.getByRole("progressbar", { name: "5h limit: 86% remaining" }),
+      screen.getByRole("progressbar", { name: "5h: 86% remaining" }),
     ).toHaveAttribute("aria-valuenow", "86");
   });
 
@@ -43,12 +43,14 @@ describe("UsageLimits", () => {
       <UsageLimits
         limits={[
           { windowMinutes: 300, usedPercent: 12, resetsAt: 1_788_367_052 },
+          { windowMinutes: 10_080, usedPercent: 38, resetsAt: 1_788_748_134 },
           { windowMinutes: 60, usedPercent: 90, resetsAt: 1_788_367_052 },
         ]}
       />,
     );
 
-    expect(screen.getByText("5h limit")).toBeInTheDocument();
+    expect(screen.getByText("5h")).toBeInTheDocument();
+    expect(screen.getByText("7d")).toBeInTheDocument();
     expect(screen.queryByText("60m limit")).not.toBeInTheDocument();
   });
 });

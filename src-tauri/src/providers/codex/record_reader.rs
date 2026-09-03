@@ -22,8 +22,8 @@ impl ProviderAdapter for CodexReader {
         super::rate_limits::read_latest(file)
     }
 
-    fn should_read_file(&self, file: &Path, local_day: &str) -> bool {
-        super::session_index::is_current_day_indexed_session(file, local_day)
+    fn should_read_file(&self, file: &Path, _local_day: &str) -> bool {
+        super::session_index::is_indexed_session(file)
     }
 
     fn read_observations(

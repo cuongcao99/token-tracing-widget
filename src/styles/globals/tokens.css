@@ -36,7 +36,6 @@
   --type-widget-status: 11px;
   --type-widget-meta: 11px;
   --type-widget-value: 15px;
-  --type-widget-session-value: 15px;
   --type-widget-total-label: 13px;
   --type-widget-total: 16px;
   --type-widget-limit-value: 16px;
@@ -110,7 +109,7 @@
   --settings-close-size: 30px;
   --settings-close-icon-size: 15px;
   --settings-close-margin-top: -2px;
-  --settings-close-margin-end: -3px;
+  --settings-close-margin-end: var(--settings-scrollbar-gutter);
   --settings-picker-min-width: 136px;
   --settings-picker-min-height: 36px;
   --settings-picker-gap: 18px;

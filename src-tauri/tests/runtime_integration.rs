@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::Write;
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
@@ -399,7 +400,7 @@ fn codex_collection_rekeys_legacy_rollout_sessions() {
 }
 
 #[test]
-fn codex_collection_uses_dated_indexed_sessions_only() {
+fn codex_collection_excludes_sessions_without_index_entry() {
     let profile = tempfile::tempdir().unwrap();
     let sessions = profile
         .path()
@@ -467,7 +468,7 @@ fn codex_collection_uses_dated_indexed_sessions_only() {
     fs::write(
         profile.path().join(".codex").join("session_index.jsonl"),
         format!(
-            "{{\"id\":\"{indexed_id}\",\"thread_name\":\"Indexed session\",\"updated_at\":\"2026-09-02T00:00:02Z\"}}\n{{\"id\":\"{previous_day_id}\",\"thread_name\":\"Previous folder\",\"updated_at\":\"2026-09-02T00:00:02Z\"}}\n"
+            "{{\"id\":\"{indexed_id}\",\"thread_name\":\"Indexed session\",\"updated_at\":\"2026-09-02T00:00:02Z\"}}\n"
         ),
     )
     .unwrap();
@@ -500,6 +501,100 @@ fn codex_collection_uses_dated_indexed_sessions_only() {
     assert_eq!(codex.rate_limits.len(), 2);
     assert_eq!(codex.rate_limits[0].used_percent, 25);
     assert_eq!(codex.rate_limits[1].used_percent, 67);
+}
+
+#[test]
+fn codex_collection_reads_today_append_when_session_index_has_previous_day_timestamp() {
+    let profile = tempfile::tempdir().unwrap();
+    let session_id = "019feeb0-0072-75a1-8d25-010d8bb342c8";
+    let sessions = profile
+        .path()
+        .join(".codex")
+        .join("sessions")
+        .join("2026")
+        .join("09")
+        .join("01");
+    fs::create_dir_all(&sessions).unwrap();
+    let file = sessions.join(format!("rollout-2026-09-01T00-00-00-{session_id}.jsonl"));
+    let metadata = serde_json::json!({
+        "payload": {
+            "type": "session_meta",
+            "session_id": session_id,
+            "parent_thread_id": session_id,
+        },
+    });
+    let yesterday = serde_json::json!({
+        "payload": {
+            "type": "token_count",
+            "info": {
+                "total_token_usage": {
+                    "input_tokens": 5,
+                    "output_tokens": 5,
+                    "total_tokens": 10,
+                },
+            },
+        },
+        "timestamp": "2026-09-01T00:00:01Z",
+    });
+    fs::write(
+        &file,
+        format!(
+            "{}\n{}\n",
+            serde_json::to_string(&metadata).unwrap(),
+            serde_json::to_string(&yesterday).unwrap()
+        ),
+    )
+    .unwrap();
+    let index_path = profile.path().join(".codex").join("session_index.jsonl");
+    fs::write(
+        &index_path,
+        format!(
+            "{{\"id\":\"{session_id}\",\"thread_name\":\"Overnight run\",\"updated_at\":\"2026-09-01T00:00:02Z\"}}\n"
+        ),
+    )
+    .unwrap();
+
+    let database = tempfile::tempdir().unwrap();
+    let state = AppState::from_paths(
+        profile.path().to_path_buf(),
+        &database.path().join("index.sqlite"),
+        limits(),
+    )
+    .unwrap();
+    let yesterday_report = state
+        .collect_once(&FixedClock::new("2026-09-01T00:00:05Z", "2026-09-01"))
+        .unwrap();
+    assert_eq!(yesterday_report.summary.today_tokens, 10);
+
+    let today = serde_json::json!({
+        "payload": {
+            "type": "token_count",
+            "info": {
+                "total_token_usage": {
+                    "input_tokens": 15,
+                    "output_tokens": 15,
+                    "total_tokens": 30,
+                },
+            },
+        },
+        "timestamp": "2026-09-02T00:00:01Z",
+    });
+    fs::OpenOptions::new()
+        .append(true)
+        .open(&file)
+        .unwrap()
+        .write_all(format!("{}\n", serde_json::to_string(&today).unwrap()).as_bytes())
+        .unwrap();
+
+    let report = state
+        .collect_once(&FixedClock::new("2026-09-02T00:00:05Z", "2026-09-02"))
+        .unwrap();
+
+    let codex = &report.summary.providers[1];
+    assert_eq!(report.accepted_event_count, 1);
+    assert_eq!(codex.today_tokens, 20);
+    assert_eq!(codex.sessions.len(), 1);
+    assert_eq!(codex.sessions[0].today_tokens, 20);
 }
 
 #[test]

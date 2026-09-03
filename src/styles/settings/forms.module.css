@@ -82,17 +82,16 @@
   white-space: nowrap;
 }
 
-.sourceHealth[data-health-state="detected"] {
+.sourceHealth[data-health-state="available"] {
   color: var(--color-positive);
 }
 
-.sourceHealth[data-health-state="limited"] {
-  color: var(--color-warning);
+.sourceHealth[data-health-state="unavailable"] {
+  color: var(--color-error);
 }
 
-.sourceHealth[data-health-state="malformed"],
-.sourceHealth[data-health-state="permission_denied"] {
-  color: var(--color-error);
+.sourceHealth[data-health-state="off"] {
+  color: var(--color-muted);
 }
 
 .sourceHealthDot {
