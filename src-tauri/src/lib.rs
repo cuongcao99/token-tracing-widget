@@ -42,15 +42,6 @@ pub fn run() {
             let state = app::runtime::initialize_from_app(app.handle());
             app.manage(state.clone());
 
-            let managed = app.state::<app::runtime::AppState>();
-            if let Ok(report) = managed.collect_once(&collection::WindowsClock::current()) {
-                if commands::usage_summary::emit_usage_summary(app.handle(), &report.summary)
-                    .is_err()
-                {
-                    eprintln!("summary_event:emit");
-                }
-            }
-
             let live_handle =
                 app::live_collection::start_live_collection(state, app.handle().clone());
             app.manage(live_handle);

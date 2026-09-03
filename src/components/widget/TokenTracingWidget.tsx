@@ -4,10 +4,12 @@ import { useWidgetSettings } from "../../hooks/useWidgetSettings";
 import { createWidgetViewModel } from "../../lib/widget-view-model";
 import type { WindowResizeDirection } from "../../lib/window-actions";
 import { syncWidgetWindowHeight } from "../../lib/window-sizing";
+import loadingStyles from "../../styles/widget/loading.module.css";
 import styles from "../../styles/widget/surface.module.css";
 import WindowGrip from "../shared/WindowGrip";
 import WindowResizeHandles from "../shared/WindowResizeHandles";
 import WidgetHeader from "./WidgetHeader";
+import ProviderLoadingSkeleton from "./ProviderLoadingSkeleton";
 import ProviderUsageRow from "./ProviderUsageRow";
 import WidgetTotal from "./WidgetTotal";
 
@@ -89,6 +91,7 @@ export default function TokenTracingWidget() {
       autoFitHeightRef.current = false;
     }
   }, []);
+  const isLoading = summary.state === "loading";
 
   useEffect(() => {
     const previous = previousLayoutRef.current;
@@ -130,23 +133,43 @@ export default function TokenTracingWidget() {
       data-theme={viewModel.theme}
       data-color-mode={viewModel.colorMode}
       aria-label="Token usage summary"
+      aria-busy={isLoading}
     >
       <WindowGrip windowName="widget" />
       <WidgetHeader activityState={summary.state} />
       <section
         ref={providerListRef}
         className={styles.providerList}
-        aria-label="Provider usage"
+        aria-label={isLoading ? "Loading token usage" : "Provider usage"}
+        role={isLoading ? "status" : undefined}
       >
-        {viewModel.providers.map((provider) => (
-          <ProviderUsageRow
-            key={provider.provider}
-            usage={provider}
-            onSessionToggle={onSessionToggle}
-          />
-        ))}
+        {isLoading ? (
+          viewModel.providers.map(({ provider, identity }) => (
+            <ProviderLoadingSkeleton
+              key={provider}
+              identity={identity}
+            />
+          ))
+        ) : (
+          viewModel.providers.map((provider) => (
+            <ProviderUsageRow
+              key={provider.provider}
+              usage={provider}
+              onSessionToggle={onSessionToggle}
+            />
+          ))
+        )}
       </section>
-      {viewModel.visibleProviderCount > 0 ? (
+      {isLoading && viewModel.visibleProviderCount > 0 ? (
+        <footer
+          className={loadingStyles.total}
+          data-testid="widget-skeleton-total"
+          aria-hidden="true"
+        >
+          <span className={`${loadingStyles.block} ${loadingStyles.totalLabel}`} />
+          <span className={`${loadingStyles.block} ${loadingStyles.totalValue}`} />
+        </footer>
+      ) : !isLoading && viewModel.visibleProviderCount > 0 ? (
         <WidgetTotal tokens={viewModel.totalTokens} />
       ) : null}
       <WindowResizeHandles

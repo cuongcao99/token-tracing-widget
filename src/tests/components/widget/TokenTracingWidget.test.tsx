@@ -157,6 +157,44 @@ describe("TokenTracingWidget", () => {
     expect(startCurrentWindowDrag).toHaveBeenCalledTimes(1);
   });
 
+  it("renders a loading skeleton instead of zero-value content while usage loads", () => {
+    const loadingSummary: UsageSummary = {
+      ...summary,
+      state: "loading",
+      provider: undefined,
+      currentSessionTokens: undefined,
+      todayTokens: 0,
+      lastUpdatedAt: undefined,
+      providers: summary.providers.map((usage) => ({
+        ...usage,
+        state: "loading",
+        currentSessionTokens: undefined,
+        todayTokens: 0,
+        lastUpdatedAt: undefined,
+        sessions: [],
+        rateLimits: [],
+      })),
+    };
+    useUsageSummary.mockReturnValue({ summary: loadingSummary });
+
+    render(<TokenTracingWidget />);
+
+    expect(screen.getByRole("main")).toHaveAttribute("aria-busy", "true");
+    expect(
+      screen.getByRole("status", { name: "Loading token usage" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByTestId("widget-skeleton-provider")).toHaveLength(2);
+    expect(screen.getByRole("heading", { name: "Claude" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Codex" })).toBeInTheDocument();
+    expect(screen.getAllByTestId("widget-skeleton-limit")).toHaveLength(4);
+    expect(screen.getAllByTestId("widget-skeleton-metric")).toHaveLength(4);
+    expect(screen.getByTestId("widget-skeleton-total")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Today's sessions")).not.toBeInTheDocument();
+    expect(screen.queryByText("More sessions")).not.toBeInTheDocument();
+    expect(screen.queryByText("No activity yet today")).not.toBeInTheDocument();
+    expect(screen.queryByText("0", { selector: "strong" })).not.toBeInTheDocument();
+  });
+
   it("uses persisted visibility and shows the visible provider total", () => {
     useWidgetSettings.mockReturnValue({
       settings: {

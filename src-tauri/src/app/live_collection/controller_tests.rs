@@ -69,6 +69,18 @@ impl SummaryPublisher for RecordingPublisher {
     }
 }
 
+struct NotifyingPublisher {
+    sender: std::sync::mpsc::Sender<u64>,
+}
+
+impl SummaryPublisher for NotifyingPublisher {
+    fn publish(&mut self, summary: &UsageSummary) -> Result<(), SummaryEventError> {
+        self.sender
+            .send(summary.today_tokens)
+            .map_err(|_| SummaryEventError::Emit)
+    }
+}
+
 struct FailingPublisher;
 
 impl SummaryPublisher for FailingPublisher {
@@ -201,6 +213,40 @@ fn successful_attempt_publishes_only_post_commit_summary() {
     );
     assert_eq!(live.publisher.summaries[0].today_tokens, 20);
     assert_eq!(live.backend.attempts, 1);
+}
+
+#[test]
+fn initial_pass_publishes_when_no_source_is_observed() {
+    let (signal_sender, signal_receiver) = std::sync::mpsc::channel();
+    let (published_sender, published_receiver) = std::sync::mpsc::channel();
+    let observer = SourceObserver::new(signal_sender.clone());
+    let mut config = test_config();
+    config.notification_debounce = Duration::ZERO;
+    let live = LiveCollectionController::new(
+        AppState::unavailable(),
+        ScriptedBackend {
+            attempts: 0,
+            results: VecDeque::from([Ok(test_report(20))]),
+        },
+        NotifyingPublisher {
+            sender: published_sender,
+        },
+        observer,
+        Instant::now(),
+        config,
+    );
+    let worker = std::thread::spawn(move || live.run(signal_receiver));
+
+    assert_eq!(
+        published_receiver
+            .recv_timeout(Duration::from_secs(1))
+            .expect("initial collection should publish"),
+        20
+    );
+    signal_sender
+        .send(WatchSignal::Shutdown)
+        .expect("worker should accept shutdown");
+    worker.join().expect("worker should stop");
 }
 
 #[test]

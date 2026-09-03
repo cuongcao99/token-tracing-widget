@@ -132,7 +132,10 @@ where
     }
 
     pub(super) fn run(mut self, receiver: Receiver<WatchSignal>) {
-        self.refresh_observers(Instant::now());
+        let start = Instant::now();
+        self.refresh_observers(start);
+        // Always schedule an initial summary, including when no source root exists yet.
+        self.scheduler.mark_changed(start);
         loop {
             if self.process_due(Instant::now()).is_some() {
                 continue;
