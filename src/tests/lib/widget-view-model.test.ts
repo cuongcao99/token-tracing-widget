@@ -68,7 +68,6 @@ describe("createWidgetViewModel", () => {
     expect(model.providers[0]).toMatchObject({
       provider: "claude",
       identity: { displayName: "Claude" },
-      status: { state: "idle", label: "Idle" },
       sessionCount: 1,
       sessions: [
         { id: "claude-id", label: "claude-id", state: "idle", todayTokens: 10 },
@@ -140,35 +139,13 @@ describe("createWidgetViewModel", () => {
     });
   });
 
-  it("marks preview-disabled providers unavailable and excludes them from total", () => {
+  it("excludes preview-disabled providers from the combined total", () => {
     const model = createWidgetViewModel({
       summary,
       settings,
       previewSourceEnabled: { claude: false, codex: true },
     });
 
-    expect(model.providers[0]).toMatchObject({
-      provider: "claude",
-      status: { state: "unavailable", label: "Unavailable" },
-      metrics: { sessionTokens: 10, todayTokens: 10 },
-    });
-    expect(model.providers[1].status).toEqual({ state: "active", label: "Active" });
     expect(model.totalTokens).toBe(20);
   });
-
-  it.each(["loading", "active", "idle", "unavailable", "stale"] as const)(
-    "keeps the %s status label readable",
-    (state) => {
-      const model = createWidgetViewModel({
-        summary: {
-          ...summary,
-          providers: summary.providers.map((usage) => ({ ...usage, state })),
-        },
-        settings,
-        previewSourceEnabled: null,
-      });
-
-      expect(model.providers.every(({ status }) => status.label === state[0].toUpperCase() + state.slice(1))).toBe(true);
-    },
-  );
 });

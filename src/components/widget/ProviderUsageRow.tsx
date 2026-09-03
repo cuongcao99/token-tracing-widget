@@ -55,8 +55,6 @@ export function areProviderUsageRowsEqual(
     before.identity.logoVariant === after.identity.logoVariant &&
     before.identity.fontRole === after.identity.fontRole &&
     before.identity.accent === after.identity.accent &&
-    before.status.state === after.status.state &&
-    before.status.label === after.status.label &&
     before.metrics.sessionTokens === after.metrics.sessionTokens &&
     before.metrics.todayTokens === after.metrics.todayTokens &&
     before.metrics.updatedLabel === after.metrics.updatedLabel
@@ -74,7 +72,6 @@ export const ProviderUsageRow = memo(function ProviderUsageRow({
   return (
     <ProviderSection
       identity={usage.identity}
-      status={usage.status}
     >
       <UsageLimits limits={usage.rateLimits} />
       <UsageMetrics

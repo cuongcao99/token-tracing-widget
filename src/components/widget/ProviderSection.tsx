@@ -1,12 +1,10 @@
 import type { ReactNode } from "react";
-import type { UsageState } from "../../lib/usage-summary";
 import type { ProviderIdentity } from "../../lib/provider";
 import styles from "../../styles/widget/provider.module.css";
 import ProviderBrand from "../shared/ProviderBrand";
 
 export interface ProviderSectionProps {
   identity: ProviderIdentity;
-  status: { state: UsageState; label: string };
   children: ReactNode;
   className?: string;
   markClassName?: string;

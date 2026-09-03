@@ -75,7 +75,6 @@ export default function ProviderLoadingSkeleton({
   return (
     <ProviderSection
       identity={identity}
-      status={{ state: "loading", label: "Loading" }}
     >
       <div
         className={loadingStyles.provider}

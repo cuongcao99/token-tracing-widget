@@ -3,7 +3,6 @@ import {
   type RateLimitSummary,
   type ProviderUsageSummary,
   type SessionUsageState,
-  type UsageState,
   type UsageSummary,
 } from "./usage-summary";
 import { providerMeta, providerOrder, type ProviderId, type ProviderIdentity } from "./provider";
@@ -19,7 +18,6 @@ export interface WidgetViewModelInput {
 export interface WidgetProviderViewModel {
   provider: ProviderId;
   identity: ProviderIdentity;
-  status: { state: UsageState; label: string };
   sessions: WidgetSessionViewModel[];
   sessionCount: number;
   rateLimits: RateLimitSummary[];
@@ -43,10 +41,6 @@ export interface WidgetViewModel {
   providers: WidgetProviderViewModel[];
   totalTokens: number;
   visibleProviderCount: number;
-}
-
-export function stateLabel(state: UsageState): string {
-  return state.charAt(0).toUpperCase() + state.slice(1);
 }
 
 function visibleProviderSet(settings: WidgetSettingsSnapshot): Set<ProviderId> {
@@ -80,14 +74,10 @@ function viewForSession({
 function viewForProvider(
   provider: ProviderId,
   usage: ProviderUsageSummary,
-  previewSourceEnabled: Readonly<Record<ProviderId, boolean>> | null,
 ): WidgetProviderViewModel {
-  const previewDisabled = previewSourceEnabled?.[provider] === false;
-  const state = previewDisabled ? "unavailable" : usage.state;
   return {
     provider,
     identity: providerMeta[provider],
-    status: { state, label: stateLabel(state) },
     sessions: usage.sessions.map(viewForSession),
     sessionCount: usage.sessions.length,
     rateLimits: usage.rateLimits ?? [],
@@ -113,7 +103,7 @@ export function createWidgetViewModel({
   for (const provider of providerOrder) {
     const usage = usageByProvider.get(provider);
     if (usage && visibleProviders.has(provider)) {
-      providers.push(viewForProvider(provider, usage, previewSourceEnabled));
+      providers.push(viewForProvider(provider, usage));
     }
   }
 

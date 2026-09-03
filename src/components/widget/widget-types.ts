@@ -1,7 +1,6 @@
 import type { WidgetProviderViewModel } from "../../lib/widget-view-model";
 
 export type { WidgetProviderViewModel } from "../../lib/widget-view-model";
-export { stateLabel } from "../../lib/widget-view-model";
 
 export interface WidgetProviderRowProps {
   usage: WidgetProviderViewModel;

@@ -18,7 +18,6 @@ describe("ProviderSection composition", () => {
     render(
       <ProviderSection
         identity={fixtureIdentity}
-        status={{ state: "active", label: "Active" }}
       >
         <UsageMetrics
           metrics={[
