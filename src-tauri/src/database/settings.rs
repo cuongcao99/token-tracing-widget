@@ -3,7 +3,8 @@
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
 
 use crate::sources::source_config::{
-    parse_explicit_root, LoadedSourceConfigs, SourceConfig, SourceConfigSet,
+    is_wsl_path, parse_explicit_root, parse_windows_root, parse_wsl_root, LoadedSourceConfigs,
+    SourceConfig, SourceConfigSet,
 };
 use crate::types::provider::Provider;
 use crate::types::theme::Theme;
@@ -25,7 +26,9 @@ pub(crate) fn load_source_configs(
     for provider in Provider::all() {
         let provider = *provider;
         let enabled_value = load_value(connection, &key(provider, "enabled"))?;
-        let root_value = load_value(connection, &key(provider, "root_override"))?;
+        let windows_root_value = load_value(connection, &key(provider, "windows_root_override"))?;
+        let wsl_root_value = load_value(connection, &key(provider, "wsl_root_override"))?;
+        let legacy_root_value = load_value(connection, &key(provider, "root_override"))?;
         let mut invalid = false;
 
         let enabled = match enabled_value.as_deref() {
@@ -36,19 +39,33 @@ pub(crate) fn load_source_configs(
                 true
             }
         };
-        let root_override = match root_value {
-            None => None,
-            Some(value) => match parse_explicit_root(&value) {
-                Ok(path) => Some(path),
-                Err(_) => {
-                    invalid = true;
-                    None
+        let (windows_root_override, wsl_root_override) =
+            if windows_root_value.is_none() && wsl_root_value.is_none() {
+                match legacy_root_value {
+                    None => (None, None),
+                    Some(value) => match parse_explicit_root(&value) {
+                        Ok(path) if is_wsl_path(&path) => (None, Some(path)),
+                        Ok(path) => (Some(path), None),
+                        Err(_) => {
+                            invalid = true;
+                            (None, None)
+                        }
+                    },
                 }
-            },
-        };
+            } else {
+                (
+                    parse_root_value(windows_root_value, parse_windows_root, &mut invalid),
+                    parse_root_value(wsl_root_value, parse_wsl_root, &mut invalid),
+                )
+            };
 
-        let config = SourceConfig::try_new(provider, enabled, root_override)
-            .expect("settings parser should produce a valid source config");
+        let config = SourceConfig::try_new_with_roots(
+            provider,
+            enabled,
+            windows_root_override,
+            wsl_root_override,
+        )
+        .expect("settings parser should produce a valid source config");
         configs.replace(config);
         if invalid {
             invalid_providers.push(provider);
@@ -77,24 +94,54 @@ pub(crate) fn save_source_config(
         ],
     )?;
 
-    let root_key = key(config.provider(), "root_override");
-    if let Some(root) = config.root_override() {
-        transaction.execute(
-            r#"
-            INSERT INTO settings (setting_key, setting_value)
-            VALUES (?1, ?2)
-            ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value
-            "#,
-            params![root_key, root.to_string_lossy().as_ref()],
-        )?;
-    } else {
-        transaction.execute(
-            "DELETE FROM settings WHERE setting_key = ?1",
-            params![root_key],
-        )?;
-    }
+    save_optional_root(
+        transaction,
+        &key(config.provider(), "windows_root_override"),
+        config.windows_root_override(),
+    )?;
+    save_optional_root(
+        transaction,
+        &key(config.provider(), "wsl_root_override"),
+        config.wsl_root_override(),
+    )?;
+    transaction.execute(
+        "DELETE FROM settings WHERE setting_key = ?1",
+        params![key(config.provider(), "root_override")],
+    )?;
 
     Ok(())
+}
+
+fn parse_root_value(
+    value: Option<String>,
+    parser: fn(
+        &str,
+    ) -> Result<std::path::PathBuf, crate::sources::source_config::SourceConfigError>,
+    invalid: &mut bool,
+) -> Option<std::path::PathBuf> {
+    match value {
+        None => None,
+        Some(value) => match parser(&value) {
+            Ok(path) => Some(path),
+            Err(_) => {
+                *invalid = true;
+                None
+            }
+        },
+    }
+}
+
+fn save_optional_root(
+    transaction: &Transaction<'_>,
+    setting_key: &str,
+    root: Option<&std::path::Path>,
+) -> rusqlite::Result<()> {
+    match root {
+        Some(root) => save_value(transaction, setting_key, &root.to_string_lossy()),
+        None => transaction
+            .execute("DELETE FROM settings WHERE setting_key = ?1", [setting_key])
+            .map(|_| ()),
+    }
 }
 
 pub(crate) fn load_widget_settings(

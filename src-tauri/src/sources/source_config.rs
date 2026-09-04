@@ -3,13 +3,16 @@
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
 
+use serde::Deserialize;
+
 use crate::types::provider::Provider;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceConfig {
     provider: Provider,
     enabled: bool,
-    root_override: Option<PathBuf>,
+    windows_root_override: Option<PathBuf>,
+    wsl_root_override: Option<PathBuf>,
 }
 
 impl SourceConfig {
@@ -18,14 +21,31 @@ impl SourceConfig {
         enabled: bool,
         root_override: Option<PathBuf>,
     ) -> Result<Self, SourceConfigError> {
-        if let Some(path) = &root_override {
-            validate_explicit_path(path)?;
+        let (windows_root_override, wsl_root_override) = match root_override {
+            Some(path) if is_wsl_path(&path) => (None, Some(path)),
+            path => (path, None),
+        };
+        Self::try_new_with_roots(provider, enabled, windows_root_override, wsl_root_override)
+    }
+
+    pub fn try_new_with_roots(
+        provider: Provider,
+        enabled: bool,
+        windows_root_override: Option<PathBuf>,
+        wsl_root_override: Option<PathBuf>,
+    ) -> Result<Self, SourceConfigError> {
+        if let Some(path) = &windows_root_override {
+            validate_windows_root(path)?;
+        }
+        if let Some(path) = &wsl_root_override {
+            validate_wsl_root(path)?;
         }
 
         Ok(Self {
             provider,
             enabled,
-            root_override,
+            windows_root_override,
+            wsl_root_override,
         })
     }
 
@@ -33,7 +53,8 @@ impl SourceConfig {
         Self {
             provider,
             enabled: true,
-            root_override: None,
+            windows_root_override: None,
+            wsl_root_override: None,
         }
     }
 
@@ -45,16 +66,55 @@ impl SourceConfig {
         self.enabled
     }
 
+    pub fn windows_root_override(&self) -> Option<&Path> {
+        self.windows_root_override.as_deref()
+    }
+
+    pub fn wsl_root_override(&self) -> Option<&Path> {
+        self.wsl_root_override.as_deref()
+    }
+
+    /// Compatibility accessor for callers that only support one source root.
     pub fn root_override(&self) -> Option<&Path> {
-        self.root_override.as_deref()
+        self.windows_root_override()
+            .or_else(|| self.wsl_root_override())
+    }
+
+    pub fn with_root_override(
+        &self,
+        platform: SourcePlatform,
+        root_override: Option<PathBuf>,
+    ) -> Result<Self, SourceConfigError> {
+        let mut next = self.clone();
+        match platform {
+            SourcePlatform::Windows => {
+                if let Some(path) = &root_override {
+                    validate_windows_root(path)?;
+                }
+                next.windows_root_override = root_override;
+            }
+            SourcePlatform::Wsl => {
+                if let Some(path) = &root_override {
+                    validate_wsl_root(path)?;
+                }
+                next.wsl_root_override = root_override;
+            }
+        }
+        Ok(next)
     }
 
     pub fn configured_root_label(&self) -> String {
-        self.root_override
-            .as_ref()
+        self.root_override()
             .map(|path| path.to_string_lossy().into_owned())
             .unwrap_or_else(|| native_root_label(self.provider).to_owned())
     }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum SourcePlatform {
+    Windows,
+    Wsl,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -155,6 +215,71 @@ pub fn parse_explicit_root(raw: &str) -> Result<PathBuf, SourceConfigError> {
     Ok(path)
 }
 
+pub fn parse_windows_root(raw: &str) -> Result<PathBuf, SourceConfigError> {
+    let path = parse_explicit_root(raw)?;
+    if is_wsl_path(&path) {
+        return Err(SourceConfigError::InvalidRoot);
+    }
+    Ok(path)
+}
+
+pub fn parse_wsl_root(raw: &str) -> Result<PathBuf, SourceConfigError> {
+    let normalized = normalize_wsl_unc(raw);
+    let path = parse_explicit_root(&normalized)?;
+    if !is_wsl_path(&path) {
+        return Err(SourceConfigError::InvalidRoot);
+    }
+    Ok(path)
+}
+
+fn normalize_wsl_unc(raw: &str) -> String {
+    let separator_normalized = raw.replace('/', "\\");
+    if !separator_normalized.starts_with(r"\\") {
+        return raw.to_owned();
+    }
+
+    let components: Vec<_> = separator_normalized
+        .split('\\')
+        .filter(|component| !component.is_empty())
+        .collect();
+    if !components
+        .first()
+        .is_some_and(|server| server.eq_ignore_ascii_case("wsl.localhost"))
+    {
+        return raw.to_owned();
+    }
+
+    format!(r"\\{}", components.join("\\"))
+}
+
+pub(crate) fn is_wsl_path(path: &Path) -> bool {
+    let normalized = path.to_string_lossy().replace('/', "\\");
+    let mut components = normalized
+        .split('\\')
+        .filter(|component| !component.is_empty());
+    matches!(
+        (components.next(), components.next()),
+        (Some(server), Some(share))
+            if server.eq_ignore_ascii_case("wsl.localhost") && !share.is_empty()
+    )
+}
+
+fn validate_windows_root(path: &Path) -> Result<(), SourceConfigError> {
+    validate_explicit_path(path)?;
+    if is_wsl_path(path) {
+        return Err(SourceConfigError::InvalidRoot);
+    }
+    Ok(())
+}
+
+fn validate_wsl_root(path: &Path) -> Result<(), SourceConfigError> {
+    validate_explicit_path(path)?;
+    if !is_wsl_path(path) {
+        return Err(SourceConfigError::InvalidRoot);
+    }
+    Ok(())
+}
+
 fn validate_explicit_path(path: &Path) -> Result<(), SourceConfigError> {
     let mut saw_parent = false;
     let mut saw_current = false;
@@ -216,7 +341,9 @@ fn native_root_label(provider: Provider) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_explicit_root, SourceConfigSet};
+    use std::path::PathBuf;
+
+    use super::{parse_explicit_root, SourceConfig, SourceConfigSet, SourcePlatform};
     use crate::types::provider::Provider;
 
     #[test]
@@ -237,6 +364,37 @@ mod tests {
 
     #[cfg(windows)]
     #[test]
+    fn dual_root_config_keeps_windows_and_wsl_selections_independent() {
+        let config = SourceConfig::try_new_with_roots(
+            Provider::Claude,
+            true,
+            Some(PathBuf::from(r"C:\Users\tester\.claude\projects")),
+            Some(PathBuf::from(
+                r"\\wsl.localhost\Ubuntu\home\tester\.claude\projects",
+            )),
+        )
+        .unwrap();
+
+        assert_eq!(
+            config.windows_root_override(),
+            Some(std::path::Path::new(r"C:\Users\tester\.claude\projects"))
+        );
+        assert_eq!(
+            config.wsl_root_override(),
+            Some(std::path::Path::new(
+                r"\\wsl.localhost\Ubuntu\home\tester\.claude\projects",
+            ))
+        );
+
+        let without_wsl = config
+            .with_root_override(SourcePlatform::Wsl, None)
+            .unwrap();
+        assert!(without_wsl.windows_root_override().is_some());
+        assert!(without_wsl.wsl_root_override().is_none());
+    }
+
+    #[cfg(windows)]
+    #[test]
     fn explicit_root_accepts_approved_wsl_unc_shape() {
         let path =
             parse_explicit_root(r"\\wsl.localhost\Ubuntu\home\user\.claude\projects").unwrap();
@@ -244,6 +402,18 @@ mod tests {
         assert_eq!(
             path.to_string_lossy(),
             r"\\wsl.localhost\Ubuntu\home\user\.claude\projects"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn wsl_root_normalizes_redundant_unc_separators() {
+        let path =
+            super::parse_wsl_root(r"\\\wsl.localhost\Ubuntu\home\caocu\\.codex\sessions").unwrap();
+
+        assert_eq!(
+            path.to_string_lossy(),
+            r"\\wsl.localhost\Ubuntu\home\caocu\.codex\sessions"
         );
     }
 

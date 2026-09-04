@@ -56,7 +56,7 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
             });
         }
 
-        let mut health_state = discovery_state(source.discovery.status()).to_owned();
+        let mut health_state = String::new();
         let mut events = Vec::new();
         let mut checkpoints = Vec::new();
         let mut session_key_updates = Vec::new();
@@ -65,120 +65,129 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
         let mut allowed_file_identities = BTreeSet::new();
         let mut has_pending_reads = false;
         let mut remaining_source_bytes = MAX_SOURCE_BYTES_PER_ATTEMPT;
-        for file in source.discovery.files() {
-            let is_allowed_file = source
-                .adapter
-                .should_read_file(file.filesystem_path(), local_day);
-            if !is_allowed_file {
-                rate_limit_updates.extend(
-                    source
-                        .adapter
-                        .read_rate_limits(file.filesystem_path())
-                        .into_iter()
-                        .map(|snapshot| RateLimitUpdate { provider, snapshot }),
-                );
-                continue;
-            }
-            let identity = file.opaque_identity(provider);
-            allowed_file_identities.insert(identity.clone());
-            if remaining_source_bytes == 0 {
-                has_pending_reads = true;
-                rate_limit_updates.extend(
-                    source
-                        .adapter
-                        .read_rate_limits(file.filesystem_path())
-                        .into_iter()
-                        .map(|snapshot| RateLimitUpdate { provider, snapshot }),
-                );
-                continue;
-            }
-            let checkpoint = self
-                .store
-                .load_checkpoint(&identity)
-                .map_err(CollectionError::Storage)?
-                .filter(|checkpoint| checkpoint_can_resume(checkpoint, file, provider))
-                .unwrap_or_else(|| FileCheckpoint::new(identity.clone(), provider));
+        for discovery in &source.discoveries {
+            let mut discovery_health_state = discovery_state(discovery.status()).to_owned();
+            for file in discovery.files() {
+                let is_allowed_file = source
+                    .adapter
+                    .should_read_file(file.filesystem_path(), local_day);
+                if !is_allowed_file {
+                    rate_limit_updates.extend(
+                        source
+                            .adapter
+                            .read_rate_limits(file.filesystem_path())
+                            .into_iter()
+                            .map(|snapshot| RateLimitUpdate { provider, snapshot }),
+                    );
+                    continue;
+                }
+                let identity = file.opaque_identity(provider);
+                allowed_file_identities.insert(identity.clone());
+                if remaining_source_bytes == 0 {
+                    has_pending_reads = true;
+                    rate_limit_updates.extend(
+                        source
+                            .adapter
+                            .read_rate_limits(file.filesystem_path())
+                            .into_iter()
+                            .map(|snapshot| RateLimitUpdate { provider, snapshot }),
+                    );
+                    continue;
+                }
+                let checkpoint = self
+                    .store
+                    .load_checkpoint(&identity)
+                    .map_err(CollectionError::Storage)?
+                    .filter(|checkpoint| checkpoint_can_resume(checkpoint, file, provider))
+                    .unwrap_or_else(|| FileCheckpoint::new(identity.clone(), provider));
 
-            let result = match source.adapter.read_observations(
-                file.filesystem_path(),
-                checkpoint.byte_offset,
-                remaining_source_bytes,
-            ) {
-                Ok(result) => result,
-                Err(error) => {
-                    let state = reader_error_state(error);
-                    health_state = state.to_owned();
+                let result = match source.adapter.read_observations(
+                    file.filesystem_path(),
+                    checkpoint.byte_offset,
+                    remaining_source_bytes,
+                ) {
+                    Ok(result) => result,
+                    Err(error) => {
+                        let state = reader_error_state(error);
+                        discovery_health_state = state.to_owned();
+                        diagnostics.push(DiagnosticUpdate {
+                            provider,
+                            category: state.to_owned(),
+                            occurrence_count: 1,
+                            last_occurred_at: now.to_owned(),
+                        });
+                        continue;
+                    }
+                };
+                if let Some(session_key) = result.session_key.as_ref() {
+                    session_key_updates.push(SessionKeyUpdate {
+                        provider,
+                        file_identity: identity.clone(),
+                        session_key: session_key.clone(),
+                    });
+                }
+                if let (Some(name), Some(updated_at)) = (
+                    result.session_name.as_ref(),
+                    result.session_name_updated_at.as_ref(),
+                ) {
+                    session_name_updates.push(SessionNameUpdate {
+                        provider,
+                        session_key: result
+                            .session_key
+                            .clone()
+                            .unwrap_or_else(|| identity.clone()),
+                        name: name.clone(),
+                        updated_at: updated_at.clone(),
+                    });
+                }
+                rate_limit_updates.extend(
+                    result
+                        .rate_limits
+                        .iter()
+                        .cloned()
+                        .map(|snapshot| RateLimitUpdate { provider, snapshot }),
+                );
+                remaining_source_bytes = remaining_source_bytes.saturating_sub(result.bytes_read);
+                if result.pending_offset.is_none() && result.next_offset < file.size_bytes() {
+                    has_pending_reads = true;
+                }
+                if result.skipped_oversized_records > 0 {
+                    discovery_health_state = "limited".to_owned();
                     diagnostics.push(DiagnosticUpdate {
                         provider,
-                        category: state.to_owned(),
+                        category: "limited".to_owned(),
                         occurrence_count: 1,
                         last_occurred_at: now.to_owned(),
                     });
-                    continue;
                 }
-            };
-            if let Some(session_key) = result.session_key.as_ref() {
-                session_key_updates.push(SessionKeyUpdate {
-                    provider,
-                    file_identity: identity.clone(),
-                    session_key: session_key.clone(),
-                });
+                let delta = match convert_observations(&identity, &checkpoint, result.observations)
+                {
+                    Ok(delta) => delta,
+                    Err(error) => {
+                        let state = conversion_error_state(error);
+                        discovery_health_state = state.to_owned();
+                        diagnostics.push(DiagnosticUpdate {
+                            provider,
+                            category: state.to_owned(),
+                            occurrence_count: 1,
+                            last_occurred_at: now.to_owned(),
+                        });
+                        continue;
+                    }
+                };
+                let mut next_checkpoint = delta.next_checkpoint;
+                next_checkpoint.byte_offset = result.next_offset;
+                next_checkpoint.pending_offset = result.pending_offset;
+                next_checkpoint = next_checkpoint
+                    .with_file_metadata(file.size_bytes(), file.modified_at_unix_ms());
+                events.extend(delta.events);
+                checkpoints.push(next_checkpoint);
             }
-            if let (Some(name), Some(updated_at)) = (
-                result.session_name.as_ref(),
-                result.session_name_updated_at.as_ref(),
-            ) {
-                session_name_updates.push(SessionNameUpdate {
-                    provider,
-                    session_key: result
-                        .session_key
-                        .clone()
-                        .unwrap_or_else(|| identity.clone()),
-                    name: name.clone(),
-                    updated_at: updated_at.clone(),
-                });
-            }
-            rate_limit_updates.extend(
-                result
-                    .rate_limits
-                    .iter()
-                    .cloned()
-                    .map(|snapshot| RateLimitUpdate { provider, snapshot }),
-            );
-            remaining_source_bytes = remaining_source_bytes.saturating_sub(result.bytes_read);
-            if result.pending_offset.is_none() && result.next_offset < file.size_bytes() {
-                has_pending_reads = true;
-            }
-            if result.skipped_oversized_records > 0 {
-                health_state = "limited".to_owned();
-                diagnostics.push(DiagnosticUpdate {
-                    provider,
-                    category: "limited".to_owned(),
-                    occurrence_count: 1,
-                    last_occurred_at: now.to_owned(),
-                });
-            }
-            let delta = match convert_observations(&identity, &checkpoint, result.observations) {
-                Ok(delta) => delta,
-                Err(error) => {
-                    let state = conversion_error_state(error);
-                    health_state = state.to_owned();
-                    diagnostics.push(DiagnosticUpdate {
-                        provider,
-                        category: state.to_owned(),
-                        occurrence_count: 1,
-                        last_occurred_at: now.to_owned(),
-                    });
-                    continue;
-                }
-            };
-            let mut next_checkpoint = delta.next_checkpoint;
-            next_checkpoint.byte_offset = result.next_offset;
-            next_checkpoint.pending_offset = result.pending_offset;
-            next_checkpoint =
-                next_checkpoint.with_file_metadata(file.size_bytes(), file.modified_at_unix_ms());
-            events.extend(delta.events);
-            checkpoints.push(next_checkpoint);
+            merge_health_state(&mut health_state, &discovery_health_state);
+        }
+
+        if health_state.is_empty() {
+            health_state = "not_detected".to_owned();
         }
 
         if let Some(category) = error_category(&health_state) {
@@ -203,6 +212,30 @@ impl<S: CollectionStore> CollectionCoordinator<S> {
             has_pending_reads,
             allowed_file_identities,
         })
+    }
+}
+
+fn merge_health_state(current: &mut String, candidate: &str) {
+    if current.is_empty()
+        || (is_usable_state(candidate) && !is_usable_state(current))
+        || (is_usable_state(candidate) == is_usable_state(current)
+            && health_priority(candidate) > health_priority(current))
+    {
+        *current = candidate.to_owned();
+    }
+}
+
+fn is_usable_state(state: &str) -> bool {
+    matches!(state, "detected" | "limited" | "malformed")
+}
+
+fn health_priority(state: &str) -> u8 {
+    match state {
+        "malformed" => 3,
+        "limited" => 2,
+        "detected" => 1,
+        "permission_denied" | "invalid_root" | "unavailable" => 1,
+        _ => 0,
     }
 }
 

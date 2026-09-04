@@ -4,7 +4,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::sources::source_config::SourceConfig;
+use crate::sources::source_config::{SourceConfig, SourcePlatform};
 use crate::types::provider::Provider;
 use crate::utils::safe_paths;
 
@@ -74,38 +74,142 @@ pub fn resolve_configured_root(
     profile_root: &Path,
     config: &SourceConfig,
 ) -> Result<ProviderRoot, RootError> {
-    if let Some(path) = config.root_override() {
-        return resolve_explicit_root(config.provider(), path, config.configured_root_label());
-    }
+    let platform =
+        if config.windows_root_override().is_some() || config.wsl_root_override().is_none() {
+            SourcePlatform::Windows
+        } else {
+            SourcePlatform::Wsl
+        };
+    resolve_configured_root_for(profile_root, config, platform)
+}
 
-    resolve_automatic_root(profile_root, config.provider())
+pub fn resolve_configured_roots(
+    profile_root: &Path,
+    config: &SourceConfig,
+) -> Vec<(String, Result<ProviderRoot, RootError>)> {
+    let provider = config.provider();
+    let windows = match config.windows_root_override() {
+        Some(path) => (
+            path.to_string_lossy().into_owned(),
+            resolve_explicit_root(provider, path, path.to_string_lossy().into_owned()),
+        ),
+        None => (
+            native_root_relative(provider).to_owned(),
+            resolve_automatic_root(profile_root, provider),
+        ),
+    };
+    let mut roots = vec![windows];
+    if let Some(path) = config.wsl_root_override() {
+        let label = path.to_string_lossy().into_owned();
+        roots.push((label.clone(), resolve_explicit_root(provider, path, label)));
+    }
+    roots
 }
 
 pub fn configured_root_path(
     profile_root: &Path,
     config: &SourceConfig,
 ) -> Result<PathBuf, RootError> {
-    if let Some(path) = config.root_override() {
-        return Ok(path.to_path_buf());
-    }
+    let platform =
+        if config.windows_root_override().is_some() || config.wsl_root_override().is_none() {
+            SourcePlatform::Windows
+        } else {
+            SourcePlatform::Wsl
+        };
+    configured_root_path_for(profile_root, config, platform)
+}
 
-    safe_paths::join_under_root(
-        profile_root,
-        Path::new(native_root_relative(config.provider())),
-    )
-    .map_err(map_path_error)
+pub fn configured_root_path_for(
+    profile_root: &Path,
+    config: &SourceConfig,
+    platform: SourcePlatform,
+) -> Result<PathBuf, RootError> {
+    match platform {
+        SourcePlatform::Windows => config
+            .windows_root_override()
+            .map(Path::to_path_buf)
+            .map(Ok)
+            .unwrap_or_else(|| {
+                safe_paths::join_under_root(
+                    profile_root,
+                    Path::new(native_root_relative(config.provider())),
+                )
+                .map_err(map_path_error)
+            }),
+        SourcePlatform::Wsl => config
+            .wsl_root_override()
+            .map(Path::to_path_buf)
+            .ok_or(RootError::NotDetected),
+    }
 }
 
 pub fn watch_root_path(profile_root: &Path, config: &SourceConfig) -> Result<PathBuf, RootError> {
-    if config.root_override().is_some() {
-        return resolve_configured_root(profile_root, config)
-            .map(|root| root.filesystem_path().to_path_buf());
+    let platform =
+        if config.windows_root_override().is_some() || config.wsl_root_override().is_none() {
+            SourcePlatform::Windows
+        } else {
+            SourcePlatform::Wsl
+        };
+    watch_root_path_for(profile_root, config, platform)
+}
+
+pub fn watch_root_paths(profile_root: &Path, config: &SourceConfig) -> Vec<PathBuf> {
+    if !config.enabled() {
+        return Vec::new();
     }
 
-    resolve_existing_relative_root(
-        profile_root,
-        native_provider_root_relative(config.provider()),
-    )
+    let mut paths = Vec::with_capacity(2);
+    if let Ok(path) = watch_root_path_for(profile_root, config, SourcePlatform::Windows) {
+        paths.push(path);
+    }
+    if config.wsl_root_override().is_some() {
+        if let Ok(path) = watch_root_path_for(profile_root, config, SourcePlatform::Wsl) {
+            paths.push(path);
+        }
+    }
+    paths
+}
+
+fn resolve_configured_root_for(
+    profile_root: &Path,
+    config: &SourceConfig,
+    platform: SourcePlatform,
+) -> Result<ProviderRoot, RootError> {
+    match platform {
+        SourcePlatform::Windows => match config.windows_root_override() {
+            Some(path) => {
+                let label = path.to_string_lossy().into_owned();
+                resolve_explicit_root(config.provider(), path, label)
+            }
+            None => resolve_automatic_root(profile_root, config.provider()),
+        },
+        SourcePlatform::Wsl => match config.wsl_root_override() {
+            Some(path) => {
+                let label = path.to_string_lossy().into_owned();
+                resolve_explicit_root(config.provider(), path, label)
+            }
+            None => Err(RootError::NotDetected),
+        },
+    }
+}
+
+fn watch_root_path_for(
+    profile_root: &Path,
+    config: &SourceConfig,
+    platform: SourcePlatform,
+) -> Result<PathBuf, RootError> {
+    match platform {
+        SourcePlatform::Windows if config.windows_root_override().is_some() => {
+            resolve_configured_root_for(profile_root, config, platform)
+                .map(|root| root.filesystem_path().to_path_buf())
+        }
+        SourcePlatform::Windows => resolve_existing_relative_root(
+            profile_root,
+            native_provider_root_relative(config.provider()),
+        ),
+        SourcePlatform::Wsl => resolve_configured_root_for(profile_root, config, platform)
+            .map(|root| root.filesystem_path().to_path_buf()),
+    }
 }
 
 pub fn native_provider_root_relative(provider: Provider) -> &'static str {

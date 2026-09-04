@@ -274,7 +274,7 @@ fn publisher_failure_does_not_turn_committed_collection_into_retry() {
 }
 
 #[test]
-fn failed_storage_attempt_publishes_nothing_and_retries_after_backoff() {
+fn failed_storage_attempt_publishes_a_terminal_state_and_retries_after_backoff() {
     let start = Instant::now();
     let mut live = test_controller(
         ScriptedBackend {
@@ -294,7 +294,8 @@ fn failed_storage_attempt_publishes_nothing_and_retries_after_backoff() {
     live.scheduler.mark_changed(start);
 
     live.process_due(start + Duration::from_millis(200));
-    assert!(live.publisher.summaries.is_empty());
+    assert_eq!(live.publisher.summaries.len(), 1);
+    assert_eq!(live.publisher.summaries[0].state, UsageState::Unavailable);
     assert!(live
         .process_due(start + Duration::from_millis(1_199))
         .is_none());
@@ -303,7 +304,7 @@ fn failed_storage_attempt_publishes_nothing_and_retries_after_backoff() {
         live.process_due(start + Duration::from_millis(1_200)),
         Some(CollectionReason::Retry)
     );
-    assert_eq!(live.publisher.summaries[0].today_tokens, 30);
+    assert_eq!(live.publisher.summaries[1].today_tokens, 30);
     assert_eq!(live.backend.attempts, 2);
 }
 

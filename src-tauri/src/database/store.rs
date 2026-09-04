@@ -58,9 +58,10 @@ impl IndexStore {
     }
 
     pub fn save_source_config(&mut self, config: &SourceConfig) -> Result<(), StorageError> {
-        if config
-            .root_override()
-            .is_some_and(|path| path.to_str().is_none())
+        if [config.windows_root_override(), config.wsl_root_override()]
+            .into_iter()
+            .flatten()
+            .any(|path| path.to_str().is_none())
         {
             return Err(StorageError::InvalidValue);
         }

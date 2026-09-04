@@ -7,8 +7,8 @@ use token_tracing_widget_lib::sources::provider_roots::{
     configured_root_path, native_root_relative, resolve_native_root,
 };
 use token_tracing_widget_lib::sources::session_files::{
-    discover_configured_source, discover_native_sources, discover_provider, DiscoveryLimits,
-    DiscoveryStatus, SessionFileKind,
+    discover_configured_source, discover_configured_sources, discover_native_sources,
+    discover_provider, DiscoveryLimits, DiscoveryStatus, SessionFileKind,
 };
 use token_tracing_widget_lib::sources::source_config::SourceConfig;
 use token_tracing_widget_lib::types::provider::Provider;
@@ -312,6 +312,35 @@ fn explicit_existing_root_is_discovered_with_its_configured_label() {
     assert_eq!(result.status(), DiscoveryStatus::Detected);
     assert_eq!(result.configured_root(), label);
     assert_eq!(result.files().len(), 1);
+}
+
+#[cfg(windows)]
+#[test]
+fn configured_discovery_keeps_windows_and_wsl_results_independent() {
+    let profile = tempfile::tempdir().unwrap();
+    let windows_root = profile.path().join("windows-source");
+    fs::create_dir_all(&windows_root).unwrap();
+    fs::write(windows_root.join("windows.jsonl"), b"metadata only").unwrap();
+    let wsl_root = PathBuf::from(r"\\wsl.localhost\Ubuntu\home\tester\.claude\projects");
+    let config = SourceConfig::try_new_with_roots(
+        Provider::Claude,
+        true,
+        Some(windows_root.clone()),
+        Some(wsl_root.clone()),
+    )
+    .unwrap();
+
+    let results = discover_configured_sources(profile.path(), &config, limits(10, 1_000));
+
+    assert_eq!(results.len(), 2);
+    assert_eq!(results[0].configured_root(), windows_root.to_string_lossy());
+    assert_eq!(results[0].status(), DiscoveryStatus::Detected);
+    assert_eq!(results[0].files().len(), 1);
+    assert_eq!(results[1].configured_root(), wsl_root.to_string_lossy());
+    assert!(matches!(
+        results[1].status(),
+        DiscoveryStatus::NotDetected | DiscoveryStatus::PermissionDenied
+    ));
 }
 
 #[test]

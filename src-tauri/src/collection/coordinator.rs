@@ -16,7 +16,7 @@ pub struct ProviderSource<'a> {
     pub(super) enabled: bool,
     pub(super) configured_root: String,
     pub(super) settings_issue: bool,
-    pub(super) discovery: DiscoveryResult,
+    pub(super) discoveries: Vec<DiscoveryResult>,
     pub(super) adapter: &'a dyn ProviderAdapter,
 }
 
@@ -27,7 +27,7 @@ impl<'a> ProviderSource<'a> {
         adapter: &'a dyn ProviderAdapter,
     ) -> Self {
         let configured_root = discovery.configured_root().to_owned();
-        Self::with_configured_root(enabled, configured_root, false, discovery, adapter)
+        Self::with_discoveries(enabled, configured_root, false, vec![discovery], adapter)
     }
 
     pub fn with_configured_root(
@@ -37,17 +37,36 @@ impl<'a> ProviderSource<'a> {
         discovery: DiscoveryResult,
         adapter: &'a dyn ProviderAdapter,
     ) -> Self {
+        Self::with_discoveries(
+            enabled,
+            configured_root,
+            settings_issue,
+            vec![discovery],
+            adapter,
+        )
+    }
+
+    pub fn with_discoveries(
+        enabled: bool,
+        configured_root: String,
+        settings_issue: bool,
+        discoveries: Vec<DiscoveryResult>,
+        adapter: &'a dyn ProviderAdapter,
+    ) -> Self {
         Self {
             enabled,
             configured_root,
             settings_issue,
-            discovery,
+            discoveries,
             adapter,
         }
     }
 
     pub(super) fn provider(&self) -> Provider {
-        self.discovery.provider()
+        self.discoveries
+            .first()
+            .expect("provider source should have at least one discovery")
+            .provider()
     }
 }
 

@@ -670,6 +670,76 @@ fn source_update_preserves_explicit_configured_root_label() {
     assert_eq!(updates.lock().unwrap()[0].configured_root, label);
 }
 
+#[test]
+fn one_provider_collects_multiple_source_roots_as_one_source() {
+    let profile = tempfile::tempdir().unwrap();
+    let first_root = profile.path().join("first-source");
+    let second_root = profile.path().join("second-source");
+    fs::create_dir_all(&first_root).unwrap();
+    fs::create_dir_all(&second_root).unwrap();
+    fs::write(
+        first_root.join("first.jsonl"),
+        claude_record("event-1", "2026-01-01T10:00:00Z", 20),
+    )
+    .unwrap();
+    fs::write(
+        second_root.join("second.jsonl"),
+        claude_record("event-2", "2026-01-01T10:00:01Z", 7),
+    )
+    .unwrap();
+
+    let first_config = token_tracing_widget_lib::sources::source_config::SourceConfig::try_new(
+        Provider::Claude,
+        true,
+        Some(first_root.clone()),
+    )
+    .unwrap();
+    let second_config = token_tracing_widget_lib::sources::source_config::SourceConfig::try_new(
+        Provider::Claude,
+        true,
+        Some(second_root.clone()),
+    )
+    .unwrap();
+    let limits = token_tracing_widget_lib::sources::session_files::DiscoveryLimits::new(10, 10_000);
+    let first_discovery =
+        token_tracing_widget_lib::sources::session_files::discover_configured_source(
+            profile.path(),
+            &first_config,
+            limits,
+        );
+    let second_discovery =
+        token_tracing_widget_lib::sources::session_files::discover_configured_source(
+            profile.path(),
+            &second_config,
+            limits,
+        );
+    let reader: &'static ClaudeReader = Box::leak(Box::new(ClaudeReader::default()));
+    let mut coordinator = CollectionCoordinator::new(InMemoryStore::default());
+    let source = ProviderSource::with_discoveries(
+        true,
+        format!(
+            "{} + {}",
+            first_root.to_string_lossy(),
+            second_root.to_string_lossy()
+        ),
+        false,
+        vec![first_discovery, second_discovery],
+        reader,
+    );
+
+    let report = coordinator
+        .collect(
+            &[source],
+            &FixedClock::new("2026-01-01T10:00:30Z", "2026-01-01"),
+        )
+        .unwrap();
+
+    assert_eq!(report.accepted_event_count, 2);
+    assert_eq!(report.summary.today_tokens, 27);
+    assert_eq!(report.source_health.len(), 1);
+    assert_eq!(report.source_health[0].state, "detected");
+}
+
 fn claude_record(event_key: &str, timestamp: &str, total: u64) -> String {
     let input_tokens = total / 2;
     format!(
