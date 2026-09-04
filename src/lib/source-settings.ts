@@ -6,6 +6,7 @@ import {
 import {
   parseSourceSettings,
   type SourceSettings,
+  type SourcePlatform,
   type SourceSettingsSnapshot,
 } from "./contracts/source-settings";
 import type { ProviderId } from "./provider";
@@ -14,6 +15,7 @@ export type { ProviderId } from "./provider";
 export {
   parseSourceSettings,
   type SourceSettings,
+  type SourcePlatform,
   type SourceSettingsSnapshot,
 } from "./contracts/source-settings";
 
@@ -28,8 +30,9 @@ export async function getSourceSettings(): Promise<SourceSettingsSnapshot> {
 
 export async function pickSourceRoot(
   provider: ProviderId,
+  platform: SourcePlatform,
 ): Promise<SourceSettingsSnapshot | null> {
-  const value = await invokePickSourceRoot(provider);
+  const value = await invokePickSourceRoot(provider, platform);
   if (value === null) return null;
 
   const settings = parseSourceSettings(value);

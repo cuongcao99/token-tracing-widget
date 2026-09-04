@@ -40,8 +40,8 @@ const widgetSettings: WidgetSettingsSnapshot = {
 
 const sourceSnapshot: SourceSettingsSnapshot = {
   sources: [
-    { provider: "claude", enabled: true, rootOverride: null },
-    { provider: "codex", enabled: true, rootOverride: null },
+    { provider: "claude", enabled: true, windowsRoot: null, wslRoot: null },
+    { provider: "codex", enabled: true, windowsRoot: null, wslRoot: null },
   ],
 };
 
@@ -82,10 +82,10 @@ describe("useSettingsController edge behavior", () => {
   it("does not write settings when the native source picker is cancelled", async () => {
     const { result } = renderHook(() => useSettingsController());
     await act(async () => {
-      await result.current.onSourceRootChoose("codex");
+      await result.current.onSourceRootChoose("codex", "wsl");
     });
 
-    expect(mocks.pickSourceRoot).toHaveBeenCalledWith("codex");
+    expect(mocks.pickSourceRoot).toHaveBeenCalledWith("codex", "wsl");
     expect(mocks.updateWidgetSettings).not.toHaveBeenCalled();
     expect(mocks.updateSourceSettings).not.toHaveBeenCalled();
     expect(mocks.emitPreview).not.toHaveBeenCalled();

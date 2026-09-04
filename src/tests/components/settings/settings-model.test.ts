@@ -11,8 +11,13 @@ import type { WidgetSettingsSnapshot } from "../../../lib/widget-settings";
 
 const sourceSnapshot: SourceSettingsSnapshot = {
   sources: [
-    { provider: "claude", enabled: true, rootOverride: null },
-    { provider: "codex", enabled: false, rootOverride: " C:\\work\\codex " },
+    { provider: "claude", enabled: true, windowsRoot: null, wslRoot: null },
+    {
+      provider: "codex",
+      enabled: false,
+      windowsRoot: " C:\\work\\codex ",
+      wslRoot: null,
+    },
   ],
 };
 
@@ -31,8 +36,13 @@ describe("settings model", () => {
     const visible = visibilityFromSnapshot(widgetSnapshot);
 
     expect(sources).toEqual({
-      claude: { provider: "claude", enabled: true, rootOverride: null },
-      codex: { provider: "codex", enabled: false, rootOverride: " C:\\work\\codex " },
+      claude: { provider: "claude", enabled: true, windowsRoot: null, wslRoot: null },
+      codex: {
+        provider: "codex",
+        enabled: false,
+        windowsRoot: " C:\\work\\codex ",
+        wslRoot: null,
+      },
     });
     expect(visible).toEqual({ claude: false, codex: true });
     expect(sources.claude).not.toBe(sourceSnapshot.sources[0]);
@@ -58,18 +68,25 @@ describe("settings model", () => {
     expect(
       normalizedSourceValues({
         ...sources,
-        claude: { ...sources.claude, rootOverride: "   " },
-        codex: { ...sources.codex, rootOverride: " C:\\custom " },
+        claude: { ...sources.claude, windowsRoot: "   " },
+        codex: { ...sources.codex, windowsRoot: " C:\\custom " },
       }),
     ).toEqual({
-      claude: { provider: "claude", enabled: true, rootOverride: null },
-      codex: { provider: "codex", enabled: false, rootOverride: "C:\\custom" },
+      claude: { provider: "claude", enabled: true, windowsRoot: null, wslRoot: null },
+      codex: {
+        provider: "codex",
+        enabled: false,
+        windowsRoot: "C:\\custom",
+        wslRoot: null,
+      },
     });
   });
 
   it("rejects incomplete snapshots and maps known errors safely", () => {
     expect(() =>
-      sourceValuesFromSnapshot({ sources: [{ provider: "claude", enabled: true, rootOverride: null }] }),
+      sourceValuesFromSnapshot({
+        sources: [{ provider: "claude", enabled: true, windowsRoot: null, wslRoot: null }],
+      }),
     ).toThrowError("invalid_source_settings");
     expect(() =>
       visibilityFromSnapshot({

@@ -12,8 +12,8 @@ const {
   useSettingsController,
 } = vi.hoisted(() => {
   const sources = {
-    claude: { provider: "claude", enabled: true, rootOverride: null },
-    codex: { provider: "codex", enabled: true, rootOverride: null },
+    claude: { provider: "claude", enabled: true, windowsRoot: null, wslRoot: null },
+    codex: { provider: "codex", enabled: true, windowsRoot: null, wslRoot: null },
   } as const;
   const startDragging = vi.fn().mockResolvedValue(undefined);
   const startResizeDragging = vi.fn().mockResolvedValue(undefined);
@@ -28,6 +28,8 @@ const {
     onThemeToggle: vi.fn(),
     onProviderVisibilityToggle: vi.fn(),
     onSourceRootChoose: vi.fn(),
+    onSourceRootChange: vi.fn(),
+    onSourceRootClear: vi.fn(),
     onSourceToggle: vi.fn(),
     sources,
     visible: { claude: true, codex: true },
@@ -96,13 +98,18 @@ describe("SettingsScreen structure", () => {
     expect(main).toHaveClass(surfaceStyles.root);
     expect(main.querySelector(`.${surfaceStyles.body}`)).toBeInTheDocument();
     expect(screen.getByRole("banner")).toBeInTheDocument();
-    expect(screen.getByText("Choose what stays visible.")).toBeInTheDocument();
+    expect(screen.queryByText("Choose what stays visible.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Close settings" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Move settings window" })).toBeInTheDocument();
     expect(screen.getAllByTestId("window-grip-dot")).toHaveLength(6);
     expect(screen.getAllByRole("button", { name: /Resize settings from/ })).toHaveLength(8);
     expect(screen.getByRole("heading", { name: "Visible providers" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Sources" })).toBeInTheDocument();
+    const changeSource = screen.getByRole("button", { name: "Change source" });
+    expect(changeSource).toBeInTheDocument();
+    expect(changeSource.closest(`.${surfaceStyles.card}`)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Change Claude source" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Change Codex source" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Appearance" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Agent tracing" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();

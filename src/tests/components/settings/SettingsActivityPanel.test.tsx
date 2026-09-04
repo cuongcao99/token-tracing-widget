@@ -18,8 +18,8 @@ vi.mock("../../../lib/usage-summary", async () => ({
 }));
 
 const sources: SourceFormValues = {
-  claude: { provider: "claude", enabled: true, rootOverride: null },
-  codex: { provider: "codex", enabled: true, rootOverride: null },
+  claude: { provider: "claude", enabled: true, windowsRoot: null, wslRoot: null },
+  codex: { provider: "codex", enabled: true, windowsRoot: null, wslRoot: null },
 };
 
 function activitySummary(
@@ -63,6 +63,8 @@ function renderPanel() {
       sources={sources}
       onSourceToggle={vi.fn()}
       onSourceRootChoose={vi.fn()}
+      onSourceRootChange={vi.fn()}
+      onSourceRootClear={vi.fn()}
     />,
   );
 }

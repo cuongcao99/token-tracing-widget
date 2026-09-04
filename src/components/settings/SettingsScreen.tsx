@@ -17,6 +17,8 @@ export default function SettingsScreen() {
     onDarkModeToggle,
     onProviderVisibilityToggle,
     onSourceRootChoose,
+    onSourceRootChange,
+    onSourceRootClear,
     onSourceToggle,
     sources,
     theme,
@@ -37,7 +39,6 @@ export default function SettingsScreen() {
           <div className={surfaceStyles.titleRow}>
             <h1 className={surfaceStyles.title}>Settings</h1>
           </div>
-          <p className={surfaceStyles.subtitle}>Choose what stays visible.</p>
         </div>
         <SettingsCloseButton onClick={closeSettings} />
       </header>
@@ -67,6 +68,8 @@ export default function SettingsScreen() {
               sources={sources}
               onSourceToggle={onSourceToggle}
               onSourceRootChoose={onSourceRootChoose}
+              onSourceRootChange={onSourceRootChange}
+              onSourceRootClear={onSourceRootClear}
             />
             <AppearanceSection
               theme={theme}

@@ -61,6 +61,12 @@
   border-top: 1px solid var(--color-line-soft);
 }
 
+.sourceManage {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
 .sourceMain {
   min-height: var(--settings-row-min-height);
 }
@@ -102,11 +108,8 @@
   background: currentColor;
 }
 
-.sourcePath {
+.sourceManageButton {
   display: block;
-  max-width: 100%;
-  min-width: 0;
-  overflow: hidden;
   padding: 0;
   color: var(--color-accent);
   background: transparent;
@@ -116,23 +119,239 @@
   font-size: var(--type-settings-meta);
   font-weight: 400;
   line-height: 1.35;
-  text-align: left;
   text-decoration: underline;
   text-decoration-thickness: 0.06em;
   text-underline-offset: 0.18em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.sourcePath:hover {
+.sourceManageButton:hover {
   color: var(--color-accent-active);
   text-decoration-thickness: 0.1em;
 }
 
-.sourcePath:focus-visible {
+.sourceManageButton:focus-visible {
   outline: var(--focus-width) solid var(--focus-color);
   outline-offset: var(--focus-offset);
   border-radius: var(--settings-path-focus-radius);
+}
+
+.sourceDialogBackdrop {
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(20, 20, 19, 0.34);
+}
+
+.sourceDialog {
+  width: min(100%, 620px);
+  max-height: calc(100% - 48px);
+  overflow-y: auto;
+  padding: 22px;
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-picker);
+}
+
+.sourceDialogHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sourceDialog h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--type-settings-section);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.sourceDialogAccentTitle {
+  color: var(--color-accent);
+}
+
+.sourceDialogClose {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--color-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.sourceDialogClose:hover {
+  color: var(--color-accent);
+  background: var(--color-card);
+}
+
+.sourceDialogClose:focus-visible,
+.sourceDialogPath:focus-visible,
+.sourceDialogBrowse:focus-visible,
+.sourceDialogSecondary:focus-visible {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.sourceDialogHint {
+  margin: 10px 0 16px;
+  color: var(--color-muted);
+  font-size: var(--type-settings-meta);
+  line-height: 1.4;
+}
+
+.sourceDialogProviders {
+  display: grid;
+  gap: 18px;
+}
+
+.sourceDialogProvider + .sourceDialogProvider {
+  padding-top: 18px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.sourceDialogProviderHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.sourceDialogProviderHeading h3 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: var(--type-settings-label);
+  font-weight: 500;
+}
+
+.sourceDialogProviderOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sourceDialogOption {
+  padding: 14px;
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+}
+
+.sourceDialogOptionHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sourceDialogOptionHeading h4 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: var(--type-settings-label);
+  font-weight: 500;
+}
+
+.sourceDialogOptionHeading span {
+  color: var(--color-muted);
+  font-size: var(--type-settings-meta);
+}
+
+.sourceDialogPath {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--color-ink);
+  background: transparent;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  cursor: text;
+  font-family: var(--font-ui);
+  font-size: var(--type-settings-meta);
+  line-height: 1.35;
+  text-align: left;
+}
+
+.sourceDialogPathControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sourceDialogPathConfigured {
+  color: var(--color-ink);
+  font-style: normal;
+}
+
+.sourceDialogPathPlaceholder {
+  color: var(--color-muted);
+  font-style: normal;
+}
+
+.sourceDialogPath::placeholder {
+  color: var(--color-muted);
+  font-style: italic;
+  opacity: 1;
+}
+
+.sourceDialogPath:hover {
+  border-color: var(--color-accent);
+}
+
+.sourceDialogBrowse {
+  display: grid;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  place-items: center;
+  color: var(--color-muted);
+  background: transparent;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.sourceDialogBrowse svg {
+  width: 17px;
+  height: 17px;
+}
+
+.sourceDialogBrowse:hover {
+  color: var(--color-accent-active);
+  border-color: var(--color-accent);
+}
+
+.sourceDialogActions {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 20px;
+  margin-top: 8px;
+}
+
+.sourceDialogSecondary {
+  padding: 2px 0;
+  color: var(--color-muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: var(--type-settings-meta);
+}
+
+.sourceDialogSecondary:hover {
+  color: var(--color-accent-active);
 }
 
 .appearanceRow {
@@ -156,5 +375,11 @@
 
   .sourceHealth {
     display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .sourceDialogProviderOptions {
+    grid-template-columns: 1fr;
   }
 }
