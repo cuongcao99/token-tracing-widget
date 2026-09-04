@@ -30,9 +30,10 @@ working directories.
 
 The overlay runs as one Tauri 2 application with a Rust-owned collector and
 SQLite index, a React/TypeScript webview, and a system tray. It observes Claude
-Code and Codex sources from automatic native roots or approved explicit WSL
-Claude Code roots. The overlay is intentionally compact and non-intrusive so
-it can remain visible while the user works elsewhere.
+Code and Codex sources from automatic Windows roots plus optional explicit WSL
+roots, which may be collected concurrently. The overlay is intentionally
+compact and non-intrusive so it can remain visible while the user works
+elsewhere.
 
 ## Capabilities and Constraints
 
@@ -41,8 +42,10 @@ it can remain visible while the user works elsewhere.
   summaries and settings payloads only.
 - Claude Code and Codex sources can be enabled independently, with independent
   source health and restart-safe totals.
-- Enabled source roots are observed by the native file observer while the app
-  is open; Active expires after 15 seconds without a newer valid token event.
+- Each Provider uses its automatic or custom Windows root and may have one
+  explicitly configured WSL root; all enabled roots are observed by the native
+  file observer while the app is open. Active expires after 15 seconds without
+  a newer valid token event.
 - The runtime uses Tauri commands and events, plain CSS, SQLite, and no network
   client, telemetry, sidecar, background service, frontend state library, CSS
   framework, ORM, or WSL auto-discovery.

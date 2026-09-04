@@ -35,6 +35,14 @@ The dialog states that Windows and WSL can both be active. The dialog itself
 does not expose a radio selection: choosing WSL must not turn off Windows.
 The native Windows folder picker remains the only filesystem-selection UI.
 
+### Design update — editable source roots
+
+The source rows use an editable text input for each root, with a folder icon
+button beside it for the native folder picker. Empty inputs show a
+platform-specific example as a placeholder; configured values use normal
+ink text. Blur or Enter commits typed values through the existing typed Rust
+command, while an empty value clears the optional override.
+
 ## Typed model and persistence
 
 The Rust source configuration becomes:
