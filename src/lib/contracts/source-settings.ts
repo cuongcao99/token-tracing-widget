@@ -4,15 +4,18 @@ import { hasExactKeys, isRecord } from "./validation";
 export interface SourceSettings {
   provider: ProviderId;
   enabled: boolean;
-  rootOverride: string | null;
+  windowsRoot: string | null;
+  wslRoot: string | null;
 }
+
+export type SourcePlatform = "windows" | "wsl";
 
 export interface SourceSettingsSnapshot {
   sources: SourceSettings[];
 }
 
 const snapshotKeys = ["sources"] as const;
-const sourceKeys = ["provider", "enabled", "rootOverride"] as const;
+const sourceKeys = ["provider", "enabled", "windowsRoot", "wslRoot"] as const;
 
 export function parseSourceSettings(
   value: unknown,
@@ -28,7 +31,10 @@ export function parseSourceSettings(
     if (!isRecord(entry) || !hasExactKeys(entry, sourceKeys)) return null;
     if (!isProviderId(entry.provider) || seen.has(entry.provider)) return null;
     if (typeof entry.enabled !== "boolean") return null;
-    if (entry.rootOverride !== null && typeof entry.rootOverride !== "string") {
+    if (entry.windowsRoot !== null && typeof entry.windowsRoot !== "string") {
+      return null;
+    }
+    if (entry.wslRoot !== null && typeof entry.wslRoot !== "string") {
       return null;
     }
 
@@ -36,7 +42,8 @@ export function parseSourceSettings(
     sources.push({
       provider: entry.provider,
       enabled: entry.enabled,
-      rootOverride: entry.rootOverride,
+      windowsRoot: entry.windowsRoot,
+      wslRoot: entry.wslRoot,
     });
   }
 

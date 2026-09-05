@@ -1,10 +1,15 @@
 use std::fs;
 use std::io::Write;
 use std::path::Path;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Barrier,
+};
+use std::time::Duration;
 
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
-use token_tracing_widget_lib::collection::{CollectionBatch, FixedClock};
+use token_tracing_widget_lib::collection::{CollectionBatch, CollectionClock, FixedClock};
 use token_tracing_widget_lib::database::store::IndexStore;
 use token_tracing_widget_lib::sources::session_files::DiscoveryLimits;
 use token_tracing_widget_lib::sources::source_config::SourceConfig;
@@ -700,6 +705,73 @@ fn source_config_update_is_persisted_before_shared_state_changes() {
             .get(Provider::Claude),
         &config
     );
+}
+
+#[test]
+fn settings_read_does_not_wait_for_an_in_progress_collection() {
+    let profile = write_profile(false);
+    let database = tempfile::tempdir().unwrap();
+    let state = AppState::from_paths(
+        profile.path().to_path_buf(),
+        &database.path().join("index.sqlite"),
+        limits(),
+    )
+    .unwrap();
+    let entered = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    let clock = BlockingClock {
+        entered: entered.clone(),
+        release: release.clone(),
+        blocked: AtomicBool::new(false),
+    };
+    let collecting_state = state.clone();
+    let collection = std::thread::spawn(move || {
+        collecting_state
+            .collect_once(&clock)
+            .expect("collection should finish after the read probe");
+    });
+
+    entered.wait();
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let readable_state = state.clone();
+    let read = std::thread::spawn(move || {
+        sender
+            .send((
+                readable_state.source_config(Provider::Claude),
+                readable_state.widget_settings(),
+            ))
+            .expect("settings read result should be sent");
+    });
+
+    assert!(
+        receiver
+            .recv_timeout(Duration::from_millis(100))
+            .is_ok_and(|(source, widget)| source.is_ok() && widget.is_ok()),
+        "settings read should not wait for collection"
+    );
+    release.wait();
+    read.join().unwrap();
+    collection.join().unwrap();
+}
+
+struct BlockingClock {
+    entered: Arc<Barrier>,
+    release: Arc<Barrier>,
+    blocked: AtomicBool,
+}
+
+impl CollectionClock for BlockingClock {
+    fn now(&self) -> &str {
+        if !self.blocked.swap(true, Ordering::AcqRel) {
+            self.entered.wait();
+            self.release.wait();
+        }
+        "2026-01-01T00:00:30Z"
+    }
+
+    fn local_day(&self) -> &str {
+        "2026-01-01"
+    }
 }
 
 #[test]

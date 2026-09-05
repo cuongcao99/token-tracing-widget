@@ -63,7 +63,8 @@ export function normalizedSourceValues(values: SourceFormValues): SourceFormValu
   for (const provider of providerOrder) {
     normalized[provider] = {
       ...values[provider],
-      rootOverride: values[provider].rootOverride?.trim() || null,
+      windowsRoot: values[provider].windowsRoot?.trim() || null,
+      wslRoot: values[provider].wslRoot?.trim() || null,
     };
   }
   return normalized;

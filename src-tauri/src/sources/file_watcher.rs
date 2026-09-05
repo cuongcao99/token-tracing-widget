@@ -38,7 +38,7 @@ pub(crate) enum WatchSignal {
 pub(crate) struct SourceObserver {
     sender: Sender<WatchSignal>,
     #[cfg(windows)]
-    workers: BTreeMap<Provider, ProviderWorker>,
+    workers: BTreeMap<Provider, Vec<ProviderWorker>>,
 }
 
 #[cfg(windows)]
@@ -60,7 +60,6 @@ impl SourceObserver {
         #[cfg(windows)]
         {
             let provider = root.provider();
-            self.stop_provider(provider);
             let Some(stop_signal) = win32::StopSignal::new() else {
                 self.send(WatchSignal::WatchUnavailable(provider));
                 return;
@@ -71,13 +70,13 @@ impl SourceObserver {
                 .name(format!("source-observer-{}", provider.as_str()))
                 .spawn(move || win32::watch_root(root, sender, worker_stop_signal))
                 .expect("source observer worker should start");
-            self.workers.insert(
-                provider,
-                ProviderWorker {
+            self.workers
+                .entry(provider)
+                .or_default()
+                .push(ProviderWorker {
                     stop_signal,
                     worker,
-                },
-            );
+                });
         }
         #[cfg(not(windows))]
         let _ = root;
@@ -86,9 +85,11 @@ impl SourceObserver {
     pub(crate) fn stop_provider(&mut self, provider: Provider) {
         #[cfg(windows)]
         {
-            if let Some(worker) = self.workers.remove(&provider) {
-                worker.stop_signal.request();
-                let _ = worker.worker.join();
+            if let Some(workers) = self.workers.remove(&provider) {
+                for worker in workers {
+                    worker.stop_signal.request();
+                    let _ = worker.worker.join();
+                }
             }
         }
         #[cfg(not(windows))]
@@ -553,6 +554,59 @@ mod tests {
             }
         }
         assert!(saw_claude);
+        watcher.shutdown();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn one_provider_can_watch_two_roots_concurrently() {
+        let first_root = tempfile::tempdir().expect("first watch root should be created");
+        let second_root = tempfile::tempdir().expect("second watch root should be created");
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut watcher = SourceObserver::new(sender);
+        watcher.start_provider(WatchRoot::new(
+            Provider::Claude,
+            first_root.path().to_path_buf(),
+        ));
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::fs::write(
+            first_root.path().join("before-second.jsonl"),
+            b"metadata-only\n",
+        )
+        .expect("first session file should be written");
+        assert_eq!(
+            receiver
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .expect("first watcher should report the change"),
+            WatchSignal::Changed(Provider::Claude)
+        );
+
+        watcher.start_provider(WatchRoot::new(
+            Provider::Claude,
+            second_root.path().to_path_buf(),
+        ));
+        std::thread::sleep(std::time::Duration::from_millis(50));
+
+        std::fs::write(second_root.path().join("second.jsonl"), b"metadata-only\n")
+            .expect("second session file should be written");
+        assert_eq!(
+            receiver
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .expect("second watcher should report the change"),
+            WatchSignal::Changed(Provider::Claude)
+        );
+
+        std::fs::write(
+            first_root.path().join("after-second.jsonl"),
+            b"metadata-only\n",
+        )
+        .expect("first watcher should remain active");
+        assert_eq!(
+            receiver
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .expect("both provider roots should remain watched"),
+            WatchSignal::Changed(Provider::Claude)
+        );
         watcher.shutdown();
     }
 }

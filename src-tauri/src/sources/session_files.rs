@@ -6,7 +6,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use sha2::{Digest, Sha256};
 
-use crate::sources::provider_roots::{resolve_configured_root, ProviderRoot, RootError};
+use crate::sources::provider_roots::{
+    native_root_relative, resolve_configured_root, resolve_configured_roots, ProviderRoot,
+    RootError,
+};
 use crate::sources::source_config::{SourceConfig, SourceConfigSet};
 use crate::types::provider::Provider;
 use crate::utils::safe_paths;
@@ -157,6 +160,50 @@ pub fn discover_configured_source(
     };
 
     walk_root(&root, limits)
+}
+
+pub fn discover_configured_sources(
+    profile_root: &Path,
+    config: &SourceConfig,
+    limits: DiscoveryLimits,
+) -> Vec<DiscoveryResult> {
+    let provider = config.provider();
+    if !config.enabled() {
+        let mut results = vec![empty_result(
+            provider,
+            config
+                .windows_root_override()
+                .map(|path| path.to_string_lossy().into_owned())
+                .unwrap_or_else(|| native_root_relative(provider).to_owned()),
+            DiscoveryStatus::Disabled,
+        )];
+        if let Some(path) = config.wsl_root_override() {
+            results.push(empty_result(
+                provider,
+                path.to_string_lossy().into_owned(),
+                DiscoveryStatus::Disabled,
+            ));
+        }
+        return results;
+    }
+
+    let mut remaining_files = limits.max_files;
+    let mut remaining_bytes = limits.max_total_bytes;
+    resolve_configured_roots(profile_root, config)
+        .into_iter()
+        .map(|(configured_root, root)| {
+            let result = match root {
+                Ok(root) => walk_root(
+                    &root,
+                    DiscoveryLimits::new(remaining_files, remaining_bytes),
+                ),
+                Err(error) => empty_result(provider, configured_root, status_for_root_error(error)),
+            };
+            remaining_files = remaining_files.saturating_sub(result.files.len());
+            remaining_bytes = remaining_bytes.saturating_sub(result.total_bytes);
+            result
+        })
+        .collect()
 }
 
 fn empty_result(

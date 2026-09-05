@@ -5,6 +5,7 @@ import type { UsageSummary } from "../../../lib/usage-summary";
 import type { SourceSettingsSnapshot } from "../../../lib/source-settings";
 import type { WidgetSettingsSnapshot } from "../../../lib/widget-settings";
 import type { WidgetSettingsPreview } from "../../../lib/widget-settings-preview";
+import formStyles from "../../../styles/settings/forms.module.css";
 
 const mocks = vi.hoisted(() => {
   const startDragging = vi.fn().mockResolvedValue(undefined);
@@ -43,8 +44,8 @@ vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: mocks.getCurrentWin
 
 const sourceSnapshot: SourceSettingsSnapshot = {
   sources: [
-    { provider: "claude", enabled: true, rootOverride: null },
-    { provider: "codex", enabled: true, rootOverride: null },
+    { provider: "claude", enabled: true, windowsRoot: null, wslRoot: null },
+    { provider: "codex", enabled: true, windowsRoot: null, wslRoot: null },
   ],
 };
 const widgetSettings: WidgetSettingsSnapshot = {
@@ -164,30 +165,104 @@ describe("SettingsScreen behavior", () => {
     await waitFor(() => expect(mocks.updateSourceSettings).toHaveBeenCalledWith({
       provider: "codex",
       enabled: false,
-      rootOverride: null,
+      windowsRoot: null,
+      wslRoot: null,
     }));
     expect(mocks.updateWidgetSettings).toHaveBeenCalledTimes(2);
   });
 
-  it("updates the selected root from the native picker without a text input", async () => {
+  it("opens one shared source chooser for both providers", async () => {
     mocks.pickSourceRoot.mockResolvedValueOnce({
       sources: [
-        { provider: "claude", enabled: true, rootOverride: null },
-        { provider: "codex", enabled: true, rootOverride: "C:\\work\\codex" },
+        { provider: "claude", enabled: true, windowsRoot: null, wslRoot: null },
+        {
+          provider: "codex",
+          enabled: true,
+          windowsRoot: null,
+          wslRoot: "\\\\wsl.localhost\\Ubuntu\\home\\tester\\.codex",
+        },
       ],
     });
     render(<SettingsScreen />);
     await screen.findByRole("heading", { name: "Settings" });
-    expect(screen.getByRole("button", {
-      name: "Choose Claude source folder: ~/.claude",
-    })).toHaveTextContent("~/.claude");
-    fireEvent.click(screen.getByRole("button", { name: "Choose Codex source folder: ~/.codex" }));
+    expect(screen.getAllByRole("button", { name: "Change source" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Change Claude source" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Change Codex source" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Change source" }));
 
-    await waitFor(() => expect(screen.getByRole("button", {
-      name: "Choose Codex source folder: C:\\work\\codex",
-    })).toBeInTheDocument());
-    expect(mocks.pickSourceRoot).toHaveBeenCalledWith("codex");
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Change source" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Change source" })).toHaveClass(
+      formStyles.sourceDialogAccentTitle,
+    );
+    expect(screen.queryByText("Source locations")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Claude" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Codex" })).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "Windows" })).toHaveLength(2);
+    expect(screen.getAllByRole("heading", { name: "WSL" })).toHaveLength(2);
+    const wslInput = screen.getByRole("textbox", { name: "Edit Codex WSL source folder" });
+    expect(wslInput).toHaveAttribute(
+      "placeholder",
+      String.raw`\\wsl.localhost\<distribution>\home\<user>\.codex`,
+    );
+    const browseButton = screen.getByRole("button", { name: "Browse Codex WSL source folder" });
+    expect(browseButton).toHaveAttribute("title", "Browse path");
+    fireEvent.mouseDown(browseButton);
+    fireEvent.mouseUp(browseButton);
+    fireEvent.click(browseButton);
+
+    await waitFor(() => expect(wslInput).toHaveValue(
+      "\\\\wsl.localhost\\Ubuntu\\home\\tester\\.codex",
+    ));
+    expect(mocks.pickSourceRoot).toHaveBeenCalledWith("codex", "wsl");
+  });
+
+  it("saves a manually entered source root when its input loses focus", async () => {
+    render(<SettingsScreen />);
+    await screen.findByRole("heading", { name: "Settings" });
+    fireEvent.click(screen.getByRole("button", { name: "Change source" }));
+
+    const wslInput = screen.getByRole("textbox", { name: "Edit Codex WSL source folder" });
+    const manualRoot = "\\\\wsl.localhost\\Ubuntu\\home\\tester\\.codex";
+    fireEvent.change(wslInput, { target: { value: manualRoot } });
+    fireEvent.blur(wslInput);
+
+    await waitFor(() => expect(mocks.updateSourceSettings).toHaveBeenCalledWith({
+      provider: "codex",
+      enabled: true,
+      windowsRoot: null,
+      wslRoot: manualRoot,
+    }));
+  });
+
+  it("removes only the configured WSL root", async () => {
+    const configured: SourceSettingsSnapshot = {
+      sources: [
+        { provider: "claude", enabled: true, windowsRoot: null, wslRoot: null },
+        {
+          provider: "codex",
+          enabled: true,
+          windowsRoot: "C:\\work\\codex",
+          wslRoot: "\\\\wsl.localhost\\Ubuntu\\home\\tester\\.codex",
+        },
+      ],
+    };
+    mocks.getSourceSettings.mockResolvedValueOnce(configured);
+    render(<SettingsScreen />);
+    await screen.findByRole("heading", { name: "Settings" });
+    fireEvent.click(screen.getByRole("button", { name: "Change source" }));
+    expect(screen.getByRole("textbox", { name: "Edit Codex WSL source folder" })).toHaveClass(
+      formStyles.sourceDialogPathConfigured,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Remove WSL source" }));
+
+    await waitFor(() => expect(mocks.updateSourceSettings).toHaveBeenCalledWith({
+      provider: "codex",
+      enabled: true,
+      windowsRoot: "C:\\work\\codex",
+      wslRoot: null,
+    }));
+    expect(screen.getAllByRole("heading", { name: "Windows" })).toHaveLength(2);
+    expect(screen.queryByText("Windows + WSL")).not.toBeInTheDocument();
   });
 
   it("does not replace the preview while closing after an auto-saved edit", async () => {

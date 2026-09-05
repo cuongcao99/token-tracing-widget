@@ -29,7 +29,8 @@ const widgetSnapshot: WidgetSettingsSnapshot = {
 const sourceSettings: SourceSettings = {
   provider: "codex",
   enabled: false,
-  rootOverride: null,
+  windowsRoot: null,
+  wslRoot: null,
 };
 const preview: WidgetSettingsPreview = {
   darkMode: false,

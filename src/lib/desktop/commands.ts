@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { ProviderId } from "../provider";
-import type { SourceSettings } from "../contracts/source-settings";
+import type { SourcePlatform, SourceSettings } from "../contracts/source-settings";
 import type { WidgetSettingsSnapshot } from "../contracts/widget-settings";
 
 export const GET_USAGE_SUMMARY_COMMAND = "get_usage_summary";
@@ -30,8 +30,9 @@ export function invokeSourceSettings(): Promise<unknown> {
 
 export function invokePickSourceRoot(
   provider: ProviderId,
+  platform: SourcePlatform,
 ): Promise<unknown> {
-  return invoke<unknown>(PICK_SOURCE_ROOT_COMMAND, { provider });
+  return invoke<unknown>(PICK_SOURCE_ROOT_COMMAND, { provider, platform });
 }
 
 export function invokeUpdateSourceSettings(

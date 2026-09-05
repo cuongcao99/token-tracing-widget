@@ -8,7 +8,9 @@ use tauri::State;
 use crate::app::folder_picker::pick_folder;
 use crate::app::live_collection::{update_source_config_and_refresh, LiveCollectionHandle};
 use crate::app::runtime::{AppState, RuntimeError};
-use crate::sources::source_config::{parse_explicit_root, SourceConfig};
+use crate::sources::source_config::{
+    parse_windows_root, parse_wsl_root, SourceConfig, SourcePlatform,
+};
 use crate::types::provider::Provider;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
@@ -16,20 +18,15 @@ use crate::types::provider::Provider;
 pub struct SourceSettingsInput {
     pub provider: Provider,
     pub enabled: bool,
-    pub root_override: Option<String>,
+    pub windows_root: Option<String>,
+    pub wsl_root: Option<String>,
 }
 
 impl SourceSettingsInput {
     pub(crate) fn into_config(self) -> Result<SourceConfig, String> {
-        let root_override = self
-            .root_override
-            .filter(|root| !root.trim().is_empty())
-            .map(|root| {
-                parse_explicit_root(root.trim()).map_err(|error| format!("invalid_root:{error}"))
-            })
-            .transpose()?;
-
-        SourceConfig::try_new(self.provider, self.enabled, root_override)
+        let windows_root = parse_optional_root(self.windows_root, parse_windows_root)?;
+        let wsl_root = parse_optional_root(self.wsl_root, parse_wsl_root)?;
+        SourceConfig::try_new_with_roots(self.provider, self.enabled, windows_root, wsl_root)
             .map_err(|error| format!("invalid_root:{error}"))
     }
 }
@@ -39,7 +36,8 @@ impl SourceSettingsInput {
 pub struct SourceSettingsView {
     pub provider: Provider,
     pub enabled: bool,
-    pub root_override: Option<String>,
+    pub windows_root: Option<String>,
+    pub wsl_root: Option<String>,
 }
 
 impl From<SourceConfig> for SourceSettingsView {
@@ -47,8 +45,11 @@ impl From<SourceConfig> for SourceSettingsView {
         Self {
             provider: config.provider(),
             enabled: config.enabled(),
-            root_override: config
-                .root_override()
+            windows_root: config
+                .windows_root_override()
+                .map(|path| path.to_string_lossy().into_owned()),
+            wsl_root: config
+                .wsl_root_override()
                 .map(|path| path.to_string_lossy().into_owned()),
         }
     }
@@ -92,40 +93,67 @@ pub(crate) fn get_source_settings(
 }
 
 #[tauri::command]
-pub(crate) fn update_source_settings(
+pub(crate) async fn update_source_settings(
     state: State<'_, AppState>,
     live_handle: State<'_, LiveCollectionHandle>,
     settings: SourceSettingsInput,
 ) -> Result<SourceSettingsSnapshot, String> {
     let config = settings.into_config()?;
-    update_source_config_and_refresh(state.inner(), live_handle.inner(), config)
+    let app_state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || app_state.update_source_config(config))
+        .await
+        .map_err(|_| "settings_write".to_owned())?
         .map_err(sanitize_runtime_error)?;
+    let _ = live_handle.request_source_refresh();
     source_settings_snapshot(state.inner())
 }
 
 #[tauri::command]
-pub(crate) fn pick_source_root(
+pub(crate) async fn pick_source_root(
     state: State<'_, AppState>,
     live_handle: State<'_, LiveCollectionHandle>,
     provider: Provider,
+    platform: SourcePlatform,
 ) -> Result<Option<SourceSettingsSnapshot>, String> {
     let existing_config = state
         .source_config(provider)
         .map_err(sanitize_runtime_error)?;
     let initial_path: Option<PathBuf> = state
-        .source_root_path(provider)
+        .source_root_path_for(provider, platform)
         .ok()
         .filter(|path| path.is_dir());
-    let title = format!("Choose {} source folder", provider.display_name());
-    let Some(selected_path) = pick_folder(&title, initial_path.as_deref())? else {
+    let title = format!(
+        "Choose {} {} source folder",
+        provider.display_name(),
+        match platform {
+            SourcePlatform::Windows => "Windows",
+            SourcePlatform::Wsl => "WSL",
+        }
+    );
+    let selected_path =
+        tauri::async_runtime::spawn_blocking(move || pick_folder(&title, initial_path.as_deref()))
+            .await
+            .map_err(|_| "source_root_open".to_owned())??;
+    let Some(selected_path) = selected_path else {
         return Ok(None);
     };
 
-    let config = SourceConfig::try_new(provider, existing_config.enabled(), Some(selected_path))
+    let config = existing_config
+        .with_root_override(platform, Some(selected_path))
         .map_err(|_| "source_root_invalid".to_owned())?;
     update_source_config_and_refresh(state.inner(), live_handle.inner(), config)
         .map_err(sanitize_runtime_error)?;
     source_settings_snapshot(state.inner()).map(Some)
+}
+
+fn parse_optional_root(
+    value: Option<String>,
+    parser: fn(&str) -> Result<PathBuf, crate::sources::source_config::SourceConfigError>,
+) -> Result<Option<PathBuf>, String> {
+    value
+        .filter(|root| !root.trim().is_empty())
+        .map(|root| parser(root.trim()).map_err(|error| format!("invalid_root:{error}")))
+        .transpose()
 }
 
 #[cfg(test)]
@@ -139,9 +167,8 @@ mod tests {
             sources: vec![SourceSettingsView {
                 provider: Provider::Claude,
                 enabled: true,
-                root_override: Some(
-                    r"\\wsl.localhost\Ubuntu\home\user\.claude\projects".to_owned(),
-                ),
+                windows_root: Some(r"C:\Users\user\.claude\projects".to_owned()),
+                wsl_root: Some(r"\\wsl.localhost\Ubuntu\home\user\.claude\projects".to_owned()),
             }],
         };
         let object = serde_json::to_value(snapshot)
@@ -157,7 +184,7 @@ mod tests {
         let source = object["sources"][0].as_object().unwrap();
         assert_eq!(
             source.keys().map(String::as_str).collect::<Vec<_>>(),
-            ["enabled", "provider", "rootOverride"]
+            ["enabled", "provider", "windowsRoot", "wslRoot"]
         );
         assert!(!serde_json::to_string(&object)
             .unwrap()
@@ -172,7 +199,8 @@ mod tests {
         let value = serde_json::json!({
             "provider": "claude",
             "enabled": true,
-            "rootOverride": null,
+            "windowsRoot": null,
+            "wslRoot": null,
             "prompt": "private text"
         });
 
@@ -184,11 +212,28 @@ mod tests {
         let input = SourceSettingsInput {
             provider: Provider::Codex,
             enabled: true,
-            root_override: Some("  ".to_owned()),
+            windows_root: Some("  ".to_owned()),
+            wsl_root: None,
         };
 
         let config = input.into_config().expect("blank should mean automatic");
-        assert!(config.root_override().is_none());
+        assert!(config.windows_root_override().is_none());
+        assert!(config.wsl_root_override().is_none());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn input_keeps_windows_and_wsl_roots_in_separate_slots() {
+        let input = SourceSettingsInput {
+            provider: Provider::Claude,
+            enabled: true,
+            windows_root: Some(r"C:\Users\user\.claude\projects".to_owned()),
+            wsl_root: Some(r"\\wsl.localhost\Ubuntu\home\user\.claude\projects".to_owned()),
+        };
+
+        let config = input.into_config().expect("both roots should be accepted");
+        assert!(config.windows_root_override().is_some());
+        assert!(config.wsl_root_override().is_some());
     }
 
     #[test]
@@ -197,7 +242,8 @@ mod tests {
         let input = SourceSettingsInput {
             provider: Provider::Claude,
             enabled: true,
-            root_override: Some(submitted.to_owned()),
+            windows_root: Some(submitted.to_owned()),
+            wsl_root: None,
         };
 
         let error = input.into_config().unwrap_err();

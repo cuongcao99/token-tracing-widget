@@ -83,8 +83,8 @@ const widgetSettings = {
 
 const sourceSnapshot = {
   sources: [
-    { provider: "claude" as const, enabled: true, rootOverride: null },
-    { provider: "codex" as const, enabled: false, rootOverride: null },
+    { provider: "claude" as const, enabled: true, windowsRoot: null, wslRoot: null },
+    { provider: "codex" as const, enabled: false, windowsRoot: null, wslRoot: null },
   ],
 };
 
@@ -121,7 +121,7 @@ describe("desktop compatibility boundary", () => {
     await getWidgetSettings();
     await updateWidgetSettings(widgetSettings);
     await getSourceSettings();
-    await pickSourceRoot("codex");
+    await pickSourceRoot("codex", "windows");
     await updateSourceSettings(sourceSnapshot.sources[0]);
 
     expect(invoke).toHaveBeenNthCalledWith(1, "get_usage_summary");
@@ -132,6 +132,7 @@ describe("desktop compatibility boundary", () => {
     expect(invoke).toHaveBeenNthCalledWith(4, "get_source_settings");
     expect(invoke).toHaveBeenNthCalledWith(5, "pick_source_root", {
       provider: "codex",
+      platform: "windows",
     });
     expect(invoke).toHaveBeenNthCalledWith(6, "update_source_settings", {
       settings: sourceSnapshot.sources[0],
@@ -212,7 +213,12 @@ describe("desktop compatibility boundary", () => {
     expect(
       parseSourceSettings({
         sources: [
-          { provider: "claude", enabled: true, rootOverride: { path: "private" } },
+          {
+            provider: "claude",
+            enabled: true,
+            windowsRoot: { path: "private" },
+            wslRoot: null,
+          },
           sourceSnapshot.sources[1],
         ],
       }),

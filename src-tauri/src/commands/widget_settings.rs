@@ -84,14 +84,16 @@ pub(crate) fn get_widget_settings(
 }
 
 #[tauri::command]
-pub(crate) fn update_widget_settings(
+pub(crate) async fn update_widget_settings(
     state: State<'_, AppState>,
     app: AppHandle,
     settings: WidgetSettingsInput,
 ) -> Result<WidgetSettingsSnapshot, String> {
     let snapshot = settings.into_snapshot()?;
-    state
-        .update_widget_settings(snapshot)
+    let app_state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || app_state.update_widget_settings(snapshot))
+        .await
+        .map_err(|_| "widget_settings_write".to_owned())?
         .map_err(sanitize_runtime_error)?;
     let snapshot = widget_settings_snapshot(state.inner())?;
     app.emit(WIDGET_SETTINGS_CHANGED_EVENT, &snapshot)

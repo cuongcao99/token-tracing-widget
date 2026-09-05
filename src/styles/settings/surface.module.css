@@ -89,13 +89,6 @@
   line-height: 1.05;
 }
 
-.subtitle {
-  margin: var(--settings-subtitle-margin-top) 0 0;
-  color: var(--color-muted);
-  font-size: var(--type-settings-meta);
-  line-height: 1.35;
-}
-
 .closeButton {
   display: grid;
   flex: 0 0 auto;

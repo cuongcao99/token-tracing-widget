@@ -13,9 +13,11 @@ use crate::collection::{
 use crate::database::store::{IndexStore, StorageError};
 use crate::providers::registry::provider_registry;
 use crate::sources::file_watcher::WatchRoot;
-use crate::sources::provider_roots::{configured_root_path, watch_root_path};
-use crate::sources::session_files::{discover_configured_source, DiscoveryLimits};
-use crate::sources::source_config::{SourceConfig, SourceConfigSet};
+use crate::sources::provider_roots::{
+    configured_root_path, configured_root_path_for, watch_root_paths,
+};
+use crate::sources::session_files::{discover_configured_sources, DiscoveryLimits};
+use crate::sources::source_config::{SourceConfig, SourceConfigSet, SourcePlatform};
 use crate::types::provider::Provider;
 use crate::types::usage_summary::UsageSummary;
 use crate::types::widget_settings::WidgetSettingsSnapshot;
@@ -27,13 +29,14 @@ struct Runtime {
     profile_root: PathBuf,
     discovery_limits: DiscoveryLimits,
     invalid_settings: Vec<Provider>,
-    widget_settings: WidgetSettingsSnapshot,
 }
 
 #[derive(Clone)]
 pub struct AppState {
     runtime: Arc<Mutex<Option<Runtime>>>,
+    profile_root: Option<PathBuf>,
     source_configs: Arc<Mutex<SourceConfigSet>>,
+    widget_settings: Arc<Mutex<Option<WidgetSettingsSnapshot>>>,
     base_summary: Arc<Mutex<UsageSummary>>,
     fallback_summary: UsageSummary,
 }
@@ -99,13 +102,18 @@ impl Runtime {
             .map(|registration| {
                 let provider = registration.provider();
                 let config = source_configs.get(provider);
-                let discovery =
-                    discover_configured_source(&self.profile_root, config, self.discovery_limits);
-                ProviderSource::with_configured_root(
+                let discoveries =
+                    discover_configured_sources(&self.profile_root, config, self.discovery_limits);
+                let configured_root = discoveries
+                    .iter()
+                    .map(|discovery| discovery.configured_root())
+                    .collect::<Vec<_>>()
+                    .join(" + ");
+                ProviderSource::with_discoveries(
                     config.enabled(),
-                    config.configured_root_label(),
+                    configured_root,
                     self.invalid_settings.contains(&provider),
-                    discovery,
+                    discoveries,
                     registration.adapter(),
                 )
             })
@@ -113,21 +121,6 @@ impl Runtime {
         let report = self.coordinator.collect(&sources, clock)?;
         self.invalid_settings.clear();
         Ok(report)
-    }
-
-    fn watch_roots(&self, source_configs: &SourceConfigSet) -> Vec<WatchRoot> {
-        provider_registry()
-            .providers()
-            .filter_map(|provider| {
-                let config = source_configs.get(provider);
-                if !config.enabled() {
-                    return None;
-                }
-                watch_root_path(&self.profile_root, config)
-                    .ok()
-                    .map(|path| WatchRoot::new(provider, path))
-            })
-            .collect()
     }
 
     fn update_source_config(&mut self, config: SourceConfig) -> Result<(), RuntimeError> {
@@ -147,9 +140,7 @@ impl Runtime {
         self.coordinator
             .store_mut()
             .save_widget_settings(&settings)
-            .map_err(RuntimeError::Settings)?;
-        self.widget_settings = settings;
-        Ok(())
+            .map_err(RuntimeError::Settings)
     }
 }
 
@@ -179,12 +170,13 @@ impl AppState {
         Ok(Self {
             runtime: Arc::new(Mutex::new(Some(Runtime {
                 coordinator: CollectionCoordinator::new(store),
-                profile_root,
+                profile_root: profile_root.clone(),
                 discovery_limits,
                 invalid_settings: loaded.invalid_providers,
-                widget_settings,
             }))),
+            profile_root: Some(profile_root),
             source_configs: Arc::new(Mutex::new(loaded.configs)),
+            widget_settings: Arc::new(Mutex::new(Some(widget_settings))),
             base_summary: Arc::new(Mutex::new(UsageSummary::loading())),
             fallback_summary: UsageSummary::unavailable(),
         })
@@ -193,7 +185,9 @@ impl AppState {
     pub fn unavailable() -> Self {
         Self {
             runtime: Arc::new(Mutex::new(None)),
+            profile_root: None,
             source_configs: Arc::new(Mutex::new(SourceConfigSet::defaults())),
+            widget_settings: Arc::new(Mutex::new(None)),
             base_summary: Arc::new(Mutex::new(UsageSummary::unavailable())),
             fallback_summary: UsageSummary::unavailable(),
         }
@@ -234,16 +228,13 @@ impl AppState {
     }
 
     pub fn source_config(&self, provider: Provider) -> Result<SourceConfig, RuntimeError> {
+        if self.profile_root.is_none() {
+            return Err(RuntimeError::Unavailable);
+        }
         self.source_configs
             .lock()
             .map_err(|_| RuntimeError::StatePoisoned)
-            .and_then(|configs| {
-                if self.runtime_is_available() {
-                    Ok(configs.get(provider).clone())
-                } else {
-                    Err(RuntimeError::Unavailable)
-                }
-            })
+            .map(|configs| configs.get(provider).clone())
     }
 
     pub fn source_root_path(&self, provider: Provider) -> Result<PathBuf, RuntimeError> {
@@ -252,12 +243,29 @@ impl AppState {
             .lock()
             .map_err(|_| RuntimeError::StatePoisoned)?
             .clone();
-        let runtime = self
-            .runtime
+        let profile_root = self
+            .profile_root
+            .as_ref()
+            .ok_or(RuntimeError::Unavailable)?;
+        configured_root_path(profile_root, source_configs.get(provider))
+            .map_err(|_| RuntimeError::Unavailable)
+    }
+
+    pub fn source_root_path_for(
+        &self,
+        provider: Provider,
+        platform: SourcePlatform,
+    ) -> Result<PathBuf, RuntimeError> {
+        let source_configs = self
+            .source_configs
             .lock()
-            .map_err(|_| RuntimeError::StatePoisoned)?;
-        let runtime = runtime.as_ref().ok_or(RuntimeError::Unavailable)?;
-        configured_root_path(&runtime.profile_root, source_configs.get(provider))
+            .map_err(|_| RuntimeError::StatePoisoned)?
+            .clone();
+        let profile_root = self
+            .profile_root
+            .as_ref()
+            .ok_or(RuntimeError::Unavailable)?;
+        configured_root_path_for(profile_root, source_configs.get(provider), platform)
             .map_err(|_| RuntimeError::Unavailable)
     }
 
@@ -279,13 +287,10 @@ impl AppState {
     }
 
     pub fn widget_settings(&self) -> Result<WidgetSettingsSnapshot, RuntimeError> {
-        let runtime = self
-            .runtime
+        self.widget_settings
             .lock()
-            .map_err(|_| RuntimeError::StatePoisoned)?;
-        runtime
-            .as_ref()
-            .map(|runtime| runtime.widget_settings.clone())
+            .map_err(|_| RuntimeError::StatePoisoned)?
+            .clone()
             .ok_or(RuntimeError::Unavailable)
     }
 
@@ -300,20 +305,30 @@ impl AppState {
         runtime
             .as_mut()
             .ok_or(RuntimeError::Unavailable)?
-            .update_widget_settings(settings)
+            .update_widget_settings(settings.clone())?;
+        self.widget_settings
+            .lock()
+            .map_err(|_| RuntimeError::StatePoisoned)?
+            .replace(settings);
+        Ok(())
     }
 
     pub(crate) fn watch_roots(&self) -> Vec<WatchRoot> {
+        let Some(profile_root) = self.profile_root.as_ref() else {
+            return Vec::new();
+        };
         let Ok(source_configs) = self.source_configs.lock() else {
             return Vec::new();
         };
-        let Ok(runtime) = self.runtime.lock() else {
-            return Vec::new();
-        };
-        runtime
-            .as_ref()
-            .map(|runtime| runtime.watch_roots(&source_configs))
-            .unwrap_or_default()
+        provider_registry()
+            .providers()
+            .flat_map(|provider| {
+                let config = source_configs.get(provider);
+                watch_root_paths(profile_root, config)
+                    .into_iter()
+                    .map(move |path| WatchRoot::new(provider, path))
+            })
+            .collect()
     }
 
     pub fn summary(&self) -> UsageSummary {
@@ -321,13 +336,6 @@ impl AppState {
             return self.fallback_summary.clone();
         };
         base_summary.clone()
-    }
-
-    fn runtime_is_available(&self) -> bool {
-        self.runtime
-            .lock()
-            .ok()
-            .is_some_and(|runtime| runtime.is_some())
     }
 }
 

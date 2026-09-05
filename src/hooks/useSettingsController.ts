@@ -8,6 +8,7 @@ import {
   getSourceSettings,
   pickSourceRoot,
   type SourceSettings,
+  type SourcePlatform,
 } from "../lib/source-settings";
 import type { WidgetSettingsSnapshot } from "../lib/widget-settings";
 import {
@@ -107,13 +108,8 @@ export default function useSettingsController() {
     setSources(nextSources);
     if ("enabled" in changes) {
       sendPreview(theme, darkMode, visible, nextSources);
-      const source = normalizedSourceValues(nextSources)[provider];
-      persistence.saveSource({
-        provider,
-        enabled: source.enabled,
-        rootOverride: source.rootOverride,
-      });
     }
+    persistence.saveSource(normalizedSourceValues(nextSources)[provider]);
   };
 
   const closeSettings = async () => {
@@ -137,14 +133,35 @@ export default function useSettingsController() {
     updateSource(provider, { enabled });
   };
 
-  const chooseSourceRoot = async (provider: ProviderId) => {
+  const chooseSourceRoot = async (
+    provider: ProviderId,
+    platform: SourcePlatform,
+  ) => {
     setError(null);
     try {
-      const snapshot = await pickSourceRoot(provider);
+      const snapshot = await pickSourceRoot(provider, platform);
       if (snapshot) setSources(sourceValuesFromSnapshot(snapshot));
     } catch (openError) {
       setError(errorMessage(openError));
     }
+  };
+
+  const clearSourceRoot = (provider: ProviderId, platform: SourcePlatform) => {
+    updateSource(
+      provider,
+      platform === "windows" ? { windowsRoot: null } : { wslRoot: null },
+    );
+  };
+
+  const changeSourceRoot = (
+    provider: ProviderId,
+    platform: SourcePlatform,
+    root: string,
+  ) => {
+    updateSource(
+      provider,
+      platform === "windows" ? { windowsRoot: root } : { wslRoot: root },
+    );
   };
 
   const toggleDarkMode = (next: boolean) => {
@@ -171,6 +188,8 @@ export default function useSettingsController() {
     onThemeToggle: toggleTheme,
     onProviderVisibilityToggle: toggleProviderVisibility,
     onSourceRootChoose: chooseSourceRoot,
+    onSourceRootChange: changeSourceRoot,
+    onSourceRootClear: clearSourceRoot,
     onSourceToggle: toggleSource,
     sources,
     visible,

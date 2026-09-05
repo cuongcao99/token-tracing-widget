@@ -9,11 +9,14 @@ A supported coding-agent product that produces local session data, currently Cla
 _Avoid_: Agent, integration
 
 **Source**:
-The user-enabled local session data belonging to one Provider.
+The user-enabled local session data belonging to one Provider. A Source may be
+collected from the automatic or custom Windows root and one optional explicit
+WSL root at the same time.
 _Avoid_: Installation, feed
 
 **Source Root**:
-The configured boundary within which a Source may be discovered and read.
+One configured Windows or WSL boundary within which a Source may be discovered
+and read.
 _Avoid_: Scan path, home directory
 
 **Session**:
@@ -65,7 +68,7 @@ The sum of accepted Usage Events within the current Windows local calendar day a
 _Avoid_: Daily usage, last 24 hours
 
 **Source Health**:
-The current ability to collect a Provider's configured Source independently of other Providers.
+The current ability to collect a Provider's configured Source roots independently of other Providers.
 _Avoid_: App status, connection status
 
 **Usage Summary**:
@@ -93,7 +96,8 @@ Tauri bridge calls; plain CSS owns the visual system.
 - `src-tauri/src/providers/claude/` and `src-tauri/src/providers/codex/` keep
   provider-specific readers and parsers behind the shared adapter contract.
 - `src-tauri/src/sources/` handles bounded source-root discovery, source
-  configuration, session-file enumeration, and file watching.
+  configuration for Windows plus optional WSL roots, session-file enumeration,
+  and file watching.
 - `src-tauri/src/collection/` and `src-tauri/src/usage/` validate observations,
   convert cumulative counters to deltas, filter duplicates, calculate provider
   summaries, and select the Active Provider.
@@ -141,21 +145,22 @@ when a Provider is idle. Multiple sessions for one Provider can contribute to
 its Active current-session total. The widget presents each visible Provider's
 current-session and Today's totals plus one combined `Total`; it does not
 expose raw source data. Enabled provider roots are observed continuously while
-the app is open; activity is derived only from the newest valid token event and
-expires after 15 seconds without a newer event.
+the app is open, including one optional explicit WSL root per Provider; activity
+is derived only from the newest valid token event and expires after 15 seconds
+without a newer event.
 
 Settings currently control:
 
 - per-Provider widget visibility;
-- per-Provider Source collection enabled state and optional Source Root
-  override; and
+- per-Provider Source collection enabled state, automatic/custom Windows Root,
+  and optional explicit WSL Root; and
 - the shared Claude Theme and dark-mode preference.
 
 Settings edits are previewed immediately to the widget through typed preview
 events and auto-saved through the typed settings commands. Provider visibility,
-source collection, and dark mode changes persist immediately; source-root text
-persists after a short debounce and on blur. Closing waits for pending preview
-and persistence work and does not restore an older snapshot. The settings
+source collection, and both platform-specific source roots persist immediately.
+Closing waits for pending preview and persistence work and does not restore an
+older snapshot. The settings
 window has a close control, native drag support, native resize handles, a fixed
 header, and a separately scrolling content body with a stable scrollbar gutter.
 The widget and settings window share the six-dot drag affordance, native resize

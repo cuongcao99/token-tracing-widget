@@ -359,6 +359,75 @@ fn source_preferences_round_trip_and_remove_override() {
     );
 }
 
+#[cfg(windows)]
+#[test]
+fn source_preferences_round_trip_concurrent_windows_and_wsl_roots() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("index.sqlite");
+    let mut database = IndexStore::open(&path).unwrap();
+    let config = SourceConfig::try_new_with_roots(
+        Provider::Claude,
+        true,
+        Some(PathBuf::from(r"C:\Users\tester\.claude\projects")),
+        Some(PathBuf::from(
+            r"\\wsl.localhost\Ubuntu\home\tester\.claude\projects",
+        )),
+    )
+    .unwrap();
+
+    database.save_source_config(&config).unwrap();
+
+    assert_eq!(
+        database
+            .load_source_configs()
+            .unwrap()
+            .configs
+            .get(Provider::Claude),
+        &config
+    );
+
+    let connection = rusqlite::Connection::open(path).unwrap();
+    let legacy_count: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM settings WHERE setting_key = ?1",
+            ["source.claude.root_override"],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(legacy_count, 0);
+}
+
+#[cfg(windows)]
+#[test]
+fn legacy_wsl_root_loads_as_the_wsl_selection() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("index.sqlite");
+    let database = IndexStore::open(&path).unwrap();
+    drop(database);
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    connection
+        .execute(
+            "INSERT INTO settings(setting_key, setting_value) VALUES (?1, ?2)",
+            [
+                "source.claude.root_override",
+                r"\\wsl.localhost\Ubuntu\home\tester\.claude\projects",
+            ],
+        )
+        .unwrap();
+    drop(connection);
+
+    let loaded = IndexStore::open(&path)
+        .unwrap()
+        .load_source_configs()
+        .unwrap();
+    let config = loaded.configs.get(Provider::Claude);
+    assert!(config.windows_root_override().is_none());
+    assert_eq!(
+        config.wsl_root_override().unwrap(),
+        std::path::Path::new(r"\\wsl.localhost\Ubuntu\home\tester\.claude\projects")
+    );
+}
+
 #[test]
 fn malformed_source_setting_defaults_only_its_provider() {
     let directory = tempfile::tempdir().unwrap();

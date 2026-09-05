@@ -2,6 +2,7 @@ import useSettingsActivity from "../../hooks/useSettingsActivity";
 import ProviderVisibilitySection from "./ProviderVisibilitySection";
 import SourceSettingsSection from "./SourceSettingsSection";
 import type { ProviderId } from "../../lib/provider";
+import type { SourcePlatform } from "../../lib/source-settings";
 import type {
   SourceFormValues,
   VisibilityValues,
@@ -12,7 +13,9 @@ interface SettingsActivityPanelProps {
   onProviderVisibilityToggle: (provider: ProviderId, visible: boolean) => void;
   sources: SourceFormValues;
   onSourceToggle: (provider: ProviderId, enabled: boolean) => void;
-  onSourceRootChoose: (provider: ProviderId) => void | Promise<void>;
+  onSourceRootChoose: (provider: ProviderId, platform: SourcePlatform) => void | Promise<void>;
+  onSourceRootChange: (provider: ProviderId, platform: SourcePlatform, root: string) => void;
+  onSourceRootClear: (provider: ProviderId, platform: SourcePlatform) => void;
 }
 
 export default function SettingsActivityPanel({
@@ -21,6 +24,8 @@ export default function SettingsActivityPanel({
   sources,
   onSourceToggle,
   onSourceRootChoose,
+  onSourceRootChange,
+  onSourceRootClear,
 }: SettingsActivityPanelProps) {
   const { summary, providerStatuses } = useSettingsActivity();
 
@@ -36,6 +41,8 @@ export default function SettingsActivityPanel({
         health={summary.sourceHealth}
         onToggle={onSourceToggle}
         onChooseRoot={onSourceRootChoose}
+        onChangeRoot={onSourceRootChange}
+        onClearRoot={onSourceRootClear}
       />
     </>
   );

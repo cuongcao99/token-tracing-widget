@@ -74,6 +74,9 @@ where
 
     pub(super) fn process_due(&mut self, now: Instant) -> Option<CollectionReason> {
         let reason = self.scheduler.take_due(now)?;
+        if reason == CollectionReason::Reconciliation {
+            self.refresh_observers(now);
+        }
         match self.backend.collect() {
             Ok(report) => {
                 let has_pending_reads = report.has_pending_reads;
@@ -95,24 +98,26 @@ where
                     eprintln!("summary_event:emit");
                 }
             }
-            Err(_) => self.scheduler.record_failure(now),
+            Err(_) => {
+                let mut summary = self.state.summary();
+                if summary.state == UsageState::Loading {
+                    summary = UsageSummary::unavailable();
+                }
+                if self.publisher.publish(&summary).is_err() {
+                    eprintln!("summary_event:emit");
+                }
+                self.scheduler.record_failure(now);
+            }
         }
         Some(reason)
     }
 
     pub(super) fn refresh_observers(&mut self, now: Instant) {
         let roots = self.state.watch_roots();
-        let desired_providers = roots
-            .iter()
-            .map(|root| root.provider())
-            .collect::<BTreeSet<_>>();
-
         for provider in self.observed_providers.clone() {
-            if !desired_providers.contains(&provider) {
-                self.observer.stop_provider(provider);
-                self.observed_providers.remove(&provider);
-            }
+            self.observer.stop_provider(provider);
         }
+        self.observed_providers.clear();
         if self.observed_providers.is_empty() {
             self.scheduler.deactivate();
         }
@@ -169,7 +174,7 @@ pub(crate) struct LiveCollectionHandle {
 }
 
 impl LiveCollectionHandle {
-    pub(super) fn request_source_refresh(&self) -> bool {
+    pub(crate) fn request_source_refresh(&self) -> bool {
         let Ok(sender) = self.sender.lock() else {
             return false;
         };
