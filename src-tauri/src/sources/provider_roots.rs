@@ -4,7 +4,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::sources::source_config::{SourceConfig, SourcePlatform};
+use crate::sources::source_config::{is_wsl_path, SourceConfig, SourcePlatform};
 use crate::types::provider::Provider;
 use crate::utils::safe_paths;
 
@@ -257,7 +257,8 @@ fn resolve_explicit_root(
     path: &Path,
     configured_root: String,
 ) -> Result<ProviderRoot, RootError> {
-    let metadata = fs::symlink_metadata(path).map_err(map_io_error)?;
+    let metadata =
+        fs::symlink_metadata(path).map_err(|error| map_explicit_root_io_error(path, error))?;
     if !metadata.is_dir() {
         return Err(RootError::InvalidRoot);
     }
@@ -269,6 +270,32 @@ fn resolve_explicit_root(
         filesystem_path: path.to_path_buf(),
     })
 }
+
+fn map_explicit_root_io_error(path: &Path, error: std::io::Error) -> RootError {
+    if is_wsl_path(path) && is_wsl_endpoint_unavailable(&error) {
+        return RootError::NotDetected;
+    }
+
+    map_io_error(error)
+}
+
+fn is_wsl_endpoint_unavailable(error: &std::io::Error) -> bool {
+    if matches!(
+        error.kind(),
+        std::io::ErrorKind::InvalidFilename | std::io::ErrorKind::NotADirectory
+    ) {
+        return true;
+    }
+
+    #[cfg(windows)]
+    return error.raw_os_error() == Some(ERROR_NETNAME_DELETED);
+
+    #[cfg(not(windows))]
+    false
+}
+
+#[cfg(windows)]
+const ERROR_NETNAME_DELETED: i32 = 64;
 
 fn map_io_error(error: std::io::Error) -> RootError {
     match error.kind() {
@@ -286,5 +313,39 @@ fn map_path_error(error: safe_paths::SafePathError) -> RootError {
         | safe_paths::SafePathError::OutsideRoot => RootError::UnsafePath,
         safe_paths::SafePathError::NotDirectory => RootError::InvalidRoot,
         safe_paths::SafePathError::Io => RootError::Io,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn unavailable_wsl_endpoint_errors_are_not_detected() {
+        let path = Path::new(r"\\wsl.localhost\Ubuntu\home\tester\.codex");
+
+        for error in [
+            std::io::Error::new(std::io::ErrorKind::InvalidFilename, "invalid WSL endpoint"),
+            std::io::Error::new(std::io::ErrorKind::NotADirectory, "missing WSL endpoint"),
+            std::io::Error::from_raw_os_error(ERROR_NETNAME_DELETED),
+        ] {
+            assert_eq!(
+                map_explicit_root_io_error(path, error),
+                RootError::NotDetected,
+                "an unavailable WSL endpoint should be reported as not detected"
+            );
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn wsl_permission_errors_remain_permission_denied() {
+        let path = Path::new(r"\\wsl.localhost\Ubuntu\home\tester\.codex");
+
+        assert_eq!(
+            map_explicit_root_io_error(path, std::io::Error::from_raw_os_error(5)),
+            RootError::PermissionDenied
+        );
     }
 }
