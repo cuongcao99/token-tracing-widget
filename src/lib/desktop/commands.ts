@@ -12,6 +12,8 @@ export const PICK_SOURCE_ROOT_COMMAND = "pick_source_root";
 export const UPDATE_SOURCE_SETTINGS_COMMAND = "update_source_settings";
 export const GET_UPDATE_SETTINGS_COMMAND = "get_update_settings";
 export const SAVE_UPDATE_SETTINGS_COMMAND = "save_update_settings";
+export const CHECK_FOR_UPDATE_COMMAND = "check_for_update";
+export const INSTALL_UPDATE_COMMAND = "install_update";
 
 export function invokeUsageSummary(): Promise<unknown> {
   return invoke<unknown>(GET_USAGE_SUMMARY_COMMAND);
@@ -52,4 +54,12 @@ export function invokeSaveUpdateSettings(
   settings: UpdateSettingsSnapshot,
 ): Promise<unknown> {
   return invoke<unknown>(SAVE_UPDATE_SETTINGS_COMMAND, { settings });
+}
+
+export function invokeCheckForUpdate(): Promise<unknown> {
+  return invoke<unknown>(CHECK_FOR_UPDATE_COMMAND);
+}
+
+export function invokeInstallUpdate(): Promise<unknown> {
+  return invoke<unknown>(INSTALL_UPDATE_COMMAND);
 }

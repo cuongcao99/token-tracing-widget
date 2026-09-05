@@ -21,10 +21,13 @@ const {
   const controller = {
     closeSettings: vi.fn(() => closeWindow()),
     darkMode: true,
+    autoUpdate: false,
+    loadingUpdateSettings: false,
     theme: "claude" as const,
     error: null,
     loadingSources: false,
     onDarkModeToggle: vi.fn(),
+    onAutoUpdateToggle: vi.fn(),
     onThemeToggle: vi.fn(),
     onProviderVisibilityToggle: vi.fn(),
     onSourceRootChoose: vi.fn(),
@@ -111,6 +114,8 @@ describe("SettingsScreen structure", () => {
     expect(screen.queryByRole("button", { name: "Change Claude source" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Change Codex source" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Appearance" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Updates" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Automatic updates" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Agent tracing" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save changes" })).not.toBeInTheDocument();
     expect(screen.getByRole("banner").querySelector(`.${surfaceStyles.heading}`))

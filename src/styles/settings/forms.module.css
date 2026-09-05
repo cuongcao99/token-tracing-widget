@@ -135,6 +135,12 @@
   border-radius: var(--settings-path-focus-radius);
 }
 
+.sourceManageButton:disabled {
+  color: var(--color-muted);
+  cursor: default;
+  text-decoration: none;
+}
+
 .sourceDialogBackdrop {
   position: fixed;
   z-index: 10;
@@ -366,6 +372,10 @@
   color: var(--color-ink);
   font-size: var(--type-settings-label);
   font-weight: 500;
+}
+
+.updateRow {
+  align-items: center;
 }
 
 @media (max-width: 420px) {
