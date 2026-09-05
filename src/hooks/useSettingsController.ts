@@ -10,7 +10,9 @@ import {
   type SourceSettings,
   type SourcePlatform,
 } from "../lib/source-settings";
+import { getUpdateSettings } from "../lib/update-settings";
 import type { WidgetSettingsSnapshot } from "../lib/widget-settings";
+import type { UpdateSettingsSnapshot } from "../lib/update-settings";
 import {
   createWidgetSettingsPreview,
   errorMessage,
@@ -30,6 +32,8 @@ export default function useSettingsController() {
   const [darkMode, setDarkMode] = useState(widget.settings.darkMode);
   const [theme, setTheme] = useState<ThemeId>(widget.settings.theme);
   const [loadingSources, setLoadingSources] = useState(true);
+  const [autoUpdate, setAutoUpdate] = useState(false);
+  const [loadingUpdateSettings, setLoadingUpdateSettings] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const persistence = useSettingsPersistence((message) => setError(message));
 
@@ -46,6 +50,24 @@ export default function useSettingsController() {
         if (mounted) setError(errorMessage(loadError));
       } finally {
         if (mounted) setLoadingSources(false);
+      }
+    };
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const snapshot = await getUpdateSettings();
+        if (mounted) setAutoUpdate(snapshot.autoUpdate);
+      } catch (loadError) {
+        if (mounted) setError(errorMessage(loadError));
+      } finally {
+        if (mounted) setLoadingUpdateSettings(false);
       }
     };
     void load();
@@ -178,13 +200,23 @@ export default function useSettingsController() {
     saveWidget(next, darkMode, visible);
   };
 
+  const toggleAutoUpdate = (next: boolean) => {
+    setError(null);
+    setAutoUpdate(next);
+    const settings: UpdateSettingsSnapshot = { autoUpdate: next };
+    persistence.saveUpdate(settings);
+  };
+
   return {
     closeSettings,
     darkMode,
+    autoUpdate,
+    loadingUpdateSettings,
     theme,
     error,
     loadingSources,
     onDarkModeToggle: toggleDarkMode,
+    onAutoUpdateToggle: toggleAutoUpdate,
     onThemeToggle: toggleTheme,
     onProviderVisibilityToggle: toggleProviderVisibility,
     onSourceRootChoose: chooseSourceRoot,

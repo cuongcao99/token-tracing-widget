@@ -1,6 +1,7 @@
 import AppearanceSection from "./AppearanceSection";
 import SettingsActivityPanel from "./SettingsActivityPanel";
 import SettingsCloseButton from "./SettingsCloseButton";
+import UpdatesSection from "./UpdatesSection";
 import WindowGrip from "../shared/WindowGrip";
 import WindowResizeHandles from "../shared/WindowResizeHandles";
 import useSettingsController from "../../hooks/useSettingsController";
@@ -11,7 +12,10 @@ export default function SettingsScreen() {
   const {
     closeSettings,
     darkMode,
+    autoUpdate,
+    loadingUpdateSettings,
     onThemeToggle,
+    onAutoUpdateToggle,
     error,
     loadingSources,
     onDarkModeToggle,
@@ -76,6 +80,11 @@ export default function SettingsScreen() {
               onThemeChange={onThemeToggle}
               darkMode={darkMode}
               onToggle={onDarkModeToggle}
+            />
+            <UpdatesSection
+              autoUpdate={autoUpdate}
+              loadingSettings={loadingUpdateSettings}
+              onAutoUpdateToggle={onAutoUpdateToggle}
             />
           </div>
         )}

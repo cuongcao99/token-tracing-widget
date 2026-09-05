@@ -28,8 +28,9 @@ usage, today's usage, rate limits when available, and the latest update time.
   contents, and raw provider records never enter the normalized data path.
 - ⚙️ The app uses one Tauri executable with a Rust native core and a React/
   TypeScript webview.
-- 🌱 No cloud sync, telemetry, remote API, sidecar, or provider configuration
-  changes are required.
+- 🌱 No cloud sync, telemetry, general remote API, sidecar, or provider
+  configuration changes are required. Optional application updates use a
+  signed GitHub Releases endpoint and send no usage or provider data.
 
 ## ✦ Documentation
 
@@ -90,6 +91,11 @@ npm test -- --run
 The release installer is written to
 `src-tauri/target/release/bundle/nsis/`. The complete pre-merge verification
 matrix is documented in [`AGENTS.md`](AGENTS.md).
+
+Production releases publish signed updater metadata. Automatic updates are
+opt-in from Settings and require each release to use a higher application
+SemVer. The updater signing private key belongs in GitHub Actions Secrets and
+must never be committed.
 
 ## ✦ Release notes
 

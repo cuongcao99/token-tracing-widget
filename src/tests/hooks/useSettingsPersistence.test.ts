@@ -12,11 +12,13 @@ const mocks = vi.hoisted(() => ({
   emitPreview: vi.fn(),
   updateWidgetSettings: vi.fn(),
   updateSourceSettings: vi.fn(),
+  saveUpdateSettings: vi.fn(),
 }));
 
 vi.mock("../../lib/widget-settings-preview", () => ({ emitWidgetSettingsPreview: mocks.emitPreview }));
 vi.mock("../../lib/widget-settings", () => ({ updateWidgetSettings: mocks.updateWidgetSettings }));
 vi.mock("../../lib/source-settings", () => ({ updateSourceSettings: mocks.updateSourceSettings }));
+vi.mock("../../lib/update-settings", () => ({ saveUpdateSettings: mocks.saveUpdateSettings }));
 
 const widgetSnapshot: WidgetSettingsSnapshot = {
   darkMode: true,
@@ -44,6 +46,7 @@ const preview: WidgetSettingsPreview = {
     { provider: "codex", enabled: false },
   ],
 };
+const updateSettings = { autoUpdate: true };
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -64,6 +67,7 @@ beforeEach(() => {
   mocks.emitPreview.mockResolvedValue(undefined);
   mocks.updateWidgetSettings.mockResolvedValue(widgetSnapshot);
   mocks.updateSourceSettings.mockResolvedValue({ sources: [] });
+  mocks.saveUpdateSettings.mockResolvedValue(updateSettings);
 });
 
 afterEach(() => {
@@ -127,6 +131,23 @@ describe("useSettingsPersistence", () => {
     act(() => result.current.saveSource(sourceSettings));
     await result.current.flush();
     await waitFor(() => expect(onError).toHaveBeenCalledWith("Could not save settings."));
+  });
+
+  it("serializes automatic-update preference with the other settings writes", async () => {
+    const first = deferred<WidgetSettingsSnapshot>();
+    mocks.updateWidgetSettings.mockReturnValueOnce(first.promise);
+    const { result } = renderPersistence();
+
+    act(() => {
+      result.current.saveWidget(widgetSnapshot);
+      result.current.saveUpdate(updateSettings);
+    });
+    await waitFor(() => expect(mocks.updateWidgetSettings).toHaveBeenCalledTimes(1));
+    expect(mocks.saveUpdateSettings).not.toHaveBeenCalled();
+
+    first.resolve(widgetSnapshot);
+    await waitFor(() => expect(mocks.saveUpdateSettings).toHaveBeenCalledWith(updateSettings));
+    await result.current.flush();
   });
 
   it("continues the FIFO queue after a failed write", async () => {

@@ -8,10 +8,12 @@ use crate::sources::source_config::{
 };
 use crate::types::provider::Provider;
 use crate::types::theme::Theme;
+use crate::types::update_settings::UpdateSettingsSnapshot;
 use crate::types::widget_settings::WidgetSettingsSnapshot;
 
 const WIDGET_DARK_MODE_KEY: &str = "widget.dark_mode";
 const WIDGET_THEME_KEY: &str = "widget.theme";
+const UPDATE_AUTO_UPDATE_KEY: &str = "update.auto_update";
 
 fn key(provider: Provider, field: &str) -> String {
     format!("source.{}.{}", provider.as_str(), field)
@@ -190,6 +192,25 @@ pub(crate) fn save_widget_settings(
         )?;
     }
     Ok(())
+}
+
+pub(crate) fn load_update_settings(
+    connection: &Connection,
+) -> rusqlite::Result<UpdateSettingsSnapshot> {
+    Ok(UpdateSettingsSnapshot {
+        auto_update: load_bool_value(connection, UPDATE_AUTO_UPDATE_KEY, false)?,
+    })
+}
+
+pub(crate) fn save_update_settings(
+    transaction: &Transaction<'_>,
+    settings: &UpdateSettingsSnapshot,
+) -> rusqlite::Result<()> {
+    save_value(
+        transaction,
+        UPDATE_AUTO_UPDATE_KEY,
+        if settings.auto_update { "1" } else { "0" },
+    )
 }
 
 fn widget_visible_key(provider: Provider) -> String {

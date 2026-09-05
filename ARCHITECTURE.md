@@ -57,8 +57,9 @@ collection path; discovery and reading then happen inside Rust.
 | Usage calculation | `src-tauri/src/usage/` | Cumulative-to-delta conversion, duplicate identity rules, provider/session/day aggregation, and active-provider selection |
 | Storage | `src-tauri/src/database/` | SQLite schema, normalized events, sessions, checkpoints, source health, settings, rate limits, and sanitized diagnostics |
 | Tauri boundary | `src-tauri/src/commands/` and `src-tauri/src/types/` | Command handlers, event names, serialization contracts, and frontend-facing summaries |
+| Application updates | `src-tauri/src/app/updates.rs` and `src-tauri/src/commands/updates.rs` | Rust-owned signed update checks/install operations and sanitized update metadata |
 | Widget UI | `src/components/widget/`, `src/hooks/`, `src/lib/`, `src/styles/` | Summary subscription, view-model derivation, loading/active/error states, layout, animation, and rendering |
-| Settings UI | `src/components/settings/`, `src/settings-main.tsx` | Source and widget preferences through the typed settings commands and preview events |
+| Settings UI | `src/components/settings/`, `src/settings-main.tsx` | Source, widget, and update preferences through typed settings/update commands and preview events |
 | Tests | `src/tests/` and `src-tauri/tests/` | Frontend behavior/contracts and Rust unit, integration, storage, provider, and privacy-boundary coverage |
 
 Each area should expose the smallest seam needed by its consumer. Filesystem,
@@ -71,28 +72,30 @@ receives typed summaries and settings payloads only.
    Windows profile and local database path.
 2. Setup starts the live collection worker and returns without running a
    recursive source scan on the native startup path.
-3. The worker refreshes observers for enabled provider roots and schedules the
+3. If automatic updates are enabled, setup schedules one non-blocking signed
+   update check/install operation. This path does not block the live worker.
+4. The worker refreshes observers for enabled provider roots and schedules the
    initial collection. File changes are coalesced by the live scheduler, with
    reconciliation and retry behavior kept in the same worker.
-4. `AppState` resolves source configuration. The runtime discovers the
+5. `AppState` resolves source configuration. The runtime discovers the
    provider session directories beneath the configured roots and selects the
    registered adapter for each provider.
-5. An adapter reads bounded record data from its provider files starting at a
+6. An adapter reads bounded record data from its provider files starting at a
    persisted checkpoint. It emits `ProviderReadResult` values containing
    normalized observations, positions, and provider-specific metadata such as
    rate limits.
-6. The collection core validates observations, converts cumulative counters
+7. The collection core validates observations, converts cumulative counters
    to deltas, filters duplicates, updates session metadata, and composes a
    `CollectionBatch`.
-7. `IndexStore::apply_batch` commits events, sessions, rate limits, source
+8. `IndexStore::apply_batch` commits events, sessions, rate limits, source
    health, diagnostics, and checkpoints in one SQLite transaction.
-8. The coordinator queries committed rows and computes provider, session, and
+9. The coordinator queries committed rows and computes provider, session, and
    current-day totals. The active provider is derived from the newest valid
    token event.
-9. The typed `UsageSummary` is published through the
+10. The typed `UsageSummary` is published through the
    `usage-summary-changed` event. The `get_usage_summary` command remains the
    initial read path and fallback when event setup is unavailable.
-10. React validates the wire payload, maps it into a widget view model, and
+11. React validates the wire payload, maps it into a widget view model, and
     renders the widget without polling SQLite or provider files.
 
 ## Boundaries and invariants
@@ -111,6 +114,11 @@ or the React layer:
 Configured source-root overrides are the deliberate exception in settings
 flows because the user needs to review and replace them. They are not part of
 the usage summary sent to the widget.
+
+The updater is a separate deliberate exception: Rust may contact only the
+configured HTTPS signed-release endpoint and may return only safe version
+metadata. Provider data, source paths, credentials, usage events, and raw
+network or installer content remain outside the updater boundary.
 
 ### Provider seam
 
@@ -137,8 +145,10 @@ desktop bridge modules and remain the only native communication path.
 
 Settings changes preview immediately through typed events and then persist
 through typed commands. Source configuration updates refresh the live observer
-after persistence. Widget visibility, source health, and presentation state
-remain separate from token accounting.
+after persistence. Update preferences persist through the same serialized
+settings queue; update checks and installation use separate typed commands.
+Widget visibility, source health, presentation state, and update state remain
+separate from token accounting.
 
 ## Extension points
 
