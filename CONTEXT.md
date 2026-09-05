@@ -103,9 +103,9 @@ Tauri bridge calls; plain CSS owns the visual system.
   summaries, and select the Active Provider.
 - `src-tauri/src/database/` persists normalized usage events, sessions,
   checkpoints, source configuration, and widget settings in SQLite.
-- `src-tauri/src/commands/` exposes typed usage-summary, source-settings, and
-  widget-settings commands. `src-tauri/src/types/` defines the contracts
-  crossing the Rust/React boundary.
+- `src-tauri/src/commands/` exposes typed usage-summary, source-settings,
+  widget-settings, and application-update commands. `src-tauri/src/types/`
+  defines the contracts crossing the Rust/React boundary.
 
 The privacy-preserving flow is:
 
@@ -120,15 +120,16 @@ Raw provider records and conversational content stay inside the Rust boundary.
 - `src/components/widget/` contains the widget header, provider usage rows,
   total, and composition.
 - `src/components/settings/` contains provider visibility, source settings,
-  appearance, close control, switches, and the settings composition. Pure
-  snapshot transforms live in `settings-model.ts`; async orchestration lives
-  in `src/hooks/useSettingsController.ts`.
+  appearance, application updates, close control, switches, and the settings
+  composition. Pure snapshot transforms live in `settings-model.ts`; async
+  orchestration lives in `src/hooks/useSettingsController.ts`.
 - `src/components/shared/` contains the provider dot, six-dot WindowGrip, and
   native WindowResizeHandles shared by both windows.
-- `src/hooks/` owns usage-summary and widget-settings subscriptions. `src/lib/`
-  owns typed bridge validation, settings preview events, provider/source
-  transforms, layout sizing, and window actions. `src/styles/` contains base,
-  token, widget, settings, window-control, and shared layout styles.
+- `src/hooks/` owns usage-summary, widget-settings, and update-settings
+  orchestration. `src/lib/` owns typed bridge validation, settings preview
+  events, provider/source transforms, update commands, layout sizing, and
+  window actions. `src/styles/` contains base, token, widget, settings,
+  window-control, and shared layout styles.
 - `src/tests/` mirrors the frontend responsibility folders. Rust integration
   and contract tests remain under `src-tauri/tests/`.
 
@@ -202,8 +203,10 @@ The maintained visual references are:
 The dated specs under `docs/superpowers/specs/` record approved departures and
 refinements; they remain authoritative for behavior changes. The current
 frontend uses React 19, TypeScript, Vite, Vitest, and plain CSS. No frontend
-state library, CSS framework, font package, network client, telemetry,
-sidecar, background service, or ORM is part of the approved implementation.
+state library, CSS framework, font package, general-purpose network client,
+telemetry, sidecar, background service, or ORM is part of the approved
+implementation. The Rust updater is the sole fixed-network exception and may
+contact only the configured signed GitHub Releases endpoint.
 
 ## Verification snapshot
 
@@ -228,6 +231,9 @@ as a substitute for that check.
   through one atomic transaction.
 - Auto-save retry feedback is inline; a future slice may add a more explicit
   persistence status history without changing the immediate-save contract.
+- Application updates are opt-in. Automatic updates perform one signed check
+  at startup and install a newer version when available; production releases
+  must publish stable SemVer updater metadata.
 - Historical Windows local-day calculations need a DST-focused follow-up.
 - `.impeccable/` contains generated review artifacts and browser profiles. Only
   intentionally shared `config.json` files under that directory are eligible
