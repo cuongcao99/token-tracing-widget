@@ -35,6 +35,18 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "icon": ["icons/icon.ico"]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ1QkU2RDI3NEY4NUZENzgK\nUldSNC9ZVlBKMjIrMVVFSkRxZ3dPa0k3UnowNlJDK3RNMWlFZlR4TkJoOUZmMjg5R1pvQy9ZSkgK",
+      "endpoints": [
+        "https://github.com/cuongcao99/token-tracing-widget/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

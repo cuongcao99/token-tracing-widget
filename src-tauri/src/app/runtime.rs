@@ -23,6 +23,8 @@ use crate::types::update_settings::UpdateSettingsSnapshot;
 use crate::types::usage_summary::UsageSummary;
 use crate::types::widget_settings::WidgetSettingsSnapshot;
 
+use super::updates::{UpdateOperationGuard, UpdateOperationState};
+
 pub const DEFAULT_DISCOVERY_LIMITS: DiscoveryLimits = DiscoveryLimits::without_file_count(u64::MAX);
 
 struct Runtime {
@@ -38,6 +40,7 @@ pub struct AppState {
     profile_root: Option<PathBuf>,
     source_configs: Arc<Mutex<SourceConfigSet>>,
     update_settings: Arc<Mutex<Option<UpdateSettingsSnapshot>>>,
+    update_operation: UpdateOperationState,
     widget_settings: Arc<Mutex<Option<WidgetSettingsSnapshot>>>,
     base_summary: Arc<Mutex<UsageSummary>>,
     fallback_summary: UsageSummary,
@@ -192,6 +195,7 @@ impl AppState {
             profile_root: Some(profile_root),
             source_configs: Arc::new(Mutex::new(loaded.configs)),
             update_settings: Arc::new(Mutex::new(Some(update_settings))),
+            update_operation: UpdateOperationState::default(),
             widget_settings: Arc::new(Mutex::new(Some(widget_settings))),
             base_summary: Arc::new(Mutex::new(UsageSummary::loading())),
             fallback_summary: UsageSummary::unavailable(),
@@ -204,6 +208,7 @@ impl AppState {
             profile_root: None,
             source_configs: Arc::new(Mutex::new(SourceConfigSet::defaults())),
             update_settings: Arc::new(Mutex::new(None)),
+            update_operation: UpdateOperationState::default(),
             widget_settings: Arc::new(Mutex::new(None)),
             base_summary: Arc::new(Mutex::new(UsageSummary::unavailable())),
             fallback_summary: UsageSummary::unavailable(),
@@ -317,6 +322,10 @@ impl AppState {
             .map_err(|_| RuntimeError::StatePoisoned)?
             .clone()
             .ok_or(RuntimeError::Unavailable)
+    }
+
+    pub(crate) fn try_begin_update(&self) -> Option<UpdateOperationGuard> {
+        self.update_operation.try_acquire()
     }
 
     pub fn update_widget_settings(
