@@ -46,9 +46,10 @@ elsewhere.
   explicitly configured WSL root; all enabled roots are observed by the native
   file observer while the app is open. Active expires after 15 seconds without
   a newer valid token event.
-- The runtime uses Tauri commands and events, plain CSS, SQLite, and no network
-  client, telemetry, sidecar, background service, frontend state library, CSS
-  framework, ORM, or WSL auto-discovery.
+- The runtime uses Tauri commands and events, plain CSS, SQLite, and no general
+  network client, telemetry, sidecar, background service, frontend state
+  library, CSS framework, ORM, or WSL auto-discovery. An opt-in Rust-owned
+  updater may contact only the fixed signed GitHub Releases endpoint.
 - The overlay remains approximately 320 by 120 logical pixels, frameless,
   transparent, taskbar-hidden, and draggable from its non-interactive header.
 - The approved placement update changes the overlay from always-on-top to a

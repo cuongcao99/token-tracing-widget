@@ -78,12 +78,16 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: v__VERSION__-build.${{ github.run_number }}
           releaseName: Token Tracing Widget v__VERSION__ build ${{ github.run_number }}
           releaseBody: |
             Automated Windows build for `${{ github.sha }}`.
-            This prerelease was created from a push to `main`.
+            Stable release created from a push to `main`.
           releaseDraft: false
-          prerelease: true
+          prerelease: false
           generateReleaseNotes: true
+          uploadUpdaterJson: true
+          uploadUpdaterSignatures: true

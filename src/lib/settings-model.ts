@@ -86,6 +86,18 @@ export function errorMessage(error: unknown): string {
   if (code === "source_root_unavailable") {
     return NATIVE_SETTINGS_COPY.sourceRootUnavailable;
   }
+  if (code === "update_check_failed" || code === "invalid_update_check") {
+    return NATIVE_SETTINGS_COPY.updateCheckFailed;
+  }
+  if (code === "update_install_failed") {
+    return NATIVE_SETTINGS_COPY.updateInstallFailed;
+  }
+  if (code === "update_unavailable") {
+    return NATIVE_SETTINGS_COPY.updateUnavailable;
+  }
+  if (code === "update_busy") {
+    return NATIVE_SETTINGS_COPY.updateBusy;
+  }
   if (code === "invalid_source_settings" || code === "invalid_widget_settings") {
     return NATIVE_SETTINGS_COPY.invalidSettings;
   }

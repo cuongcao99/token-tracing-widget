@@ -147,6 +147,10 @@
   margin-top: var(--settings-appearance-gap);
 }
 
+.updatesSection {
+  margin-top: var(--settings-appearance-gap);
+}
+
 .sectionHeading {
   display: flex;
   align-items: baseline;

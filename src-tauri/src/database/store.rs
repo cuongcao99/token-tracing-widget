@@ -6,6 +6,7 @@ use rusqlite::Connection;
 
 use crate::collection::{CollectionBatch, CollectionStore, CollectionStoreError};
 use crate::types::file_checkpoint::FileCheckpoint;
+use crate::types::update_settings::UpdateSettingsSnapshot;
 use crate::types::widget_settings::WidgetSettingsSnapshot;
 use crate::usage::summary::SummaryRows;
 
@@ -57,6 +58,10 @@ impl IndexStore {
         settings::load_widget_settings(&self.connection).map_err(|_| StorageError::Read)
     }
 
+    pub fn load_update_settings(&self) -> Result<UpdateSettingsSnapshot, StorageError> {
+        settings::load_update_settings(&self.connection).map_err(|_| StorageError::Read)
+    }
+
     pub fn save_source_config(&mut self, config: &SourceConfig) -> Result<(), StorageError> {
         if [config.windows_root_override(), config.wsl_root_override()]
             .into_iter()
@@ -83,6 +88,19 @@ impl IndexStore {
             .transaction()
             .map_err(|_| StorageError::Write)?;
         settings::save_widget_settings(&transaction, widget_settings)
+            .map_err(|_| StorageError::Write)?;
+        transaction.commit().map_err(|_| StorageError::Write)
+    }
+
+    pub fn save_update_settings(
+        &mut self,
+        update_settings: &UpdateSettingsSnapshot,
+    ) -> Result<(), StorageError> {
+        let transaction = self
+            .connection
+            .transaction()
+            .map_err(|_| StorageError::Write)?;
+        settings::save_update_settings(&transaction, update_settings)
             .map_err(|_| StorageError::Write)?;
         transaction.commit().map_err(|_| StorageError::Write)
     }

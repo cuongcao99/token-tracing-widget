@@ -11,12 +11,17 @@ import {
   updateSourceSettings,
   type SourceSettings,
 } from "../lib/source-settings";
+import {
+  saveUpdateSettings,
+  type UpdateSettingsSnapshot,
+} from "../lib/update-settings";
 import { errorMessage } from "../components/settings/settings-model";
 
 export interface UseSettingsPersistenceResult {
   sendPreview(preview: WidgetSettingsPreview): void;
   saveWidget(snapshot: WidgetSettingsSnapshot): void;
   saveSource(settings: SourceSettings): void;
+  saveUpdate(settings: UpdateSettingsSnapshot): void;
   flush(): Promise<void>;
 }
 
@@ -87,12 +92,16 @@ export function useSettingsPersistence(
     enqueuePersistence(() => updateSourceSettings(settings));
   };
 
+  const saveUpdate = (settings: UpdateSettingsSnapshot) => {
+    enqueuePersistence(() => saveUpdateSettings(settings));
+  };
+
   const flush = async () => {
     await pendingPreview.current;
     await pendingPersistence.current;
   };
 
-  return { sendPreview, saveWidget, saveSource, flush };
+  return { sendPreview, saveWidget, saveSource, saveUpdate, flush };
 }
 
 export default useSettingsPersistence;

@@ -15,9 +15,11 @@ const mocks = vi.hoisted(() => {
     useWidgetSettings: vi.fn(),
     emitPreview: vi.fn(),
     getSourceSettings: vi.fn(),
+    getUpdateSettings: vi.fn(),
     pickSourceRoot: vi.fn(),
     updateSourceSettings: vi.fn(),
     updateWidgetSettings: vi.fn(),
+    saveUpdateSettings: vi.fn(),
     getUsageSummary: vi.fn(),
     listenForUsageSummary: vi.fn(),
     getCurrentWindow: vi.fn(() => ({ startDragging, startResizeDragging, close: closeWindow })),
@@ -33,6 +35,10 @@ vi.mock("../../../lib/source-settings", () => ({
   getSourceSettings: mocks.getSourceSettings,
   pickSourceRoot: mocks.pickSourceRoot,
   updateSourceSettings: mocks.updateSourceSettings,
+}));
+vi.mock("../../../lib/update-settings", () => ({
+  getUpdateSettings: mocks.getUpdateSettings,
+  saveUpdateSettings: mocks.saveUpdateSettings,
 }));
 vi.mock("../../../lib/widget-settings", () => ({ updateWidgetSettings: mocks.updateWidgetSettings }));
 vi.mock("../../../lib/usage-summary", async () => ({
@@ -81,9 +87,11 @@ function deferred<T>() {
 
 beforeEach(() => {
   mocks.getSourceSettings.mockResolvedValue(sourceSnapshot);
+  mocks.getUpdateSettings.mockResolvedValue({ autoUpdate: false });
   mocks.pickSourceRoot.mockResolvedValue(null);
   mocks.updateSourceSettings.mockResolvedValue(sourceSnapshot);
   mocks.updateWidgetSettings.mockResolvedValue(widgetSettings);
+  mocks.saveUpdateSettings.mockResolvedValue({ autoUpdate: true });
   mocks.emitPreview.mockResolvedValue(undefined);
   mocks.getUsageSummary.mockResolvedValue(summary);
   mocks.listenForUsageSummary.mockResolvedValue(vi.fn());
@@ -137,6 +145,20 @@ describe("SettingsScreen behavior", () => {
       theme: "claude",
       darkMode: true,
       visibleProviders: widgetSettings.visibleProviders,
+    }));
+  });
+
+  it("persists the automatic-update preference without a submit action", async () => {
+    render(<SettingsScreen />);
+    await screen.findByRole("heading", { name: "Settings" });
+    const toggle = screen.getByRole("switch", { name: "Automatic updates" });
+    await waitFor(() => expect(toggle).not.toBeDisabled());
+
+    fireEvent.click(toggle);
+
+    expect(toggle).toBeChecked();
+    await waitFor(() => expect(mocks.saveUpdateSettings).toHaveBeenCalledWith({
+      autoUpdate: true,
     }));
   });
 
