@@ -10,4 +10,5 @@ pub mod theme;
 pub mod token_observation;
 pub mod usage_event;
 pub mod usage_summary;
+pub mod update_settings;
 pub mod widget_settings;

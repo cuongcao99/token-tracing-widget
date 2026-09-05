@@ -19,6 +19,7 @@ use crate::sources::provider_roots::{
 use crate::sources::session_files::{discover_configured_sources, DiscoveryLimits};
 use crate::sources::source_config::{SourceConfig, SourceConfigSet, SourcePlatform};
 use crate::types::provider::Provider;
+use crate::types::update_settings::UpdateSettingsSnapshot;
 use crate::types::usage_summary::UsageSummary;
 use crate::types::widget_settings::WidgetSettingsSnapshot;
 
@@ -36,6 +37,7 @@ pub struct AppState {
     runtime: Arc<Mutex<Option<Runtime>>>,
     profile_root: Option<PathBuf>,
     source_configs: Arc<Mutex<SourceConfigSet>>,
+    update_settings: Arc<Mutex<Option<UpdateSettingsSnapshot>>>,
     widget_settings: Arc<Mutex<Option<WidgetSettingsSnapshot>>>,
     base_summary: Arc<Mutex<UsageSummary>>,
     fallback_summary: UsageSummary,
@@ -142,6 +144,16 @@ impl Runtime {
             .save_widget_settings(&settings)
             .map_err(RuntimeError::Settings)
     }
+
+    fn save_update_settings(
+        &mut self,
+        settings: &UpdateSettingsSnapshot,
+    ) -> Result<(), RuntimeError> {
+        self.coordinator
+            .store_mut()
+            .save_update_settings(settings)
+            .map_err(RuntimeError::Settings)
+    }
 }
 
 impl AppState {
@@ -166,6 +178,9 @@ impl AppState {
         let widget_settings = store
             .load_widget_settings()
             .map_err(|_| RuntimeInitError::SettingsRead)?;
+        let update_settings = store
+            .load_update_settings()
+            .map_err(|_| RuntimeInitError::SettingsRead)?;
 
         Ok(Self {
             runtime: Arc::new(Mutex::new(Some(Runtime {
@@ -176,6 +191,7 @@ impl AppState {
             }))),
             profile_root: Some(profile_root),
             source_configs: Arc::new(Mutex::new(loaded.configs)),
+            update_settings: Arc::new(Mutex::new(Some(update_settings))),
             widget_settings: Arc::new(Mutex::new(Some(widget_settings))),
             base_summary: Arc::new(Mutex::new(UsageSummary::loading())),
             fallback_summary: UsageSummary::unavailable(),
@@ -187,6 +203,7 @@ impl AppState {
             runtime: Arc::new(Mutex::new(None)),
             profile_root: None,
             source_configs: Arc::new(Mutex::new(SourceConfigSet::defaults())),
+            update_settings: Arc::new(Mutex::new(None)),
             widget_settings: Arc::new(Mutex::new(None)),
             base_summary: Arc::new(Mutex::new(UsageSummary::unavailable())),
             fallback_summary: UsageSummary::unavailable(),
@@ -294,6 +311,14 @@ impl AppState {
             .ok_or(RuntimeError::Unavailable)
     }
 
+    pub fn update_settings(&self) -> Result<UpdateSettingsSnapshot, RuntimeError> {
+        self.update_settings
+            .lock()
+            .map_err(|_| RuntimeError::StatePoisoned)?
+            .clone()
+            .ok_or(RuntimeError::Unavailable)
+    }
+
     pub fn update_widget_settings(
         &self,
         settings: WidgetSettingsSnapshot,
@@ -307,6 +332,25 @@ impl AppState {
             .ok_or(RuntimeError::Unavailable)?
             .update_widget_settings(settings.clone())?;
         self.widget_settings
+            .lock()
+            .map_err(|_| RuntimeError::StatePoisoned)?
+            .replace(settings);
+        Ok(())
+    }
+
+    pub fn save_update_settings(
+        &self,
+        settings: UpdateSettingsSnapshot,
+    ) -> Result<(), RuntimeError> {
+        let mut runtime = self
+            .runtime
+            .lock()
+            .map_err(|_| RuntimeError::StatePoisoned)?;
+        runtime
+            .as_mut()
+            .ok_or(RuntimeError::Unavailable)?
+            .save_update_settings(&settings)?;
+        self.update_settings
             .lock()
             .map_err(|_| RuntimeError::StatePoisoned)?
             .replace(settings);

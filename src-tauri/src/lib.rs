@@ -52,6 +52,8 @@ pub fn run() {
             commands::source_settings::pick_source_root,
             commands::source_settings::update_source_settings,
             commands::usage_summary::get_usage_summary,
+            commands::update_settings::get_update_settings,
+            commands::update_settings::save_update_settings,
             commands::widget_settings::get_widget_settings,
             commands::widget_settings::update_widget_settings
         ])
